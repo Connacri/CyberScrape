@@ -1,0 +1,6 @@
+{
+  "name": "CYBER-VACUUM // AI E-Commerce Scraper & Matrix Data Engine",
+  "description": "Scraper e-commerce haute performance cyberpunk propulsé par IA avec aspiration matricielle en temps réel, monitoring des tendances de prix et synchronisation Supabase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
