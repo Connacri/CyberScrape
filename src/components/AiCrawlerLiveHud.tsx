@@ -4,10 +4,17 @@ import { Terminal, Eye, MousePointer, Shield, Radio, Activity } from 'lucide-rea
 
 interface AiCrawlerLiveHudProps {
   job: ScrapeJob;
+  scrapeVolume?: number;
+  totalProductsCount?: number;
   onClearLogs?: () => void;
 }
 
-export const AiCrawlerLiveHud: React.FC<AiCrawlerLiveHudProps> = ({ job, onClearLogs }) => {
+export const AiCrawlerLiveHud: React.FC<AiCrawlerLiveHudProps> = ({
+  job,
+  scrapeVolume = 0,
+  totalProductsCount,
+  onClearLogs,
+}) => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const [activeBoxIndex, setActiveBoxIndex] = useState(0);
 
@@ -45,7 +52,17 @@ export const AiCrawlerLiveHud: React.FC<AiCrawlerLiveHudProps> = ({ job, onClear
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-[11px] text-slate-400">
+        <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
+          {scrapeVolume === 0 ? (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_8px_rgba(0,255,102,0.3)] animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88]" />
+              MODE ILLIMITÉ
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex items-center gap-1 text-slate-300 font-mono">
+              CIBLE: {scrapeVolume}
+            </span>
+          )}
           <span className="hidden sm:inline-flex items-center gap-1 text-emerald-400">
             <Shield className="w-3 h-3" /> STEALTH_MODE: ACTIVE
           </span>
@@ -63,9 +80,16 @@ export const AiCrawlerLiveHud: React.FC<AiCrawlerLiveHudProps> = ({ job, onClear
               <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
               RENDERING EN TEMPS RÉEL (1920x1080)
             </span>
-            <span className="text-emerald-400 font-bold">
-              SCROLL Y: {job.crawlerState.scrollY || (isCrawling ? Math.floor(job.progress * 48) : 0)}px
-            </span>
+            <div className="flex items-center gap-2.5">
+              {scrapeVolume === 0 && (
+                <span className="text-[10px] text-[#00ff88] font-mono font-bold bg-black/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                  Mode Illimité {totalProductsCount !== undefined ? `(${totalProductsCount.toLocaleString()} récoltés)` : ''}
+                </span>
+              )}
+              <span className="text-emerald-400 font-bold">
+                SCROLL Y: {job.crawlerState.scrollY || (isCrawling ? Math.floor(job.progress * 48) : 0)}px
+              </span>
+            </div>
           </div>
 
           {/* Browser Frame Simulation */}

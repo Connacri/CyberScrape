@@ -2217,13 +2217,32 @@ export default function App() {
 
           {/* Quick Telemetry Bar under input */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-900">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              Moteur actif : <strong className="text-[#00ff66]">{engineMode === 'direct' ? '⚡ DIRECT SANS IA (0 Quota, 0 Latence)' : '🧠 HYBRIDE IA (Gemini 3.8 Flash)'}</strong>
-            </span>
-            <span className="text-cyan-400">
-              Devise cible : <strong className="text-white">{targetUrl.includes('ouedkniss') ? '🇩🇿 DINAR ALGÉRIEN (DA)' : '🇪🇺 EURO (€)'}</strong>
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                Moteur : <strong className="text-[#00ff66]">{engineMode === 'direct' ? '⚡ DIRECT SANS IA (0 Quota, 0 Latence)' : '🧠 HYBRIDE IA (Gemini 3.8 Flash)'}</strong>
+              </span>
+              <span className="text-slate-600 hidden sm:inline">|</span>
+              <span className="flex items-center gap-1">
+                Volume :{' '}
+                {scrapeVolume === 0 ? (
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold animate-pulse">
+                    ∞ Mode Illimité (Jusqu'au bout)
+                  </span>
+                ) : (
+                  <strong className="text-slate-200">{scrapeVolume} annonces ciblées</strong>
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-cyan-400 font-bold">
+                {products.length.toLocaleString()} articles récoltés en direct
+              </span>
+              <span className="text-slate-400 hidden sm:inline">
+                Devise : <strong className="text-white">{targetUrl.includes('ouedkniss') ? '🇩🇿 DA' : '🇪🇺 €'}</strong>
+              </span>
+            </div>
           </div>
         </section>
 
@@ -2237,11 +2256,15 @@ export default function App() {
               job={job}
               latestProduct={products[0]}
               totalProductsCount={products.length}
+              scrapeVolume={scrapeVolume}
+              isContinuousScraping={isContinuousScraping}
             />
 
             {/* The AI Scrolling Browser & Telemetry Console */}
             <AiCrawlerLiveHud
               job={job}
+              scrapeVolume={scrapeVolume}
+              totalProductsCount={products.length}
               onClearLogs={() =>
                 setJob((prev) => ({
                   ...prev,
