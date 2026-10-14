@@ -93,7 +93,7 @@ export async function loadStoredProductsFromIndexedDB(): Promise<ScrapedProduct[
 export function getStoredProducts(): ScrapedProduct[] {
   try {
     if (typeof window === 'undefined') return [];
-    const raw = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+    const raw = localStorage.getItem('products') || localStorage.getItem(STORAGE_KEY_PRODUCTS);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -114,13 +114,17 @@ function flushProductsSync(products: ScrapedProduct[]) {
 
   // 1. Save to LocalStorage (with quota fallback)
   try {
-    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+    const serialized = JSON.stringify(products);
+    localStorage.setItem('products', serialized);
+    localStorage.setItem(STORAGE_KEY_PRODUCTS, serialized);
   } catch {
     try {
       // If full array exceeds 5MB quota, save the latest 80 items into localStorage
       // while IndexedDB keeps 100% of the entire catalogue!
       const trimmed = products.slice(0, 80);
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(trimmed));
+      const serialized = JSON.stringify(trimmed);
+      localStorage.setItem('products', serialized);
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, serialized);
     } catch {
       // LocalStorage completely full or blocked; IndexedDB handles persistence
     }
@@ -180,6 +184,7 @@ export function clearStoredProducts() {
   try {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY_PRODUCTS);
+      localStorage.removeItem('products');
     }
   } catch {
     // ignore

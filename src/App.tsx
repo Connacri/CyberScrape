@@ -1110,8 +1110,21 @@ export default function App() {
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
 
-  // Products State
+  // Products State with full persistence strategy from localStorage
   const [products, setProducts] = useState<ScrapedProduct[]>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('products') || localStorage.getItem('cyber_vacuum_products_cache');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to parse products from localStorage on initial load:', err);
+    }
     const cached = getStoredProducts();
     if (cached.length === 0) return INITIAL_DEMO_PRODUCTS;
     // If cache only had a few categories from an older build, ensure all 17 categories are present
@@ -1162,9 +1175,25 @@ export default function App() {
   });
   const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
 
-  // Save products cache
+  // Sync products state to localStorage immediately upon every change
   useEffect(() => {
-    saveStoredProducts(products);
+    try {
+      const serialized = JSON.stringify(products);
+      localStorage.setItem('products', serialized);
+      localStorage.setItem('cyber_vacuum_products_cache', serialized);
+    } catch (err) {
+      console.warn('LocalStorage save failed:', err);
+      try {
+        // Fallback for 5MB quota: save latest 100 products to localStorage
+        const trimmed = JSON.stringify(products.slice(0, 100));
+        localStorage.setItem('products', trimmed);
+        localStorage.setItem('cyber_vacuum_products_cache', trimmed);
+      } catch (quotaErr) {
+        console.error('LocalStorage quota exceeded:', quotaErr);
+      }
+    }
+    // Also sync immediately to IndexedDB layer for virtually unlimited capacity
+    saveStoredProducts(products, true);
   }, [products]);
 
   // Asynchronous recovery from IndexedDB (preserves complete catalogue across reloads without 5MB quota limit)
@@ -1197,6 +1226,10 @@ export default function App() {
   const handleClearAllProducts = () => {
     if (window.confirm('Voulez-vous vider tous les produits déjà aspirés ?')) {
       setProducts([]);
+      try {
+        localStorage.removeItem('products');
+        localStorage.removeItem('cyber_vacuum_products_cache');
+      } catch {}
       clearStoredProducts();
       lotPageRef.current = {};
       cyberAudio.playChirp(450, 0.08);
