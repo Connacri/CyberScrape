@@ -723,7 +723,175 @@ const CATEGORY_PROFILES: Record<string, CategoryDataProfile> = {
       return { currentPrice, discountPercent: (idx % 4) * 3 + 4 };
     },
   },
+  'pieces-detachees': {
+    name: 'Pièces détachées Auto',
+    brands: ['Bosch', 'Valeo', 'Brembo', 'Michelin', 'Continental', 'Garrett', 'LuK', 'Monroe'],
+    models: {
+      Bosch: ['Injecteurs 1.5 DCI / 2.0 TDI Neufs', 'Pompe Haute Pression Common Rail', 'Débitmètre d\'air Original', 'Bougies de préchauffage'],
+      Valeo: ['Kit d\'embrayage complet avec Volant Moteur Bi-Masse', 'Optique Phare Avant Full LED', 'Alternateur 140A Neuf'],
+      Brembo: ['Plaquettes & Disques de Frein Ventilés Sport', 'Étriers de frein 4 pistons'],
+      Michelin: ['Pneus Primacy 4 205/55 R16 (Pack de 4)', 'Pneus Pilot Sport 4 225/45 R17'],
+      Continental: ['Kit Courroie de Distribution + Pompe à Eau', 'Pneus EcoContact 6 185/65 R15'],
+      Garrett: ['Turbo Neuf Original GT1749V 1.9 / 2.0 TDI', 'Chra Turbo DCI Neuf Équilibré'],
+      LuK: ['Kit Embrayage RepSet DMF DSG7 / Boîte Manuelle'],
+      Monroe: ['Amortisseurs Avant & Arrière Gaz-Magnum'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      État: idx % 2 === 0 ? 'Pièce d\'origine neuve sous carton avec garantie' : 'Occasion importée d\'Europe 1er choix vérifiée',
+      Compatibilité: idx % 3 === 0 ? 'Renault Clio 4/5, Mégane, Dacia Duster' : 'Volkswagen Golf 7/8, Seat Leon, Audi A3',
+      Garantie: '3 à 6 mois avec échange',
+      Livraison: 'Expédition 58 Wilayas disponible (Yalidine / Kazi Tour)',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 8500 + ((idx * 6500) % 95000);
+      return { currentPrice, discountPercent: (idx % 4) * 2 + 3 };
+    },
+  },
+  'voyages-tourisme': {
+    name: 'Voyages & Tourisme',
+    brands: ['Agence de Voyage Agréée', 'Tourisme DZ', 'Omra VIP Al-Qods', 'Sahara Aventure', 'Atlas Voyages'],
+    models: {
+      'Omra VIP Al-Qods': ['Omra 2026 Programme Confort Hôtels 5* Face Haram', 'Omra Ramadan 15 Jours Vol Direct Air Algérie'],
+      'Agence de Voyage Agréée': ['Séjour Istanbul 8 Jours / 7 Nuits Hôtel 4* avec Excursions', 'Voyage Organisé Dubaï Hôtel 5* & Safari Désert', 'Vacances Tunisie Hammamet Hôtel 5* All Inclusive'],
+      'Sahara Aventure': ['Circuit Sud Algérien Djanet Tassili n\'Ajjer 7 Jours Bivouac', 'Séjour Taghit Oasis & Dunes de l\'Erg Occidental', 'Escapade Timimoun la Rouge en Pension Complète'],
+      'Atlas Voyages': ['Séjour Malaisie & Kuala Lumpur 10 Jours', 'Circuit Antalya Bord de Mer'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1518684079-3c830dcef090?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Formule: idx % 2 === 0 ? 'Vol Direct + Transfert + Hôtel 4*/5* avec Petit Déjeuner' : 'Pension Complète avec Guides Certifiés',
+      Durée: idx % 3 === 0 ? '15 Jours / 14 Nuits' : '8 Jours / 7 Nuits',
+      Visa: 'Assistance visa incluse dans le forfait',
+      Départ: 'Aéroport d\'Alger Houari Boumédiène / Oran Ahmed Ben Bella',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 65000 + ((idx * 35000) % 320000);
+      return { currentPrice, discountPercent: (idx % 3) * 3 + 2 };
+    },
+  },
+  animaux: {
+    name: 'Animaux & Accessoires',
+    brands: ['Élevage Canin Certifié', 'Félin Club DZ', 'Animalerie Pro', 'Oisellerie Exotique', 'Royal Canin Import'],
+    models: {
+      'Élevage Canin Certifié': ['Chiot Berger Allemand Lignée Travail avec Carnet de Santé', 'Chiot Malinois LOF Très Vif & Sociabilisé', 'Golden Retriever Chiot Crème Vacciné'],
+      'Félin Club DZ': ['Chaton Persan Chinchilla Poils Longs Yeux Bleus', 'Chaton British Shorthair Gris Bleu Vacciné'],
+      'Oisellerie Exotique': ['Couple Perruches Ondulées avec Cage Équipée', 'Canari Mâle Chanteur Rouge Schimmel bagué', 'Perroquet Gris du Gabon sevré'],
+      'Animalerie Pro': ['Aquarium Panoramique 120L Équipé LED & Filtration', 'Cage Volière Haute pour Oiseaux avec Perchoirs'],
+      'Royal Canin Import': ['Croquettes Royal Canin Maxi Adult Sac de 15kg', 'Croquettes Chat Sterilised 37 Sac 10kg'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Santé: 'Vacciné, vermifugé avec carnet sanitaire vétérinaire à jour',
+      Âge: idx % 2 === 0 ? '2 mois et demi (sevré)' : '3 mois et 10 jours',
+      Régime: 'Nourri aux croquettes premium haute digestibilité',
+      Livraison: 'Disponible selon wilaya avec cage de transport',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 12000 + ((idx * 8500) % 95000);
+      return { currentPrice, discountPercent: (idx % 4) * 2 + 2 };
+    },
+  },
+  'bebes-enfants': {
+    name: 'Bébés & Enfants',
+    brands: ['Chicco', 'Bébé Confort', 'Kinderkraft', 'Fisher-Price', 'Lego', 'Pampers'],
+    models: {
+      Chicco: ['Poussette Trio Best Friend Pro avec Nacelle & Siège Auto', 'Chaise Haute Polly 2 Start Réglable 4 Positions', 'Lit Parapluie Pliable Good Night'],
+      'Bébé Confort': ['Siège Auto Pivotant 360° Isofix I-Size', 'Poussette Canne Ultra Compacte Légère'],
+      Kinderkraft: ['Lit Bébé Évolutif Bois Blanc avec Tiroir', 'Tricycle Évolutif avec Canne Parentale'],
+      'Fisher-Price': ['Tapis d\'Éveil Musical Piano Kick & Play', 'Trotteur Zèbre Parlant Éducatif'],
+      Lego: ['Lego Technic Bugatti Bolide Original Scellé', 'Lego City Commissariat de Police Boîte Complète'],
+      Pampers: ['Pack Économique Couches Premium Care (Pack de 3 Mois)'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      État: idx % 2 === 0 ? 'Neuf sous emballage carton jamais ouvert' : 'État neuf 10/10 très peu utilisé avec boîte',
+      Sécurité: 'Norme européenne ECE R44/04 & Sans BPA',
+      Âge_recommandé: idx % 3 === 0 ? 'Dès la naissance (0 à 36 mois)' : 'À partir de 6 mois à 4 ans',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 7500 + ((idx * 5500) % 65000);
+      return { currentPrice, discountPercent: (idx % 3) * 3 + 3 };
+    },
+  },
+  'alimentation-agriculture': {
+    name: 'Alimentation & Terroir',
+    brands: ['Terroir Biskra', 'Huilerie Kabylie', 'Rucher Atlas Blidéen', 'Coopérative Mitidja', 'Agro-Matériel DZ'],
+    models: {
+      'Terroir Biskra': ['Dattes Deglet Nour Biskra 1er Choix Branchées (Carton de 5kg)', 'Dattes Fourrées Amandes & Noix Boîte Cadeau'],
+      'Huilerie Kabylie': ['Huile d\'Olive Vierge Extra Première Pression à Froid Bidon 5L', 'Huile d\'Olive Pure Traditionnelle Cru 2026'],
+      'Rucher Atlas Blidéen': ['Miel Pur d\'Euphorbe (Daghmous) Naturel 1kg', 'Miel de Forêt & Cèdre Montagneux Pur', 'Gelée Royale Fraîche & Pollen Bio'],
+      'Coopérative Mitidja': ['Oranges & Mandarines Clémentines 1er Choix Caisse 10kg', 'Plants d\'Olivier & Arbres Fruitiers Greffés'],
+      'Agro-Matériel DZ': ['Motoculteur Diesel 10 CV avec Fraise & Charrue', 'Système d\'Irrigation Goutte-à-Goutte Rouleau 500m'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Qualité: '100% Naturel Pur du Terroir Algérien Garanti sans additifs',
+      Origine: idx % 2 === 0 ? 'Tolga Biskra / Tizi Ouzou' : 'Atlas Blidéen / Mitidja',
+      Conditionnement: 'Emballage hygiénique scellé avec date de récolte',
+      Livraison: 'Livraison express 58 Wilayas sous emballage isotherme',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 3500 + ((idx * 2800) % 45000);
+      return { currentPrice, discountPercent: (idx % 3) * 2 + 1 };
+    },
+  },
 };
+
+// Aliases for slug variants
+CATEGORY_PROFILES['maison-meubles'] = CATEGORY_PROFILES['maison'];
+CATEGORY_PROFILES['vetements-mode'] = CATEGORY_PROFILES['vetements'];
+
+// Helper to resolve profile by slug with fuzzy matching
+export function getCategoryProfileBySlug(slug?: string): { key: string; profile: CategoryDataProfile } | null {
+  if (!slug) return null;
+  const clean = slug.toLowerCase().replace(/^\/+|\/+$/g, '').trim();
+  if (CATEGORY_PROFILES[clean]) return { key: clean, profile: CATEGORY_PROFILES[clean] };
+
+  if (clean.includes('piece')) return { key: 'pieces-detachees', profile: CATEGORY_PROFILES['pieces-detachees'] };
+  if (clean.includes('voyage') || clean.includes('tourisme')) return { key: 'voyages-tourisme', profile: CATEGORY_PROFILES['voyages-tourisme'] };
+  if (clean.includes('anim') || clean.includes('chien') || clean.includes('chat')) return { key: 'animaux', profile: CATEGORY_PROFILES['animaux'] };
+  if (clean.includes('bebe') || clean.includes('enfant')) return { key: 'bebes-enfants', profile: CATEGORY_PROFILES['bebes-enfants'] };
+  if (clean.includes('aliment') || clean.includes('agri') || clean.includes('terroir')) return { key: 'alimentation-agriculture', profile: CATEGORY_PROFILES['alimentation-agriculture'] };
+  if (clean.includes('auto') || clean.includes('vehicule') || clean.includes('voiture')) return { key: 'automobiles', profile: CATEGORY_PROFILES['automobiles'] };
+  if (clean.includes('tel') || clean.includes('phone') || clean.includes('mobile')) return { key: 'telephones', profile: CATEGORY_PROFILES['telephones'] };
+  if (clean.includes('info') || clean.includes('laptop') || clean.includes('ordi')) return { key: 'informatique', profile: CATEGORY_PROFILES['informatique'] };
+  if (clean.includes('electro') || clean.includes('tv') || clean.includes('clim')) return { key: 'electromenager', profile: CATEGORY_PROFILES['electromenager'] };
+  if (clean.includes('immo') || clean.includes('villa') || clean.includes('appart')) return { key: 'immobilier', profile: CATEGORY_PROFILES['immobilier'] };
+  if (clean.includes('maison') || clean.includes('meuble')) return { key: 'maison-meubles', profile: CATEGORY_PROFILES['maison-meubles'] };
+  if (clean.includes('vetement') || clean.includes('mode') || clean.includes('habit')) return { key: 'vetements-mode', profile: CATEGORY_PROFILES['vetements-mode'] };
+  if (clean.includes('jeu') || clean.includes('game') || clean.includes('ps5')) return { key: 'jeux-video', profile: CATEGORY_PROFILES['jeux-video'] };
+  if (clean.includes('emploi') || clean.includes('job') || clean.includes('travail')) return { key: 'emploi', profile: CATEGORY_PROFILES['emploi'] };
+  if (clean.includes('service') || clean.includes('artisan')) return { key: 'services', profile: CATEGORY_PROFILES['services'] };
+  if (clean.includes('materiau') || clean.includes('outillage')) return { key: 'materiaux', profile: CATEGORY_PROFILES['materiaux'] };
+  if (clean.includes('sport') || clean.includes('velo') || clean.includes('loisir')) return { key: 'sports-loisirs', profile: CATEGORY_PROFILES['sports-loisirs'] };
+
+  return null;
+}
 
 // Additional procedural generator to yield infinite authentic items without caps
 export function generateOuedknissItems(count: number, page: number = 1, categorySlug?: string): ScrapedRawItem[] {
@@ -731,8 +899,11 @@ export function generateOuedknissItems(count: number, page: number = 1, category
   const startIndex = (page - 1) * count;
 
   // Determine which categories to pull from
-  const validCategoryKeys = Object.keys(CATEGORY_PROFILES);
-  const targetCategoryKey = categorySlug && CATEGORY_PROFILES[categorySlug] ? categorySlug : null;
+  const matched = getCategoryProfileBySlug(categorySlug);
+  const targetCategoryKey = matched ? matched.key : null;
+  const validCategoryKeys = Object.keys(CATEGORY_PROFILES).filter(
+    (k) => k !== 'maison' && k !== 'vetements'
+  );
 
   for (let i = 0; i < count; i++) {
     const globalIdx = startIndex + i;

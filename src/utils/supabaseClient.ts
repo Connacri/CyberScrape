@@ -51,18 +51,25 @@ export function saveStoredProducts(products: ScrapedProduct[], immediate = false
   }
 
   const persist = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
-    } catch {
-      // ignore
+    const doSave = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+      } catch {
+        // ignore quota limits
+      }
+    };
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as unknown as { requestIdleCallback: (fn: () => void) => void }).requestIdleCallback(doSave);
+    } else {
+      setTimeout(doSave, 0);
     }
   };
 
   if (immediate) {
     persist();
   } else {
-    // Non-blocking debounced storage to keep UI at 60fps during intense aspiration
-    saveTimeout = setTimeout(persist, 1000);
+    // Non-blocking debounced storage (2.5s) to guarantee zero UI frame-drops during intense scraping
+    saveTimeout = setTimeout(persist, 2500);
   }
 }
 

@@ -57,11 +57,24 @@ interface ScrapedItem {
   specs?: Record<string, string>;
 }
 
-// Helper to fetch HTML cleanly
-async function fetchTargetHtml(targetUrl: string): Promise<string | null> {
+// Domain Circuit Breaker: Tracks domains protected by WAF/Cloudflare to avoid stalling with 6s timeouts on every page
+const domainCircuitBreaker = new Map<string, number>();
+
+// Helper to fetch HTML cleanly with rapid failover
+async function fetchTargetHtml(targetUrl: string, domain: string, pageNum: number = 1): Promise<string | null> {
+  // If page > 1 or domain has already timed out/blocked requests, skip network stall
+  const blockedUntil = domainCircuitBreaker.get(domain);
+  if (blockedUntil && Date.now() < blockedUntil) {
+    return null;
+  }
+  if (pageNum > 1 && domain.includes('ouedkniss')) {
+    // Ouedkniss uses Nuxt SPA / client hydration for pagination; skip redundant blocking fetch
+    return null;
+  }
+
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), 1500);
 
     const response = await fetch(targetUrl, {
       signal: controller.signal,
@@ -76,15 +89,15 @@ async function fetchTargetHtml(targetUrl: string): Promise<string | null> {
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn(`Direct fetch returned HTTP ${response.status}`);
+      domainCircuitBreaker.set(domain, Date.now() + 5 * 60 * 1000);
       return null;
     }
 
     const html = await response.text();
-    // Return first 120,000 characters to fit context cleanly
     return html.slice(0, 120000);
-  } catch (err) {
-    console.warn('Direct fetch failed or timed out:', err);
+  } catch {
+    // If fetch timed out or was refused, activate circuit breaker for 5 minutes
+    domainCircuitBreaker.set(domain, Date.now() + 5 * 60 * 1000);
     return null;
   }
 }
@@ -170,8 +183,8 @@ app.post('/api/scrape', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // Step 1: Attempt HTML fetch
-    const rawHtml = await fetchTargetHtml(url);
+    // Step 1: Attempt HTML fetch with instant circuit breaker
+    const rawHtml = await fetchTargetHtml(url, domain, pageNum);
 
     let rawItems: ScrapedItem[] = [];
     let usedModel = engineMode === 'direct' ? 'DIRECT_HTML_PARSER_MK4' : 'gemini-3.8-flash';

@@ -12,6 +12,11 @@ import {
   Wrench,
   Hammer,
   Dumbbell,
+  Cog,
+  Plane,
+  Dog,
+  Baby,
+  Utensils,
   Play,
   Layers,
   Sparkles,
@@ -48,6 +53,11 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   Wrench,
   Hammer,
   Dumbbell,
+  Cog,
+  Plane,
+  Dog,
+  Baby,
+  Utensils,
 };
 
 export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
@@ -93,7 +103,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
               🇩🇿 OUEDKNISS MATRIX HUB
             </span>
             <span className="text-xs font-mono text-slate-400">
-              12 CATÉGORIES OFFICIELLES // MARCHÉ ALGÉRIE
+              {OUEDKNISS_CATEGORIES.length} CATÉGORIES OFFICIELLES // MARCHÉ ALGÉRIE
             </span>
           </div>
           <p className="text-[11px] text-slate-400 font-mono mt-1">
@@ -134,7 +144,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
             {isScrapingActive && activeSweepCategoryIndex !== undefined ? (
               <>
                 <Sparkles className="w-4 h-4 animate-spin text-amber-300" />
-                ASPIRATION STRUCTURÉE CATÉGORIE ({activeSweepCategoryIndex + 1}/12)...
+                ASPIRATION STRUCTURÉE CATÉGORIE ({activeSweepCategoryIndex + 1}/{OUEDKNISS_CATEGORIES.length})...
               </>
             ) : (
               <>
@@ -146,7 +156,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
         </div>
       </div>
 
-      {/* 12 Categories Cyber Grid */}
+      {/* 17 Categories Cyber Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
         {OUEDKNISS_CATEGORIES.map((cat, idx) => {
           const IconComp = CATEGORY_ICONS[cat.icon] || Globe;

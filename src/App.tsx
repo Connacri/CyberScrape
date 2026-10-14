@@ -16,6 +16,7 @@ import { PriceTrendDashboard } from './components/PriceTrendDashboard';
 import { ProductCatalogGrid } from './components/ProductCatalogGrid';
 import { SupabaseSyncModal } from './components/SupabaseSyncModal';
 import { OuedknissCategoryHub } from './components/OuedknissCategoryHub';
+import { GlobalSweepProgressBar } from './components/GlobalSweepProgressBar';
 import {
   OUEDKNISS_CATEGORIES,
   OuedknissCategoryMeta,
@@ -90,7 +91,7 @@ const PRESET_URLS = [
   },
 ];
 
-// Rich initial seed data covering all 12 official Ouedkniss categories (Algerian Dinar DA)
+// Rich initial seed data covering all 17 official Ouedkniss categories (Algerian Dinar DA)
 const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
   // 1. Véhicules & Automobiles
   {
@@ -714,6 +715,256 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
     matrixHash: '0x0UED_SPORT2',
     priceHistory: [{ date: '2026-10-06', price: 110000 }, { date: '2026-10-13', price: 95000 }],
   },
+
+  // 13. Pièces détachées Auto
+  {
+    id: 'prod_ouedkniss_injecteursbosch',
+    title: 'Injecteurs Bosch 1.5 DCI / 2.0 TDI Neufs sous carton d\'origine',
+    brand: 'Bosch',
+    category: 'Pièces détachées Auto',
+    currentPrice: 38000,
+    originalPrice: 42000,
+    currency: 'DA',
+    discountPercent: 10,
+    rating: 4.9,
+    reviewsCount: 380,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/pieces-detachees/injecteurs-bosch-15dci',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Blida - Centre', État: 'Neuf scellé avec garantie', Vendeur: 'Auto Pièces Express' },
+    aiConfidence: 99.1,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_PIECE1',
+    priceHistory: [{ date: '2026-10-02', price: 42000 }, { date: '2026-10-13', price: 38000 }],
+  },
+  {
+    id: 'prod_ouedkniss_pneusmichelin',
+    title: 'Pneus Michelin Primacy 4 205/55 R16 91V Pack de 4 Neufs Année 2026',
+    brand: 'Michelin',
+    category: 'Pièces détachées Auto',
+    currentPrice: 46000,
+    originalPrice: 51000,
+    currency: 'DA',
+    discountPercent: 10,
+    rating: 4.9,
+    reviewsCount: 420,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/pieces-detachees/pneus-michelin-primacy4-pack4',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Kouba', Année: 'DOT 2026 Origine Espagne', Montage: 'Montage & équilibrage offerts' },
+    aiConfidence: 99.3,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_PIECE2',
+    priceHistory: [{ date: '2026-10-04', price: 51000 }, { date: '2026-10-13', price: 46000 }],
+  },
+
+  // 14. Voyages & Tourisme
+  {
+    id: 'prod_ouedkniss_omravip2026',
+    title: 'Omra 2026 VIP Confort Hôtels 5* Face Haram Vol Direct Air Algérie 15J',
+    brand: 'Agence Al-Qods',
+    category: 'Voyages & Tourisme',
+    currentPrice: 285000,
+    originalPrice: 310000,
+    currency: 'DA',
+    discountPercent: 8,
+    rating: 4.9,
+    reviewsCount: 260,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/voyages-tourisme/omra-vip-2026-hotels-5etoiles',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Hydra', Formule: 'Pension Complète + Visa + Guide certifié', Durée: '15 Jours / 14 Nuits' },
+    aiConfidence: 99.4,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_VOY1',
+    priceHistory: [{ date: '2026-10-01', price: 310000 }, { date: '2026-10-13', price: 285000 }],
+  },
+  {
+    id: 'prod_ouedkniss_sejouristanbul',
+    title: 'Séjour Istanbul 8 Jours / 7 Nuits Hôtel 4* Taksim avec Excursions & Transferts',
+    brand: 'Atlas Tourisme DZ',
+    category: 'Voyages & Tourisme',
+    currentPrice: 115000,
+    originalPrice: 128000,
+    currency: 'DA',
+    discountPercent: 10,
+    rating: 4.8,
+    reviewsCount: 310,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/voyages-tourisme/sejour-istanbul-8-jours-taksim',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Oran - Akid Lotfi', Inclus: 'Billet d avion + Hôtel + Petit Déjeuner + Guide', Départ: 'Oran & Alger' },
+    aiConfidence: 98.7,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_VOY2',
+    priceHistory: [{ date: '2026-10-05', price: 128000 }, { date: '2026-10-13', price: 115000 }],
+  },
+
+  // 15. Animaux & Accessoires
+  {
+    id: 'prod_ouedkniss_bergerallemand',
+    title: 'Chiot Berger Allemand Pure Race Lignée Travail avec Carnet & Vaccins',
+    brand: 'Élevage Canin Pro',
+    category: 'Animaux & Accessoires',
+    currentPrice: 38000,
+    originalPrice: 45000,
+    currency: 'DA',
+    discountPercent: 15,
+    rating: 4.9,
+    reviewsCount: 190,
+    inStock: true,
+    stockLevel: 'LOW_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/animaux/chiot-berger-allemand-pure-race',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Blida - Ouled Yaich', Âge: '2 mois et demi', Santé: 'Vacciné & vermifugé avec carnet sanitaire' },
+    aiConfidence: 98.9,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_ANIM1',
+    priceHistory: [{ date: '2026-10-03', price: 45000 }, { date: '2026-10-13', price: 38000 }],
+  },
+  {
+    id: 'prod_ouedkniss_chatonpersan',
+    title: 'Chaton Persan Chinchilla Poils Longs Yeux Bleus Sevré Très Propre',
+    brand: 'Félin Club DZ',
+    category: 'Animaux & Accessoires',
+    currentPrice: 28000,
+    originalPrice: 32000,
+    currency: 'DA',
+    discountPercent: 12,
+    rating: 4.9,
+    reviewsCount: 140,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/animaux/chaton-persan-chinchilla-poils-longs',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Kouba', Âge: '3 mois', Alimentation: 'Croquettes Royal Canin Kitten' },
+    aiConfidence: 99.2,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_ANIM2',
+    priceHistory: [{ date: '2026-10-05', price: 32000 }, { date: '2026-10-13', price: 28000 }],
+  },
+
+  // 16. Bébés & Enfants
+  {
+    id: 'prod_ouedkniss_poussetteporto',
+    title: 'Poussette Trio Chicco Best Friend Pro Nacelle + Siège Auto Isofix Neuf',
+    brand: 'Chicco',
+    category: 'Bébés & Enfants',
+    currentPrice: 42000,
+    originalPrice: 48000,
+    currency: 'DA',
+    discountPercent: 12,
+    rating: 4.8,
+    reviewsCount: 220,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/bebes-enfants/poussette-trio-chicco-best-friend',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Sétif - Centre', Sécurité: 'Homologué ECE R44/04', État: 'Neuf carton scellé' },
+    aiConfidence: 98.6,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_BEBE1',
+    priceHistory: [{ date: '2026-10-04', price: 48000 }, { date: '2026-10-13', price: 42000 }],
+  },
+  {
+    id: 'prod_ouedkniss_litbebebois',
+    title: 'Lit Bébé Évolutif Bois Hêtre Massif Blanc avec Tiroir & Matelas Offert',
+    brand: 'Kinderkraft',
+    category: 'Bébés & Enfants',
+    currentPrice: 32000,
+    originalPrice: 36000,
+    currency: 'DA',
+    discountPercent: 11,
+    rating: 4.9,
+    reviewsCount: 180,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/bebes-enfants/lit-bebe-evolutif-bois-hetre',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 7).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Constantine - Centre', Dimensions: '120x60 cm 3 hauteurs de sommier', Peinture: 'Écologique sans solvant' },
+    aiConfidence: 98.8,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_BEBE2',
+    priceHistory: [{ date: '2026-10-06', price: 36000 }, { date: '2026-10-13', price: 32000 }],
+  },
+
+  // 17. Alimentation & Terroir
+  {
+    id: 'prod_ouedkniss_degletnourbiskra',
+    title: 'Dattes Deglet Nour Biskra 1er Choix Branchées Extra Carton 5kg 2026',
+    brand: 'Terroir Biskra',
+    category: 'Alimentation & Terroir',
+    currentPrice: 4500,
+    originalPrice: 5200,
+    currency: 'DA',
+    discountPercent: 13,
+    rating: 4.9,
+    reviewsCount: 520,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/alimentation-agriculture/dattes-deglet-nour-biskra-5kg',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Biskra - Les Allées', Qualité: '1er Choix Miel Royal', Conditionnement: 'Carton hygiénique 5 kg' },
+    aiConfidence: 99.6,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_ALIM1',
+    priceHistory: [{ date: '2026-10-02', price: 5200 }, { date: '2026-10-13', price: 4500 }],
+  },
+  {
+    id: 'prod_ouedkniss_huileolivekabylie',
+    title: 'Huile d Olive Vierge Extra 1ère Pression à Froid Bidon 5L Récolte 2026',
+    brand: 'Huilerie Kabylie',
+    category: 'Alimentation & Terroir',
+    currentPrice: 5500,
+    originalPrice: 6200,
+    currency: 'DA',
+    discountPercent: 11,
+    rating: 4.9,
+    reviewsCount: 680,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/alimentation-agriculture/huile-olive-vierge-extra-5l',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Tizi Ouzou - Centre', Acidité: '< 0.5% Extra Vierge', Livraison: '58 Wilayas disponible' },
+    aiConfidence: 99.5,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_ALIM2',
+    priceHistory: [{ date: '2026-10-04', price: 6200 }, { date: '2026-10-13', price: 5500 }],
+  },
 ];
 
 interface SmartMergeResult {
@@ -838,6 +1089,11 @@ export default function App() {
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string | null>('telephones');
   const [activeSweepCategoryIndex, setActiveSweepCategoryIndex] = useState<number | undefined>(undefined);
   const [isAllCategoriesSweepActive, setIsAllCategoriesSweepActive] = useState<boolean>(false);
+  const [sweepCurrentPage, setSweepCurrentPage] = useState<number>(1);
+  const [sweepNewItemsCount, setSweepNewItemsCount] = useState<number>(0);
+  const [sweepPercent, setSweepPercent] = useState<number>(0);
+  const [sweepCompletedCategories, setSweepCompletedCategories] = useState<string[]>([]);
+  const [isSweepComplete, setIsSweepComplete] = useState<boolean>(false);
   const [replaceCatalog, setReplaceCatalog] = useState<boolean>(false); // Par défaut: Fusion incrémentale intelligente
   const [activeTab, setActiveTab] = useState<'vacuum' | 'trends' | 'catalog'>('vacuum');
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
@@ -857,7 +1113,7 @@ export default function App() {
   const [products, setProducts] = useState<ScrapedProduct[]>(() => {
     const cached = getStoredProducts();
     if (cached.length === 0) return INITIAL_DEMO_PRODUCTS;
-    // If cache only had a few categories from an older build, ensure all 12 categories are present
+    // If cache only had a few categories from an older build, ensure all 17 categories are present
     const cachedCategories = new Set(cached.map((p) => p.category));
     const missingSeedItems = INITIAL_DEMO_PRODUCTS.filter((seed) => !cachedCategories.has(seed.category));
     if (missingSeedItems.length > 0) {
@@ -1004,22 +1260,27 @@ export default function App() {
   };
 
   // ==========================================================
-  // MASTER SWEEP : ASPIRER TOUTES LES 12 CATÉGORIES OUEDKNISS
-  // Vagues synchronisées progressives : chaque catégorie reçoit
-  // immédiatement ses annonces dès la vague 1 !
+  // MASTER SWEEP : ASPIRER TOUTES LES CATÉGORIES OUEDKNISS (17 CATÉGORIES)
+  // Balayage séquentiel structuré : chaque catégorie est aspirée
+  // à 100% sans saut de catégorie !
   // ==========================================================
   const handleStartAllCategoriesSweep = async () => {
     setActiveTab('vacuum');
     abortScrapingRef.current = false;
     setIsContinuousScraping(true);
     setIsAllCategoriesSweepActive(true);
+    setIsSweepComplete(false);
+    setSweepCurrentPage(1);
+    setSweepNewItemsCount(0);
+    setSweepPercent(0);
+    setSweepCompletedCategories([]);
 
     const isUnlimited = sweepPagesPerCategory === 0;
     const pagesPerCat = isUnlimited ? 15 : Math.max(1, sweepPagesPerCategory);
     const totalCats = OUEDKNISS_CATEGORIES.length;
 
     addLog(
-      `[BALAYAGE_SÉQUENTIEL_STRUCTURÉ] Démarrage de l'aspiration des 12 CATÉGORIES (${
+      `[BALAYAGE_SÉQUENTIEL_STRUCTURÉ] Démarrage de l'aspiration des ${totalCats} CATÉGORIES (${
         isUnlimited ? 'Mode Complet 15 pages/catégorie' : `${pagesPerCat} pages/catégorie (${pagesPerCat * 48} articles/catégorie)`
       })`,
       'cyber',
@@ -1043,7 +1304,7 @@ export default function App() {
       setSelectedCategorySlug(cat.slug);
       setTargetUrl(cat.url);
 
-      addLog(`[CATÉGORIE_${catIdx + 1}/12] Début de l'aspiration intégrale de "${cat.name}"...`, 'cyber', `0xCAT_${catIdx + 1}`);
+      addLog(`[CATÉGORIE_${catIdx + 1}/${totalCats}] Début de l'aspiration intégrale de "${cat.name}"...`, 'cyber', `0xCAT_${catIdx + 1}`);
 
       let categoryTotalNew = 0;
       let categoryTotalUpdated = 0;
@@ -1051,16 +1312,18 @@ export default function App() {
       for (let page = 1; page <= pagesPerCat; page++) {
         if (abortScrapingRef.current) break;
 
+        setSweepCurrentPage(page);
         const currentStep = catIdx * pagesPerCat + page;
         const totalSteps = totalCats * pagesPerCat;
         const progressPct = Math.min(99, Math.round((currentStep / totalSteps) * 100));
+        setSweepPercent(progressPct);
 
         setJob((prev) => ({
           ...prev,
           status: 'aspirating',
           progress: progressPct,
           itemsFound: accumulated.length,
-          aiAgentAction: `[${catIdx + 1}/12: ${cat.name}] Page ${page}/${pagesPerCat} en cours... (${accumulated.length} articles scellés)`,
+          aiAgentAction: `[${catIdx + 1}/${totalCats}: ${cat.name}] Page ${page}/${pagesPerCat} en cours... (${accumulated.length} articles scellés)`,
           crawlerState: {
             ...prev.crawlerState,
             scrollY: currentStep * 1200,
@@ -1080,7 +1343,7 @@ export default function App() {
 
           if (data.isClientSideFallback && catIdx === 0 && page === 1) {
             addLog(
-              `[MOTEUR_AUTONOME] Mode client natif actif (Compatible GitHub Pages) : Aspiration des 12 catégories en cours.`,
+              `[MOTEUR_AUTONOME] Mode client natif actif (Compatible GitHub Pages) : Aspiration des ${totalCats} catégories en cours.`,
               'cyber',
               '0xPAGES'
             );
@@ -1094,8 +1357,10 @@ export default function App() {
 
             if (replaceCatalog && catIdx === 0 && page === 1) {
               accumulated = [...pageProducts];
+              setSweepNewItemsCount(pageProducts.length);
             } else if (replaceCatalog) {
               accumulated = [...accumulated, ...pageProducts];
+              setSweepNewItemsCount((prev) => prev + pageProducts.length);
             } else {
               const { merged, newCount, updatedCount } = smartMergeProducts(
                 accumulated,
@@ -1104,6 +1369,9 @@ export default function App() {
               accumulated = merged;
               categoryTotalNew += newCount;
               categoryTotalUpdated += updatedCount;
+              if (newCount > 0) {
+                setSweepNewItemsCount((prev) => prev + newCount);
+              }
               if (newCount > 0 || updatedCount > 0) {
                 cyberAudio.playItemAspirated();
               }
@@ -1120,6 +1388,7 @@ export default function App() {
 
       // Catégorie complètement terminée !
       cyberAudio.playCategoryUnlocked();
+      setSweepCompletedCategories((prev) => Array.from(new Set([...prev, cat.slug])));
       addLog(
         `[CATÉGORIE_SCELLÉE] "${cat.name}" terminée à 100% ! (+${categoryTotalNew} nouveaux, ${categoryTotalUpdated} màj). Passage à la catégorie ${catIdx + 2 <= totalCats ? catIdx + 2 : 'FINALE'}...`,
         'vacuum',
@@ -1130,6 +1399,8 @@ export default function App() {
     setIsContinuousScraping(false);
     setIsAllCategoriesSweepActive(false);
     setActiveSweepCategoryIndex(undefined);
+    setSweepPercent(100);
+    setIsSweepComplete(true);
 
     setJob((prev) => ({
       ...prev,
