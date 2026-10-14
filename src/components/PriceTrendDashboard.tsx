@@ -11,6 +11,7 @@ import {
   DollarSign,
   Package,
 } from 'lucide-react';
+import { CrawlerProductivityChart } from './CrawlerProductivityChart';
 
 interface PriceTrendDashboardProps {
   products: ScrapedProduct[];
@@ -470,6 +471,9 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
           )}
         </div>
       </div>
+
+      {/* D3.js Crawler 30-Day Productivity & Category Volume Monitoring */}
+      <CrawlerProductivityChart products={products} />
     </div>
   );
 };
