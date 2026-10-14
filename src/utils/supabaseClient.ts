@@ -50,6 +50,14 @@ export function saveStoredProducts(products: ScrapedProduct[]) {
   }
 }
 
+export function clearStoredProducts() {
+  try {
+    localStorage.removeItem(STORAGE_KEY_PRODUCTS);
+  } catch {
+    // ignore
+  }
+}
+
 let activeClient: SupabaseClient | null = null;
 let currentClientKey = '';
 

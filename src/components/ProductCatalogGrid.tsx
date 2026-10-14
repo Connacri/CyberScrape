@@ -16,6 +16,7 @@ import {
   Copy,
   Check,
   X,
+  Trash2,
 } from 'lucide-react';
 
 interface ProductCatalogGridProps {
@@ -25,6 +26,7 @@ interface ProductCatalogGridProps {
   isSupabaseConfigured: boolean;
   onOpenSupabaseModal: () => void;
   onRemoveCurrency?: (currency: string) => void;
+  onClearAllProducts?: () => void;
 }
 
 export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
@@ -34,6 +36,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   isSupabaseConfigured,
   onOpenSupabaseModal,
   onRemoveCurrency,
+  onClearAllProducts,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -205,6 +208,16 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
         {/* Export & Supabase Sync Actions */}
         <div className="flex items-center gap-2 font-mono text-xs">
+          {onClearAllProducts && (
+            <button
+              onClick={onClearAllProducts}
+              disabled={products.length === 0}
+              className="px-2.5 py-2 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-rose-200 flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
+              title="Vider tous les articles déjà aspirés"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Vider tout
+            </button>
+          )}
           <button
             onClick={handleExportCsv}
             disabled={products.length === 0}

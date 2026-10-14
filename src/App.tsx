@@ -20,6 +20,7 @@ import {
   saveStoredSupabaseConfig,
   getStoredProducts,
   saveStoredProducts,
+  clearStoredProducts,
   syncProductsToSupabase,
 } from './utils/supabaseClient';
 import { cyberAudio } from './utils/cyberAudio';
@@ -40,6 +41,9 @@ import {
   Sliders,
   CheckCircle,
   AlertTriangle,
+  Trash2,
+  Square,
+  StopCircle,
 } from 'lucide-react';
 
 // Preset E-Commerce Target URLs
@@ -287,6 +291,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'vacuum' | 'trends' | 'catalog'>('vacuum');
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [rainIntensity, setRainIntensity] = useState<'subtle' | 'normal' | 'turbo' | 'off'>('normal');
+  const [isContinuousScraping, setIsContinuousScraping] = useState<boolean>(false);
+  const abortScrapingRef = useRef<boolean>(false);
 
   // Supabase State
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getStoredSupabaseConfig);
@@ -349,6 +355,30 @@ export default function App() {
     addLog(`[PURGE] Suppression de tous les articles en ${currency}. Catalogue 100% purifié.`, 'info');
   };
 
+  // Vider complètement le catalogue (réinitialisation à zéro)
+  const handleClearAllProducts = () => {
+    if (window.confirm('Voulez-vous vider tous les produits déjà aspirés ?')) {
+      setProducts([]);
+      clearStoredProducts();
+      cyberAudio.playChirp(450, 0.08);
+      addLog('[PURGE] Catalogue et mémoire cache entièrement vidés (0 article).', 'warn', '0xCLEAR');
+    }
+  };
+
+  // Arrêter manuellement l'aspiration continue
+  const handleStopScrape = () => {
+    abortScrapingRef.current = true;
+    setIsContinuousScraping(false);
+    setJob((prev) => ({
+      ...prev,
+      status: 'completed',
+      progress: 100,
+      aiAgentAction: 'Aspiration interrompue par l\'utilisateur. Tous les articles collectés sont scellés.',
+    }));
+    cyberAudio.playChirp(520, 0.08);
+    addLog('[ARRÊT] Processus d\'aspiration stoppé à la demande de l\'utilisateur.', 'warn', '0xHALT');
+  };
+
   // Save Supabase config
   const handleSaveSupabaseConfig = (cfg: SupabaseConfig) => {
     setSupabaseConfig(cfg);
@@ -383,8 +413,8 @@ export default function App() {
       return;
     }
 
-    // Switch to visualizer tab for maximum immersion
     setActiveTab('vacuum');
+    abortScrapingRef.current = false;
 
     let domain = 'ecommerce.com';
     try {
@@ -393,63 +423,131 @@ export default function App() {
       // ignore
     }
 
+    const isOuedkniss = domain.includes('ouedkniss');
+
+    // ========================================================
+    // MODE CONTINU : ASPIRER TOUT LE CATALOGUE JUSQU'AU BOUT
+    // ========================================================
+    if (scrapeVolume === 0) {
+      setIsContinuousScraping(true);
+      setJob((prev) => ({
+        ...prev,
+        jobId: `JOB_ALL_${Date.now()}`,
+        targetUrl,
+        status: 'aspirating',
+        progress: 10,
+        itemsFound: replaceCatalog ? 0 : products.length,
+        aiAgentAction: `Aspiration exhaustive continue vers ${domain} jusqu'au dernier article...`,
+      }));
+
+      addLog(`[ASPIRATION_CONTINUE] Démarrage du crawler multi-pages vers ${targetUrl}`, 'cyber', '0xALL_START');
+      cyberAudio.playVacuumSuck();
+
+      let accumulated: ScrapedProduct[] = replaceCatalog ? [] : [...products];
+      if (replaceCatalog || isOuedkniss) {
+        // Clear any old euro demo products
+        accumulated = accumulated.filter((p) => !isOuedkniss || p.currency === 'DA');
+      }
+
+      const maxPages = 20; // Crawls up to 20 pages automatically
+      for (let page = 1; page <= maxPages; page++) {
+        if (abortScrapingRef.current) break;
+
+        setJob((prev) => ({
+          ...prev,
+          progress: Math.min(95, Math.round((page / maxPages) * 100)),
+          aiAgentAction: `Page ${page}/${maxPages} en cours d'ingestion... (${accumulated.length} articles aspirés)`,
+          crawlerState: {
+            ...prev.crawlerState,
+            scrollY: page * 1200,
+            domNodesInspected: page * 320,
+            tokensProcessed: page * 1800,
+          },
+        }));
+
+        try {
+          const res = await fetch('/api/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: targetUrl, maxItems: 36, engineMode, page }),
+          });
+
+          if (!res.ok) break;
+          const data = await res.json();
+          const pageProducts: ScrapedProduct[] = data.products || [];
+
+          if (pageProducts.length === 0) {
+            addLog(`[FIN_CATALOGUE] Dernier article atteint à la page ${page}. Fin de liste.`, 'success', '0xEND');
+            break;
+          }
+
+          accumulated = [...accumulated, ...pageProducts];
+          setProducts([...accumulated]);
+          cyberAudio.playItemAspirated();
+
+          addLog(
+            `[LOT_${page}] +${pageProducts.length} articles aspirés depuis la page ${page} (Total: ${accumulated.length})`,
+            'vacuum',
+            `0xP${page}`
+          );
+
+          // Small stagger for visual delight
+          await new Promise((r) => setTimeout(r, 650));
+        } catch (pageErr) {
+          console.warn('Page fetch issue:', pageErr);
+          break;
+        }
+      }
+
+      setIsContinuousScraping(false);
+      setJob((prev) => ({
+        ...prev,
+        status: 'completed',
+        progress: 100,
+        itemsFound: accumulated.length,
+        aiAgentAction: `Aspiration intégrale terminée. ${accumulated.length} articles scellés dans la base.`,
+      }));
+
+      cyberAudio.playComplete();
+      addLog(`[SUCCÈS QUANTIQUE] Aspiration exhaustive achevée. Total : ${accumulated.length} articles indexés.`, 'success', '0xDONE');
+
+      // Auto-sync to Supabase if configured
+      if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
+        await syncProductsToSupabase(accumulated, supabaseConfig);
+      }
+      return;
+    }
+
+    // ========================================================
+    // MODE LOT UNIQUE (24, 50, 100, 250)
+    // ========================================================
     setJob((prev) => ({
       ...prev,
       jobId: `JOB_${Date.now()}`,
       targetUrl,
       status: 'connecting',
-      progress: 5,
+      progress: 15,
       itemsFound: 0,
       aiAgentAction: `Connexion [Moteur: ${engineMode === 'direct' ? 'DIRECT SANS IA' : 'HYBRIDE IA'}] vers ${domain}...`,
     }));
 
     cyberAudio.playChirp(600, 0.08);
-    addLog(`[CONNEXION] Mode: ${engineMode.toUpperCase()} | Cible: ${targetUrl}`, 'info', '0x7F01');
+    addLog(`[CONNEXION] Mode: ${engineMode.toUpperCase()} | Volume: ${scrapeVolume} | Cible: ${targetUrl}`, 'info', '0x7F01');
 
-    // Simulated multi-step AI Crawler telemetry steps before server responds
-    const step1Timer = setTimeout(() => {
-      setJob((prev) => ({
-        ...prev,
-        status: 'scanning',
-        progress: 30,
-        aiAgentAction: `Défilement dynamique, extraction DOM & parsing du catalogue ${domain}...`,
-        crawlerState: {
-          ...prev.crawlerState,
-          scrollY: 1450,
-          domNodesInspected: 480,
-          tokensProcessed: 2200,
-        },
-      }));
-      cyberAudio.playChirp(840, 0.05);
-      addLog(`[AI_SCROLL] Détection du flux d'annonces. Indexation en lots de ${scrapeVolume} items.`, 'cyber', '0xDOM_SCAN');
-    }, 600);
-
-    const step2Timer = setTimeout(() => {
+    try {
       setJob((prev) => ({
         ...prev,
         status: 'aspirating',
-        progress: 65,
-        aiAgentAction: `Aspiration quantique : Ingestion massive de ${scrapeVolume} articles...`,
-        crawlerState: {
-          ...prev.crawlerState,
-          scrollY: 3200,
-          domNodesInspected: 920,
-          tokensProcessed: 5400,
-        },
+        progress: 50,
+        aiAgentAction: `Aspiration quantique en cours (${scrapeVolume} articles)...`,
       }));
       cyberAudio.playVacuumSuck();
-      addLog(`[VORTEX_ENGAGED] Succion activée. Traitement des prix, wilayas, notes et images.`, 'vacuum', '0xSUCK');
-    }, 1200);
 
-    try {
       const response = await fetch('/api/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl, maxItems: scrapeVolume, engineMode }),
+        body: JSON.stringify({ url: targetUrl, maxItems: scrapeVolume, engineMode, page: 1 }),
       });
-
-      clearTimeout(step1Timer);
-      clearTimeout(step2Timer);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -459,16 +557,10 @@ export default function App() {
       const data = await response.json();
       const extractedProducts: ScrapedProduct[] = data.products || [];
 
-      // Animate progress to 90%
-      setJob((prev) => ({
-        ...prev,
-        status: 'aspirating',
-        progress: 90,
-        aiAgentAction: `Cristallisation de ${extractedProducts.length} produits aspirés...`,
-        itemsFound: extractedProducts.length,
-      }));
+      if (data.fallbackNotice) {
+        addLog(`[FAILOVER] ${data.fallbackNotice}`, 'warn', '0xFAILOVER');
+      }
 
-      // Aspirate items sequentially with SFX
       extractedProducts.forEach((p, idx) => {
         setTimeout(() => {
           cyberAudio.playItemAspirated();
@@ -477,20 +569,16 @@ export default function App() {
             'success',
             p.matrixHash || '0xDATA'
           );
-        }, idx * 120);
+        }, idx * 70);
       });
 
-      // Final complete state after brief stagger
       setTimeout(async () => {
-        // Update products catalogue
         setProducts((prev) => {
-          if (replaceCatalog || targetUrl.includes('ouedkniss')) {
-            // Filter out any leftover Euro items if scraping Ouedkniss
+          if (replaceCatalog || isOuedkniss) {
             return extractedProducts;
           }
           const existingIds = new Set(extractedProducts.map((p) => p.id));
-          const filteredOld = prev.filter((p) => !existingIds.has(p.id));
-          return [...extractedProducts, ...filteredOld];
+          return [...extractedProducts, ...prev.filter((p) => !existingIds.has(p.id))];
         });
 
         setJob((prev) => ({
@@ -498,41 +586,18 @@ export default function App() {
           status: 'completed',
           progress: 100,
           itemsFound: extractedProducts.length,
-          aiAgentAction: `Catalogue intégralement aspiré. ${extractedProducts.length} références scellées dans la base.`,
-          crawlerState: {
-            ...prev.crawlerState,
-            scrollY: 4800,
-            domNodesInspected: data.telemetry?.domNodesInspected || 850,
-            tokensProcessed: data.telemetry?.tokensProcessed || 4800,
-          },
+          aiAgentAction: `Catalogue aspiré avec succès. ${extractedProducts.length} articles indexés.`,
         }));
 
         cyberAudio.playComplete();
-        addLog(
-          `[SUCCÈS QUANTIQUE] Aspiration achevée : ${extractedProducts.length} produits indexés avec historique des prix.`,
-          'success',
-          '0xDONE'
-        );
+        addLog(`[SUCCÈS QUANTIQUE] ${extractedProducts.length} articles scellés dans la base.`, 'success', '0xDONE');
 
-        // Auto-sync to Supabase if configured and enabled
         if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
-          addLog(`[SUPABASE] Synchronisation automatique du nouveau catalogue vers ${supabaseConfig.tableName}...`, 'info');
-          const syncRes = await syncProductsToSupabase(extractedProducts, supabaseConfig);
-          if (syncRes.success) {
-            addLog(`[SUPABASE] ${syncRes.count} produits sauvegardés avec succès dans Supabase !`, 'success');
-            setSyncStatusMessage(`Synchronisé vers Supabase (${syncRes.count} produits)`);
-          } else {
-            addLog(`[SUPABASE_ERR] Erreur de sync: ${syncRes.error}`, 'warn');
-          }
+          await syncProductsToSupabase(extractedProducts, supabaseConfig);
         }
-      }, extractedProducts.length * 120 + 300);
+      }, extractedProducts.length * 70 + 200);
     } catch (err: unknown) {
-      clearTimeout(step1Timer);
-      clearTimeout(step2Timer);
-      let rawMsg = err instanceof Error ? err.message : 'Erreur inconnue';
-      if (rawMsg.includes('503') || rawMsg.includes('UNAVAILABLE') || rawMsg.includes('high demand')) {
-        rawMsg = "Forte affluence temporaire sur l'IA (503). Moteur de secours quantique activé, réessayez dans quelques secondes.";
-      }
+      const rawMsg = err instanceof Error ? err.message : 'Erreur inconnue';
       setJob((prev) => ({
         ...prev,
         status: 'error',
@@ -703,8 +768,18 @@ export default function App() {
             </button>
           </div>
 
-          {/* Right Action Tools: Supabase Config, Sound FX & Matrix Rain */}
+          {/* Right Action Tools: Quick Clear, Supabase Config, Sound FX & Matrix Rain */}
           <div className="flex items-center gap-2">
+            {/* Quick Clear All Button */}
+            <button
+              onClick={handleClearAllProducts}
+              disabled={products.length === 0}
+              className="p-1.5 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-white transition-colors disabled:opacity-30 cursor-pointer"
+              title="Vider tous les articles aspirés (remise à zéro)"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+
             {/* Supabase Status Button */}
             <button
               onClick={() => setIsSupabaseModalOpen(true)}
@@ -831,26 +906,44 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-xs font-mono">
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-slate-400">VOLUME :</span>
-                <div className="flex gap-1">
-                  {[12, 24, 36, 48].map((qty) => (
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { label: '24', val: 24 },
+                    { label: '50', val: 50 },
+                    { label: '100', val: 100 },
+                    { label: '250', val: 250 },
+                    { label: '♾️ TOUT ASPIRER', val: 0 },
+                  ].map((item) => (
                     <button
                       type="button"
-                      key={qty}
-                      onClick={() => setScrapeVolume(qty)}
-                      className={`px-2 py-0.5 rounded text-xs font-bold transition-all ${
-                        scrapeVolume === qty
-                          ? 'bg-[#00ff66] text-black shadow-md'
+                      key={item.label}
+                      onClick={() => setScrapeVolume(item.val)}
+                      className={`px-2 py-0.5 rounded text-xs font-bold transition-all cursor-pointer ${
+                        scrapeVolume === item.val
+                          ? 'bg-[#00ff66] text-black shadow-[0_0_10px_rgba(0,255,102,0.4)]'
                           : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
                       }`}
                     >
-                      {qty}
+                      {item.label}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {/* Vider les produits déjà aspirés */}
+              <button
+                type="button"
+                onClick={handleClearAllProducts}
+                disabled={products.length === 0}
+                className="px-2.5 py-1 rounded bg-rose-950/50 border border-rose-500/40 text-rose-300 hover:bg-rose-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
+                title="Vider tous les articles déjà aspirés"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Vider ({products.length})</span>
+              </button>
 
               <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
                 <input
@@ -886,18 +979,27 @@ export default function App() {
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={job.status === 'aspirating' || job.status === 'scanning'}
-              className="relative px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-black font-mono text-sm tracking-wider uppercase transition-all transform active:scale-95 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
-            >
-              <Zap className={`w-4 h-4 ${job.status === 'aspirating' ? 'animate-spin' : ''}`} />
-              <span>
-                {job.status === 'aspirating' || job.status === 'scanning'
-                  ? 'ASPIRATION EN COURS...'
-                  : `ASPIRER LE CATALOGUE (${scrapeVolume})`}
-              </span>
-            </button>
+            {isContinuousScraping || job.status === 'aspirating' ? (
+              <button
+                type="button"
+                onClick={handleStopScrape}
+                className="relative px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black font-mono text-sm tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center justify-center gap-2 cursor-pointer flex-shrink-0 animate-pulse"
+              >
+                <StopCircle className="w-4 h-4" />
+                <span>ARRÊTER L'ASPIRATION</span>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={job.status === 'scanning'}
+                className="relative px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-black font-mono text-sm tracking-wider uppercase transition-all transform active:scale-95 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
+              >
+                <Zap className="w-4 h-4" />
+                <span>
+                  {scrapeVolume === 0 ? '♾️ ASPIRER TOUT LE CATALOGUE (JUSQU\'AU DERNIER)' : `ASPIRER LE CATALOGUE (${scrapeVolume})`}
+                </span>
+              </button>
+            )}
           </form>
 
           {/* Quick Telemetry Bar under input */}
@@ -973,6 +1075,7 @@ export default function App() {
             isSupabaseConfigured={Boolean(supabaseConfig.url && supabaseConfig.anonKey)}
             onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
             onRemoveCurrency={handleRemoveCurrency}
+            onClearAllProducts={handleClearAllProducts}
           />
         )}
       </main>
