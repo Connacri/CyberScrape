@@ -14,8 +14,8 @@ export function getStoredSupabaseConfig(): SupabaseConfig {
     // fallback
   }
   return {
-    url: '',
-    anonKey: '',
+    url: (import.meta.env.VITE_SUPABASE_URL as string) || '',
+    anonKey: (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '',
     tableName: 'scraped_products',
     isConnected: false,
     autoSync: false,

@@ -31,6 +31,8 @@ interface OuedknissCategoryHubProps {
   activeSweepCategoryIndex?: number;
   sweepPagesPerCategory?: number;
   onChangeSweepPagesPerCategory?: (pages: number) => void;
+  discoveredCategories?: string[];
+  onSelectDiscoveredCategory?: (catName: string) => void;
 }
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -57,6 +59,8 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
   activeSweepCategoryIndex,
   sweepPagesPerCategory = 0,
   onChangeSweepPagesPerCategory,
+  discoveredCategories = [],
+  onSelectDiscoveredCategory,
 }) => {
   // Count articles present in catalog per category slug or name
   const categoryCounts = React.useMemo(() => {
@@ -93,7 +97,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
             </span>
           </div>
           <p className="text-[11px] text-slate-400 font-mono mt-1">
-            Sélectionnez une catégorie pour aspiration ciblée, ou lancez le balayage intégral de toutes les catégories.
+            Sélectionnez une catégorie pour aspiration ciblée, ou lancez le balayage structuré catégorie par catégorie.
           </p>
         </div>
 
@@ -130,12 +134,12 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
             {isScrapingActive && activeSweepCategoryIndex !== undefined ? (
               <>
                 <Sparkles className="w-4 h-4 animate-spin text-amber-300" />
-                BALAYAGE GLOBAL ACTIF ({activeSweepCategoryIndex + 1}/12)...
+                ASPIRATION STRUCTURÉE CATÉGORIE ({activeSweepCategoryIndex + 1}/12)...
               </>
             ) : (
               <>
                 <Layers className="w-4 h-4 text-black" />
-                🌟 ASPIRER TOUTES LES CATÉGORIES ({sweepPagesPerCategory === 0 ? '∞ Illimité' : `${sweepPagesPerCategory * 48} / cat`})
+                🌟 ASPIRER CATÉGORIE PAR CATÉGORIE ({sweepPagesPerCategory === 0 ? 'Complet' : `${sweepPagesPerCategory * 48} / cat`})
               </>
             )}
           </button>
@@ -211,6 +215,43 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
           );
         })}
       </div>
+
+      {/* Discovered Categories Row (Scanner in real-time) */}
+      {discoveredCategories.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-cyan-500/30 bg-cyan-950/20 p-3 rounded-xl border">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+              <span className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">
+                ⚡ SCANNER // NOUVELLES CATÉGORIES DÉCOUVERTES EN DIRECT ({discoveredCategories.length})
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-cyan-400/80">
+              Détectées et intégrées dynamiquement au catalogue
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {discoveredCategories.map((catName) => {
+              const countInProducts = products.filter((p) => p.category === catName).length;
+              return (
+                <button
+                  type="button"
+                  key={catName}
+                  onClick={() => onSelectDiscoveredCategory && onSelectDiscoveredCategory(catName)}
+                  className="px-2.5 py-1 rounded-lg bg-cyan-900/40 border border-cyan-400/40 text-cyan-200 hover:bg-cyan-800/50 hover:border-cyan-300 text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_8px_rgba(0,240,255,0.2)]"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                  <span className="font-bold">{catName}</span>
+                  <span className="text-[10px] px-1 py-0.2 rounded bg-black/40 text-cyan-300">
+                    {countInProducts} art.
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

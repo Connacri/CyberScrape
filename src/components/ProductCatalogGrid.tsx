@@ -49,9 +49,22 @@ interface ProductCatalogGridProps {
   onOpenSupabaseModal: () => void;
   onRemoveCurrency?: (currency: string) => void;
   onClearAllProducts?: () => void;
+  discoveredCategories?: string[];
 }
 
 const CHUNK_SIZE = 36; // 36 items per lazy-load chunk for buttery smooth 60fps
+
+export function extractWilaya(product: ScrapedProduct): string {
+  const raw =
+    product.specs?.Wilaya ||
+    product.seller?.wilaya ||
+    product.specs?.['Région'] ||
+    product.specs?.['Wilaya / Ville'] ||
+    '';
+  if (!raw) return 'Algérie (Centre)';
+  const clean = raw.split(/[-/,]/)[0].trim();
+  return clean || raw;
+}
 
 export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   products,
@@ -61,12 +74,17 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   onOpenSupabaseModal,
   onRemoveCurrency,
   onClearAllProducts,
+  discoveredCategories = [],
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedWilaya, setSelectedWilaya] = useState<string>('all');
   const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'discount' | 'recent'>('recent');
+  const [sortBy, setSortBy] = useState<
+    'recent' | 'wilaya_asc' | 'wilaya_desc' | 'category_asc' | 'category_desc' | 'price_asc' | 'price_desc' | 'discount'
+  >('recent');
   const [viewMode, setViewMode] = useState<'grid' | 'grouped' | 'table'>('grid');
+  const [groupCriteria, setGroupCriteria] = useState<'category' | 'wilaya'>('category');
   const [inspectingProduct, setInspectingProduct] = useState<ScrapedProduct | null>(null);
   const [selectedDetailProduct, setSelectedDetailProduct] = useState<ScrapedProduct | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -98,7 +116,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   // Reset visibleCount whenever filters change
   useEffect(() => {
     setVisibleCount(CHUNK_SIZE);
-  }, [searchTerm, selectedCategory, selectedCurrency, sortBy, minPrice, maxPrice]);
+  }, [searchTerm, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice]);
 
   // Overall dataset min/max price for the range filter slider bounds
   const datasetPriceStats = useMemo(() => {
@@ -113,6 +131,20 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       min: min === Infinity ? 0 : min,
       max,
     };
+  }, [products]);
+
+  // Wilaya map with counts
+  const wilayaStats = useMemo(() => {
+    const map = new Map<string, number>();
+    products.forEach((p) => {
+      const w = extractWilaya(p);
+      if (w) {
+        map.set(w, (map.get(w) || 0) + 1);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   }, [products]);
 
   // Category map with count & price analytics
@@ -157,33 +189,47 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           p.title.toLowerCase().includes(term) ||
           (p.brand && p.brand.toLowerCase().includes(term)) ||
           p.sourceDomain.toLowerCase().includes(term) ||
+          extractWilaya(p).toLowerCase().includes(term) ||
           (p.specs && Object.values(p.specs).some((val) => String(val).toLowerCase().includes(term)));
 
         const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
+        const matchesWilaya = selectedWilaya === 'all' || extractWilaya(p).toLowerCase() === selectedWilaya.toLowerCase();
         const matchesCurrency = selectedCurrency === 'all' || p.currency === selectedCurrency;
         const matchesMinPrice = minPrice === '' || p.currentPrice >= Number(minPrice);
         const matchesMaxPrice = maxPrice === '' || p.currentPrice <= Number(maxPrice);
 
-        return matchesSearch && matchesCategory && matchesCurrency && matchesMinPrice && matchesMaxPrice;
+        return matchesSearch && matchesCategory && matchesWilaya && matchesCurrency && matchesMinPrice && matchesMaxPrice;
       })
       .sort((a, b) => {
+        if (sortBy === 'wilaya_asc') {
+          return extractWilaya(a).localeCompare(extractWilaya(b), 'fr');
+        }
+        if (sortBy === 'wilaya_desc') {
+          return extractWilaya(b).localeCompare(extractWilaya(a), 'fr');
+        }
+        if (sortBy === 'category_asc') {
+          return (a.category || '').localeCompare(b.category || '', 'fr');
+        }
+        if (sortBy === 'category_desc') {
+          return (b.category || '').localeCompare(a.category || '', 'fr');
+        }
         if (sortBy === 'price_asc') return a.currentPrice - b.currentPrice;
         if (sortBy === 'price_desc') return b.currentPrice - a.currentPrice;
         if (sortBy === 'discount') return (b.discountPercent || 0) - (a.discountPercent || 0);
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [products, searchTerm, selectedCategory, selectedCurrency, sortBy, minPrice, maxPrice]);
+  }, [products, searchTerm, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice]);
 
-  // Grouped products for "Vue Groupée par Catégories"
+  // Grouped products for "Vue Groupée" (either by Category or by Wilaya)
   const groupedProducts = useMemo(() => {
     const groups: Record<string, ScrapedProduct[]> = {};
     filteredProducts.forEach((p) => {
-      const cat = p.category || 'Non classé';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(p);
+      const key = groupCriteria === 'category' ? p.category || 'Non classé' : extractWilaya(p) || 'Algérie';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
     });
     return groups;
-  }, [filteredProducts]);
+  }, [filteredProducts, groupCriteria]);
 
   // Sliced products for virtual / lazy rendering
   const lazyProducts = useMemo(() => {
@@ -347,6 +393,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           {/* Each Individual Category Pill */}
           {categoryStats.map((cat) => {
             const isSelected = selectedCategory === cat.name;
+            const isDiscovered = discoveredCategories.includes(cat.name);
             return (
               <button
                 type="button"
@@ -355,14 +402,19 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                 className={`px-3 py-1.5 rounded-xl font-mono text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                   isSelected
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-[0_0_12px_rgba(0,240,255,0.3)] font-bold'
+                    : isDiscovered
+                    ? 'bg-purple-950/40 border border-purple-500/40 text-purple-300 hover:border-purple-400'
                     : 'bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                 }`}
               >
+                {isDiscovered && <span className="text-amber-400 font-bold">⚡</span>}
                 <span>{cat.name}</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono ${
                     isSelected
                       ? 'bg-cyan-950/80 text-cyan-200 border border-cyan-400/40'
+                      : isDiscovered
+                      ? 'bg-purple-900/60 text-purple-200 border border-purple-400/30'
                       : 'bg-black/60 text-slate-400'
                   }`}
                 >
@@ -418,6 +470,24 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           />
         </div>
 
+        {/* Wilaya Filter Selector (58 Wilayas) */}
+        <div className="flex items-center gap-1.5 font-mono text-xs">
+          <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <select
+            value={selectedWilaya}
+            onChange={(e) => setSelectedWilaya(e.target.value)}
+            aria-label="Filtrer par Wilaya"
+            className="bg-slate-900 border border-emerald-500/30 rounded-lg px-2.5 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer"
+          >
+            <option value="all">📍 Toutes Wilayas ({wilayaStats.length})</option>
+            {wilayaStats.map((w) => (
+              <option key={w.name} value={w.name}>
+                {w.name} ({w.count})
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Currency filter selector */}
         <div className="flex items-center gap-1.5 font-mono text-xs">
           <select
@@ -432,28 +502,32 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </select>
         </div>
 
-        {/* Sort by */}
+        {/* Sort by: Includes Wilaya (A-Z, Z-A) and Category (A-Z, Z-A) */}
         <div className="flex items-center gap-1.5 font-mono text-xs">
-          <ArrowUpDown className="w-3.5 h-3.5 text-cyan-400" />
+          <ArrowUpDown className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             aria-label="Trier les produits"
-            className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-400"
+            className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-400 cursor-pointer"
           >
-            <option value="recent">Plus Récents (Page par Page)</option>
-            <option value="price_asc">Prix Croissant</option>
-            <option value="price_desc">Prix Décroissant</option>
-            <option value="discount">Meilleur Rabais %</option>
+            <option value="recent">Tri : Plus Récents</option>
+            <option value="wilaya_asc">Tri : Wilaya (A → Z)</option>
+            <option value="wilaya_desc">Tri : Wilaya (Z → A)</option>
+            <option value="category_asc">Tri : Catégorie (A → Z)</option>
+            <option value="category_desc">Tri : Catégorie (Z → A)</option>
+            <option value="price_asc">Tri : Prix Croissant</option>
+            <option value="price_desc">Tri : Prix Décroissant</option>
+            <option value="discount">Tri : Meilleur Rabais %</option>
           </select>
         </div>
 
-        {/* View Mode Toggle: Grid vs Grouped vs Table */}
+        {/* View Mode Toggle: Grid vs Grouped (Category or Wilaya) vs Table */}
         <div className="flex items-center rounded-lg bg-black/60 p-0.5 border border-slate-800 font-mono text-xs">
           <button
             type="button"
             onClick={() => setViewMode('grid')}
-            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all ${
+            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
               viewMode === 'grid'
                 ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold'
                 : 'text-slate-400 hover:text-white'
@@ -464,9 +538,12 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('grouped')}
-            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all ${
-              viewMode === 'grouped'
+            onClick={() => {
+              setViewMode('grouped');
+              setGroupCriteria('category');
+            }}
+            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
+              viewMode === 'grouped' && groupCriteria === 'category'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 font-bold'
                 : 'text-slate-400 hover:text-white'
             }`}
@@ -476,8 +553,23 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => {
+              setViewMode('grouped');
+              setGroupCriteria('wilaya');
+            }}
+            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
+              viewMode === 'grouped' && groupCriteria === 'wilaya'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-400/50 font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+            title="Vue Groupée par Wilayas d'Algérie"
+          >
+            <MapPin className="w-3.5 h-3.5" /> Par Wilaya
+          </button>
+          <button
+            type="button"
             onClick={() => setViewMode('table')}
-            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all ${
+            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
               viewMode === 'table'
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-400/50 font-bold'
                 : 'text-slate-400 hover:text-white'
@@ -624,13 +716,29 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                   className="p-3.5 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-900 transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-400/40 flex items-center justify-center text-[#00ff88] text-xs font-mono font-bold">
-                      {catName.substring(0, 2).toUpperCase()}
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold ${
+                        groupCriteria === 'wilaya'
+                          ? 'bg-amber-500/15 border border-amber-400/40 text-amber-300'
+                          : 'bg-emerald-500/15 border border-emerald-400/40 text-[#00ff88]'
+                      }`}
+                    >
+                      {groupCriteria === 'wilaya' ? (
+                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        catName.substring(0, 2).toUpperCase()
+                      )}
                     </div>
                     <div>
                       <h3 className="font-mono text-sm font-bold text-slate-100 flex items-center gap-2">
-                        {catName}
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-[#00ff88] border border-emerald-500/30">
+                        {groupCriteria === 'wilaya' ? `Wilaya : ${catName}` : catName}
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                            groupCriteria === 'wilaya'
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                              : 'bg-emerald-500/20 text-[#00ff88] border-emerald-500/30'
+                          }`}
+                        >
                           {catItems.length} annonces
                         </span>
                       </h3>
@@ -1004,7 +1112,15 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
             {/* Wilaya badge if present */}
             {wilaya && (
-              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/85 text-[#00ff88] font-mono text-[9px] border border-emerald-500/40 flex items-center gap-1 backdrop-blur-sm truncate max-w-[150px]">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const cleanW = extractWilaya(product);
+                  setSelectedWilaya(cleanW);
+                }}
+                className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/85 text-[#00ff88] font-mono text-[9px] border border-emerald-500/40 flex items-center gap-1 backdrop-blur-sm truncate max-w-[150px] hover:border-emerald-300 hover:bg-emerald-950/80 cursor-pointer"
+                title={`Filtrer instantanément par la Wilaya : ${wilaya}`}
+              >
                 <MapPin className="w-2.5 h-2.5 shrink-0 text-emerald-400" />
                 <span className="truncate">{wilaya}</span>
               </div>

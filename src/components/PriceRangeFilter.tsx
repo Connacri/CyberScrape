@@ -11,8 +11,16 @@ interface PriceRangeFilterProps {
   datasetMaxPrice: number;
   totalProductsCount: number;
   filteredCount: number;
-  sortBy: 'price_asc' | 'price_desc' | 'discount' | 'recent';
-  onSortByChange: (val: 'price_asc' | 'price_desc' | 'discount' | 'recent') => void;
+  sortBy:
+    | 'recent'
+    | 'wilaya_asc'
+    | 'wilaya_desc'
+    | 'category_asc'
+    | 'category_desc'
+    | 'price_asc'
+    | 'price_desc'
+    | 'discount';
+  onSortByChange: (val: any) => void;
   onResetPriceFilter: () => void;
 }
 

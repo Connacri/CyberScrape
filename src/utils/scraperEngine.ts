@@ -266,7 +266,7 @@ let isServerAvailable: boolean | null = null;
 export function checkIsStaticHost(): boolean {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname;
-  return host.includes('github.io') || window.location.protocol === 'file:' || (!window.location.port && host !== 'localhost');
+  return host.includes('github.io') || window.location.protocol === 'file:';
 }
 
 /**
@@ -285,7 +285,7 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -303,16 +303,12 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
       if (data && Array.isArray(data.products) && data.products.length > 0) {
         return data;
       }
-    } else {
-      // 404 or 405 from static host -> mark server as unavailable for future calls
-      isServerAvailable = false;
     }
-  } catch {
-    // Server endpoint not reachable (GitHub Pages static host or offline)
-    isServerAvailable = false;
+  } catch (err) {
+    console.warn('[CYBER-VACUUM] Server endpoint failed, falling back to client-side engine:', err);
   }
 
-  // Transparent, instant client-side execution for GitHub Pages & static web
+  // Transparent, instant client-side execution if server call failed or returned empty
   return runClientSideScraper(params);
 }
 
@@ -329,7 +325,7 @@ export async function executeSimulatePriceUpdate(products: ScrapedProduct[]): Pr
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -346,11 +342,9 @@ export async function executeSimulatePriceUpdate(products: ScrapedProduct[]): Pr
       if (data && Array.isArray(data.products)) {
         return data.products;
       }
-    } else {
-      isServerAvailable = false;
     }
-  } catch {
-    isServerAvailable = false;
+  } catch (err) {
+    console.warn('[CYBER-VACUUM] Server price simulation unavailable, running client simulation:', err);
   }
 
   return simulateClientPriceFluctuations(products);

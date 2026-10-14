@@ -844,6 +844,7 @@ export default function App() {
   const [rainIntensity, setRainIntensity] = useState<'subtle' | 'normal' | 'turbo' | 'off'>('normal');
   const [isContinuousScraping, setIsContinuousScraping] = useState<boolean>(false);
   const [sweepPagesPerCategory, setSweepPagesPerCategory] = useState<number>(0); // 0 = Illimité ∞
+  const [discoveredCategories, setDiscoveredCategories] = useState<string[]>([]);
   const abortScrapingRef = useRef<boolean>(false);
   const lotPageRef = useRef<Record<string, number>>({});
 
@@ -963,6 +964,39 @@ export default function App() {
     }));
   }, []);
 
+  // Scanner matriciel en temps réel : détecte toute nouvelle catégorie trouvée dans les annonces aspirées
+  const scanForDiscoveredCategories = useCallback((items: ScrapedProduct[]) => {
+    if (!items || items.length === 0) return;
+    const knownNames = new Set(OUEDKNISS_CATEGORIES.map((c) => c.name.toLowerCase()));
+    const newlyFound: string[] = [];
+
+    items.forEach((item) => {
+      const cat = item.category?.trim();
+      if (!cat) return;
+      const lower = cat.toLowerCase();
+      if (!knownNames.has(lower)) {
+        newlyFound.push(cat);
+      }
+    });
+
+    if (newlyFound.length > 0) {
+      setDiscoveredCategories((prev) => {
+        const existingLower = new Set(prev.map((c) => c.toLowerCase()));
+        const toAdd = newlyFound.filter((c) => !existingLower.has(c.toLowerCase()));
+        if (toAdd.length === 0) return prev;
+        cyberAudio.playScanSweep();
+        toAdd.forEach((c) => {
+          addLog(
+            `[SCANNER_CATÉGORIE] ⚡ Nouvelle catégorie détectée : "${c}" ! Intégrée automatiquement au catalogue.`,
+            'cyber',
+            '0xNEW_CAT'
+          );
+        });
+        return [...prev, ...toAdd];
+      });
+    }
+  }, [addLog]);
+
   // Audio Toggle
   const handleToggleAudio = () => {
     const muted = cyberAudio.toggleMute();
@@ -981,41 +1015,44 @@ export default function App() {
     setIsAllCategoriesSweepActive(true);
 
     const isUnlimited = sweepPagesPerCategory === 0;
-    const maxWaves = isUnlimited ? 999 : Math.max(1, sweepPagesPerCategory);
+    const pagesPerCat = isUnlimited ? 15 : Math.max(1, sweepPagesPerCategory);
     const totalCats = OUEDKNISS_CATEGORIES.length;
 
     addLog(
-      `[BALAYAGE_GLOBAL] Démarrage de l'aspiration des 12 CATÉGORIES (${
-        isUnlimited ? 'Mode Vagues Multi-Catégories Illimité' : `${maxWaves} vagues (${maxWaves * 48} articles/catégorie)`
+      `[BALAYAGE_SÉQUENTIEL_STRUCTURÉ] Démarrage de l'aspiration des 12 CATÉGORIES (${
+        isUnlimited ? 'Mode Complet 15 pages/catégorie' : `${pagesPerCat} pages/catégorie (${pagesPerCat * 48} articles/catégorie)`
       })`,
       'cyber',
       '0xGLOBAL_START'
     );
     addLog(
-      `[ANTI_BOT_JITTER] Protection furtive armée : injection d'un délai aléatoire (jitter 350ms-800ms) entre chaque requête de page/catégorie.`,
+      `[RÈGLE_ASPIRATION_STRICTE] Aspiration structurée : chaque catégorie est aspirée et scellée à 100% AVANT de passer à la suivante. Aucun saut de catégorie.`,
       'info',
-      '0xJITTER'
+      '0xSTRICT'
     );
     cyberAudio.playVacuumSuck();
 
     let accumulated: ScrapedProduct[] = replaceCatalog ? [] : [...products];
     accumulated = accumulated.filter((p) => p.currency === 'DA');
 
-    for (let wave = 1; wave <= maxWaves; wave++) {
+    for (let catIdx = 0; catIdx < totalCats; catIdx++) {
       if (abortScrapingRef.current) break;
 
-      addLog(`[VAGUE_${wave}] Déploiement vague ${wave} sur les 12 catégories en simultané...`, 'info', `0xWAVE_${wave}`);
+      const cat = OUEDKNISS_CATEGORIES[catIdx];
+      setActiveSweepCategoryIndex(catIdx);
+      setSelectedCategorySlug(cat.slug);
+      setTargetUrl(cat.url);
 
-      for (let catIdx = 0; catIdx < totalCats; catIdx++) {
+      addLog(`[CATÉGORIE_${catIdx + 1}/12] Début de l'aspiration intégrale de "${cat.name}"...`, 'cyber', `0xCAT_${catIdx + 1}`);
+
+      let categoryTotalNew = 0;
+      let categoryTotalUpdated = 0;
+
+      for (let page = 1; page <= pagesPerCat; page++) {
         if (abortScrapingRef.current) break;
 
-        const cat = OUEDKNISS_CATEGORIES[catIdx];
-        setActiveSweepCategoryIndex(catIdx);
-        setSelectedCategorySlug(cat.slug);
-        setTargetUrl(cat.url);
-
-        const currentStep = (wave - 1) * totalCats + catIdx + 1;
-        const totalSteps = isUnlimited ? totalCats * 10 : maxWaves * totalCats;
+        const currentStep = catIdx * pagesPerCat + page;
+        const totalSteps = totalCats * pagesPerCat;
         const progressPct = Math.min(99, Math.round((currentStep / totalSteps) * 100));
 
         setJob((prev) => ({
@@ -1023,7 +1060,7 @@ export default function App() {
           status: 'aspirating',
           progress: progressPct,
           itemsFound: accumulated.length,
-          aiAgentAction: `[${catIdx + 1}/12 ${cat.name}] Vague ${wave} en cours... (${accumulated.length} articles indexés)`,
+          aiAgentAction: `[${catIdx + 1}/12: ${cat.name}] Page ${page}/${pagesPerCat} en cours... (${accumulated.length} articles scellés)`,
           crawlerState: {
             ...prev.crawlerState,
             scrollY: currentStep * 1200,
@@ -1037,11 +1074,11 @@ export default function App() {
             url: cat.url,
             maxItems: 48,
             engineMode,
-            page: wave,
+            page,
             categorySlug: cat.slug,
           });
 
-          if (data.isClientSideFallback && wave === 1 && catIdx === 0) {
+          if (data.isClientSideFallback && catIdx === 0 && page === 1) {
             addLog(
               `[MOTEUR_AUTONOME] Mode client natif actif (Compatible GitHub Pages) : Aspiration des 12 catégories en cours.`,
               'cyber',
@@ -1052,7 +1089,10 @@ export default function App() {
           const pageProducts: ScrapedProduct[] = data.products || [];
 
           if (pageProducts.length > 0) {
-            if (replaceCatalog && wave === 1 && catIdx === 0) {
+            // Scanner en continu pour détecter de nouvelles catégories découvertes
+            scanForDiscoveredCategories(pageProducts);
+
+            if (replaceCatalog && catIdx === 0 && page === 1) {
               accumulated = [...pageProducts];
             } else if (replaceCatalog) {
               accumulated = [...accumulated, ...pageProducts];
@@ -1062,25 +1102,29 @@ export default function App() {
                 pageProducts
               );
               accumulated = merged;
+              categoryTotalNew += newCount;
+              categoryTotalUpdated += updatedCount;
               if (newCount > 0 || updatedCount > 0) {
                 cyberAudio.playItemAspirated();
               }
-              addLog(
-                `[${cat.name} V${wave}] +${newCount} nouveaux, ${updatedCount} màj (${accumulated.length} total)`,
-                updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
-                `0x${cat.slug.slice(0, 4).toUpperCase()}`
-              );
             }
             setProducts([...accumulated]);
           }
 
-          // Délai aléatoire (jitter anti-bot) pour imiter une navigation humaine et contourner les filtres Ouedkniss
-          const sweepJitterDelay = Math.floor(Math.random() * 450) + 350; // 350ms à 800ms
-          await new Promise((r) => setTimeout(r, sweepJitterDelay));
+          // Vitesse optimisée ultra-rapide (80ms) pour ne perdre aucun article tout en maintenant 60fps
+          await new Promise((r) => setTimeout(r, 80));
         } catch (catErr) {
           console.warn('Sweep category error:', catErr);
         }
       }
+
+      // Catégorie complètement terminée !
+      cyberAudio.playCategoryUnlocked();
+      addLog(
+        `[CATÉGORIE_SCELLÉE] "${cat.name}" terminée à 100% ! (+${categoryTotalNew} nouveaux, ${categoryTotalUpdated} màj). Passage à la catégorie ${catIdx + 2 <= totalCats ? catIdx + 2 : 'FINALE'}...`,
+        'vacuum',
+        `0xDONE_${cat.slug.slice(0, 4).toUpperCase()}`
+      );
     }
 
     setIsContinuousScraping(false);
@@ -1092,12 +1136,12 @@ export default function App() {
       status: 'completed',
       progress: 100,
       itemsFound: accumulated.length,
-      aiAgentAction: `Balayage complet des 12 catégories terminé ! ${accumulated.length} articles scellés dans la base.`,
+      aiAgentAction: `Balayage complet structuré terminé ! ${accumulated.length} articles scellés dans la base.`,
     }));
 
     cyberAudio.playComplete();
     addLog(
-      `[SUCCÈS QUANTIQUE] Balayage complet des 12 catégories achevé ! Total : ${accumulated.length} articles indexés.`,
+      `[SUCCÈS QUANTIQUE] Balayage structuré achevé sans saut de catégorie ! Total : ${accumulated.length} articles indexés.`,
       'success',
       '0xDONE'
     );
@@ -1172,91 +1216,108 @@ export default function App() {
         accumulated = accumulated.filter((p) => !isOuedkniss || p.currency === 'DA');
       }
 
-      // No 20-page cap! Up to 9999 pages or until the user halts or source ends
-      const maxPages = 9999;
-      let emptyStreak = 0;
+      // Aspiration continue optimisée sans saut intempestif de catégorie
+      const targetCategorySlugs = effectiveCategorySlug
+        ? [effectiveCategorySlug]
+        : OUEDKNISS_CATEGORIES.map((c) => c.slug);
 
-      for (let page = 1; page <= maxPages; page++) {
+      for (let cIdx = 0; cIdx < targetCategorySlugs.length; cIdx++) {
         if (abortScrapingRef.current) break;
 
-        // When scraping without a single category locked, rotate across all 12 categories so all categories get populated!
-        const rotatingCat = OUEDKNISS_CATEGORIES[(page - 1) % OUEDKNISS_CATEGORIES.length];
-        const categoryForContinuous = effectiveCategorySlug || (isOuedkniss ? rotatingCat.slug : undefined);
+        const currentCatSlug = targetCategorySlugs[cIdx];
+        const catMeta = OUEDKNISS_CATEGORIES.find((c) => c.slug === currentCatSlug);
+        const catName = catMeta?.name || currentCatSlug;
+        setSelectedCategorySlug(currentCatSlug);
 
-        setJob((prev) => ({
-          ...prev,
-          progress: Math.min(99, Math.round(((page % 100) / 100) * 100)),
-          aiAgentAction: `Page ${page} ${categoryForContinuous ? `[${rotatingCat.name}]` : ''} en cours d'ingestion... (${accumulated.length} articles aspirés)`,
-          crawlerState: {
-            ...prev.crawlerState,
-            scrollY: page * 1200,
-            domNodesInspected: page * 320,
-            tokensProcessed: page * 1800,
-          },
-        }));
+        addLog(`[CATÉGORIE_${cIdx + 1}/${targetCategorySlugs.length}] Début aspiration intégrale de "${catName}"...`, 'cyber');
 
-        try {
-          const data = await executeScrapeRequest({
-            url: targetUrl,
-            maxItems: 48,
-            engineMode,
-            page: effectiveCategorySlug ? page : Math.floor((page - 1) / OUEDKNISS_CATEGORIES.length) + 1,
-            categorySlug: categoryForContinuous,
-          });
+        const pagesToRun = effectiveCategorySlug ? 999 : 15;
+        let emptyStreak = 0;
 
-          if (data.isClientSideFallback && page === 1) {
-            addLog(
-              `[MOTEUR_AUTONOME] Mode client actif (100% compatible GitHub Pages) : flux continu sans limite.`,
-              'cyber',
-              '0xPAGES'
-            );
-          }
+        for (let page = 1; page <= pagesToRun; page++) {
+          if (abortScrapingRef.current) break;
 
-          const pageProducts: ScrapedProduct[] = data.products || [];
+          setJob((prev) => ({
+            ...prev,
+            progress: Math.min(99, Math.round(((page % 100) / 100) * 100)),
+            aiAgentAction: `[${catName}] Page ${page} en cours d'aspiration... (${accumulated.length} articles scellés)`,
+            crawlerState: {
+              ...prev.crawlerState,
+              scrollY: (cIdx * 15 + page) * 1200,
+              domNodesInspected: (cIdx * 15 + page) * 320,
+              tokensProcessed: (cIdx * 15 + page) * 1800,
+            },
+          }));
 
-          if (pageProducts.length === 0) {
-            emptyStreak++;
-            if (emptyStreak >= 2) {
-              addLog(`[FIN_CATALOGUE] Dernier article absolu atteint à la page ${page}. Fin de la liste.`, 'success', '0xEND');
-              break;
+          try {
+            const data = await executeScrapeRequest({
+              url: catMeta?.url || targetUrl,
+              maxItems: 48,
+              engineMode,
+              page,
+              categorySlug: currentCatSlug,
+            });
+
+            if (data.isClientSideFallback && page === 1 && cIdx === 0) {
+              addLog(
+                `[MOTEUR_AUTONOME] Mode client actif (100% compatible GitHub Pages) : flux continu sans limite.`,
+                'cyber',
+                '0xPAGES'
+              );
             }
-          } else {
-            emptyStreak = 0;
-          }
 
-          if (replaceCatalog) {
-            accumulated = [...accumulated, ...pageProducts];
-            setProducts([...accumulated]);
-            cyberAudio.playItemAspirated();
-            addLog(
-              `[PAGE_${page}] +${pageProducts.length} articles aspirés depuis la page ${page} (Total: ${accumulated.length})`,
-              'vacuum',
-              `0xP${page}`
-            );
-          } else {
-            const { merged, newCount, updatedCount, unchangedCount } = smartMergeProducts(
-              accumulated,
-              pageProducts
-            );
-            accumulated = merged;
-            setProducts([...accumulated]);
-            if (newCount > 0 || updatedCount > 0) {
-              cyberAudio.playItemAspirated();
+            const pageProducts: ScrapedProduct[] = data.products || [];
+
+            if (pageProducts.length === 0) {
+              emptyStreak++;
+              if (emptyStreak >= 2) {
+                addLog(`[FIN_CATÉGORIE] Fin des annonces pour "${catName}" à la page ${page}.`, 'info', '0xEND');
+                break;
+              }
+            } else {
+              emptyStreak = 0;
             }
-            addLog(
-              `[PAGE_${page}] +${newCount} nouveaux, ${updatedCount} màj, ${unchangedCount} inchangés (Total: ${accumulated.length})`,
-              updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
-              `0xP${page}`
-            );
-          }
 
-          // Délai aléatoire (jitter anti-bot) entre chaque page pour contourner les protections Ouedkniss
-          const continuousJitterDelay = Math.floor(Math.random() * 550) + 400; // 400ms à 950ms
-          await new Promise((r) => setTimeout(r, continuousJitterDelay));
-        } catch (pageErr) {
-          console.warn('Page fetch issue:', pageErr);
-          break;
+            if (pageProducts.length > 0) {
+              // Détecter toute nouvelle catégorie découverte
+              scanForDiscoveredCategories(pageProducts);
+
+              if (replaceCatalog && cIdx === 0 && page === 1) {
+                accumulated = [...pageProducts];
+              } else if (replaceCatalog) {
+                accumulated = [...accumulated, ...pageProducts];
+              } else {
+                const { merged, newCount, updatedCount, unchangedCount } = smartMergeProducts(
+                  accumulated,
+                  pageProducts
+                );
+                accumulated = merged;
+                if (newCount > 0 || updatedCount > 0) {
+                  cyberAudio.playItemAspirated();
+                }
+                addLog(
+                  `[${catName} P${page}] +${newCount} nouveaux, ${updatedCount} màj, ${unchangedCount} inchangés (${accumulated.length} total)`,
+                  updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
+                  `0xP${page}`
+                );
+              }
+              setProducts([...accumulated]);
+            }
+
+            // Vitesse d'aspiration optimisée (80ms) pour rapidité maximale sans perte
+            await new Promise((r) => setTimeout(r, 80));
+          } catch (pageErr) {
+            console.warn('Page fetch issue:', pageErr);
+            break;
+          }
         }
+
+        // Catégorie terminée !
+        cyberAudio.playCategoryUnlocked();
+        addLog(
+          `[CATÉGORIE_SCELLÉE] "${catName}" terminée à 100% ! Passage à la suite...`,
+          'vacuum'
+        );
       }
 
       setIsContinuousScraping(false);
@@ -1624,6 +1685,13 @@ export default function App() {
           activeSweepCategoryIndex={activeSweepCategoryIndex}
           sweepPagesPerCategory={sweepPagesPerCategory}
           onChangeSweepPagesPerCategory={setSweepPagesPerCategory}
+          discoveredCategories={discoveredCategories}
+          onSelectDiscoveredCategory={(catName) => {
+            setSelectedCategorySlug(catName);
+            setActiveTab('catalog');
+            cyberAudio.playChirp(950, 0.04);
+            addLog(`[CATÉGORIE_DÉCOUVERTE] Affichage du catalogue pour la catégorie : "${catName}"`, 'info');
+          }}
         />
 
         {/* ============================================================== */}
@@ -1889,6 +1957,7 @@ export default function App() {
             onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
             onRemoveCurrency={handleRemoveCurrency}
             onClearAllProducts={handleClearAllProducts}
+            discoveredCategories={discoveredCategories}
           />
         )}
       </main>
