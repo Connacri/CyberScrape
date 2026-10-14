@@ -288,6 +288,120 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
   },
 ];
 
+interface SmartMergeResult {
+  merged: ScrapedProduct[];
+  newCount: number;
+  updatedCount: number;
+  unchangedCount: number;
+  sampleUpdatedTitles: string[];
+}
+
+/**
+ * Fusion incrémentale intelligente:
+ * - N'aspire JAMAIS les doublons qui existent déjà s'ils n'ont pas changé.
+ * - Si un article a changé (prix, réduction, stock, avis), met à jour les champs et ajoute le point à l'historique de prix.
+ * - Insère les nouveaux articles en tête de liste.
+ */
+function smartMergeProducts(
+  currentList: ScrapedProduct[],
+  incomingList: ScrapedProduct[]
+): SmartMergeResult {
+  const existingMap = new Map<string, ScrapedProduct>();
+  const urlMap = new Map<string, ScrapedProduct>();
+
+  for (const item of currentList) {
+    if (item.id) existingMap.set(item.id, item);
+    if (item.productUrl) urlMap.set(item.productUrl.toLowerCase(), item);
+  }
+
+  let newCount = 0;
+  let updatedCount = 0;
+  let unchangedCount = 0;
+  const sampleUpdatedTitles: string[] = [];
+
+  const updatedMap = new Map<string, ScrapedProduct>(existingMap);
+  const newItems: ScrapedProduct[] = [];
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  for (const incoming of incomingList) {
+    const existing =
+      (incoming.id && updatedMap.get(incoming.id)) ||
+      (incoming.productUrl && urlMap.get(incoming.productUrl.toLowerCase()));
+
+    if (!existing) {
+      // NOUVEAU PRODUIT: Ajouté au catalogue
+      newItems.push(incoming);
+      newCount++;
+      if (incoming.id) updatedMap.set(incoming.id, incoming);
+      if (incoming.productUrl) urlMap.set(incoming.productUrl.toLowerCase(), incoming);
+    } else {
+      // PRODUIT EXISTANT DÉJÀ PRÉSENT:
+      // Détection stricte des modifications (prix, remise, stock, note, avis)
+      const priceDelta = incoming.currentPrice - existing.currentPrice;
+      const isPriceChanged = Math.abs(priceDelta) >= 1;
+      const isDiscountChanged = incoming.discountPercent !== existing.discountPercent;
+      const isStockChanged =
+        incoming.inStock !== existing.inStock || incoming.stockLevel !== existing.stockLevel;
+      const isRatingChanged =
+        Math.abs((incoming.rating || 0) - (existing.rating || 0)) >= 0.1 ||
+        incoming.reviewsCount !== existing.reviewsCount;
+
+      const hasChanged = isPriceChanged || isDiscountChanged || isStockChanged || isRatingChanged;
+
+      if (hasChanged) {
+        // MODIFICATION DÉTECTÉE: Mise à jour sans doublon
+        const priceHistory = [...(existing.priceHistory || [])];
+        if (isPriceChanged) {
+          priceHistory.push({
+            date: todayStr,
+            price: incoming.currentPrice,
+            note:
+              priceDelta < 0
+                ? `Baisse de ${Math.abs(priceDelta)} ${incoming.currency}`
+                : `Hausse de ${priceDelta} ${incoming.currency}`,
+          });
+        }
+
+        const updated: ScrapedProduct = {
+          ...existing,
+          ...incoming,
+          id: existing.id, // conserve l'identifiant stable
+          priceHistory: priceHistory.slice(-20),
+          lastUpdated: new Date().toISOString(),
+          syncedToSupabase: false, // marqué pour resynchronisation
+        };
+
+        updatedMap.set(existing.id, updated);
+        if (existing.productUrl) urlMap.set(existing.productUrl.toLowerCase(), updated);
+        updatedCount++;
+
+        if (sampleUpdatedTitles.length < 3) {
+          sampleUpdatedTitles.push(
+            `${incoming.title.slice(0, 30)} (${existing.currentPrice} -> ${incoming.currentPrice} ${incoming.currency})`
+          );
+        }
+      } else {
+        // TOTALEMENT INCHANGÉ: Ne pas ré-aspirer ni dupliquer !
+        unchangedCount++;
+      }
+    }
+  }
+
+  // Préservation du catalogue avec nouveaux éléments en tête
+  const merged = [
+    ...newItems,
+    ...currentList.map((p) => updatedMap.get(p.id) || p),
+  ];
+
+  return {
+    merged,
+    newCount,
+    updatedCount,
+    unchangedCount,
+    sampleUpdatedTitles,
+  };
+}
+
 export default function App() {
   // Input State
   const [targetUrl, setTargetUrl] = useState<string>('https://www.ouedkniss.com/telephones');
@@ -296,7 +410,7 @@ export default function App() {
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string | null>('telephones');
   const [activeSweepCategoryIndex, setActiveSweepCategoryIndex] = useState<number | undefined>(undefined);
   const [isAllCategoriesSweepActive, setIsAllCategoriesSweepActive] = useState<boolean>(false);
-  const [replaceCatalog, setReplaceCatalog] = useState<boolean>(true);
+  const [replaceCatalog, setReplaceCatalog] = useState<boolean>(false); // Par défaut: Fusion incrémentale intelligente
   const [activeTab, setActiveTab] = useState<'vacuum' | 'trends' | 'catalog'>('vacuum');
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [rainIntensity, setRainIntensity] = useState<'subtle' | 'normal' | 'turbo' | 'off'>('normal');
@@ -505,15 +619,31 @@ export default function App() {
             break;
           }
 
-          accumulated = [...accumulated, ...pageProducts];
-          setProducts([...accumulated]);
-          cyberAudio.playItemAspirated();
-
-          addLog(
-            `[${cat.name} P${page}] +${pageProducts.length} articles aspirés (Total global: ${accumulated.length})`,
-            'vacuum',
-            `0xP${page}`
-          );
+          if (replaceCatalog) {
+            accumulated = [...accumulated, ...pageProducts];
+            setProducts([...accumulated]);
+            cyberAudio.playItemAspirated();
+            addLog(
+              `[${cat.name} P${page}] +${pageProducts.length} articles aspirés (Total global: ${accumulated.length})`,
+              'vacuum',
+              `0xP${page}`
+            );
+          } else {
+            const { merged, newCount, updatedCount, unchangedCount } = smartMergeProducts(
+              accumulated,
+              pageProducts
+            );
+            accumulated = merged;
+            setProducts([...accumulated]);
+            if (newCount > 0 || updatedCount > 0) {
+              cyberAudio.playItemAspirated();
+            }
+            addLog(
+              `[${cat.name} P${page}] +${newCount} nouveaux, ${updatedCount} màj, ${unchangedCount} inchangés (Total: ${accumulated.length})`,
+              updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
+              `0xP${page}`
+            );
+          }
 
           await new Promise((r) => setTimeout(r, 450));
         } catch (catErr) {
@@ -653,18 +783,34 @@ export default function App() {
             emptyStreak = 0;
           }
 
-          accumulated = [...accumulated, ...pageProducts];
-          setProducts([...accumulated]);
-          cyberAudio.playItemAspirated();
-
-          addLog(
-            `[PAGE_${page}] +${pageProducts.length} articles aspirés depuis la page ${page} (Total: ${accumulated.length})`,
-            'vacuum',
-            `0xP${page}`
-          );
+          if (replaceCatalog) {
+            accumulated = [...accumulated, ...pageProducts];
+            setProducts([...accumulated]);
+            cyberAudio.playItemAspirated();
+            addLog(
+              `[PAGE_${page}] +${pageProducts.length} articles aspirés depuis la page ${page} (Total: ${accumulated.length})`,
+              'vacuum',
+              `0xP${page}`
+            );
+          } else {
+            const { merged, newCount, updatedCount, unchangedCount } = smartMergeProducts(
+              accumulated,
+              pageProducts
+            );
+            accumulated = merged;
+            setProducts([...accumulated]);
+            if (newCount > 0 || updatedCount > 0) {
+              cyberAudio.playItemAspirated();
+            }
+            addLog(
+              `[PAGE_${page}] +${newCount} nouveaux, ${updatedCount} màj, ${unchangedCount} inchangés (Total: ${accumulated.length})`,
+              updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
+              `0xP${page}`
+            );
+          }
 
           // Small stagger for visual delight
-          await new Promise((r) => setTimeout(r, 550));
+          await new Promise((r) => setTimeout(r, 450));
         } catch (pageErr) {
           console.warn('Page fetch issue:', pageErr);
           break;
@@ -737,41 +883,52 @@ export default function App() {
         addLog(`[FAILOVER] ${data.fallbackNotice}`, 'warn', '0xFAILOVER');
       }
 
-      extractedProducts.forEach((p, idx) => {
-        setTimeout(() => {
+      let finalProductsList: ScrapedProduct[] = [];
+      if (replaceCatalog) {
+        finalProductsList = extractedProducts;
+        setProducts(finalProductsList);
+        cyberAudio.playItemAspirated();
+        addLog(
+          `[PURGE_ET_REMPLACEMENT] ${extractedProducts.length} articles enregistrés (catalogue remplacé).`,
+          'success',
+          '0xPURGE'
+        );
+      } else {
+        const { merged, newCount, updatedCount, unchangedCount, sampleUpdatedTitles } = smartMergeProducts(
+          products,
+          extractedProducts
+        );
+        finalProductsList = merged;
+        setProducts(finalProductsList);
+
+        if (newCount > 0 || updatedCount > 0) {
           cyberAudio.playItemAspirated();
-          addLog(
-            `[ASPIRÉ] ${p.title.slice(0, 36)}... | ${p.currentPrice} ${p.currency} (Rabais: -${p.discountPercent}%)`,
-            'success',
-            p.matrixHash || '0xDATA'
-          );
-        }, idx * 70);
-      });
-
-      setTimeout(async () => {
-        setProducts((prev) => {
-          if (replaceCatalog || isOuedkniss) {
-            return extractedProducts;
-          }
-          const existingIds = new Set(extractedProducts.map((p) => p.id));
-          return [...extractedProducts, ...prev.filter((p) => !existingIds.has(p.id))];
-        });
-
-        setJob((prev) => ({
-          ...prev,
-          status: 'completed',
-          progress: 100,
-          itemsFound: extractedProducts.length,
-          aiAgentAction: `Catalogue aspiré avec succès. ${extractedProducts.length} articles indexés.`,
-        }));
-
-        cyberAudio.playComplete();
-        addLog(`[SUCCÈS QUANTIQUE] ${extractedProducts.length} articles scellés dans la base.`, 'success', '0xDONE');
-
-        if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
-          await syncProductsToSupabase(extractedProducts, supabaseConfig);
         }
-      }, extractedProducts.length * 70 + 200);
+
+        const logMsg = `+${newCount} nouveaux, ${updatedCount} mis à jour (modifiés), ${unchangedCount} existants inchangés ignorés. Total: ${merged.length}`;
+        addLog(`[RÉ-ASPIRATION INTELLIGENTE] ${logMsg}`, updatedCount > 0 ? 'cyber' : 'success', '0xMERGE');
+
+        if (sampleUpdatedTitles.length > 0) {
+          sampleUpdatedTitles.forEach((t) => {
+            addLog(`[MODIFICATION_DÉTECTÉE] ${t}`, 'info', '0xPRICE_CHG');
+          });
+        }
+      }
+
+      setJob((prev) => ({
+        ...prev,
+        status: 'completed',
+        progress: 100,
+        itemsFound: finalProductsList.length,
+        aiAgentAction: `Aspiration terminée avec succès. Catalogue total : ${finalProductsList.length} articles.`,
+      }));
+
+      cyberAudio.playComplete();
+      addLog(`[SUCCÈS QUANTIQUE] ${finalProductsList.length} articles scellés dans la base.`, 'success', '0xDONE');
+
+      if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
+        await syncProductsToSupabase(finalProductsList, supabaseConfig);
+      }
     } catch (err: unknown) {
       const rawMsg = err instanceof Error ? err.message : 'Erreur inconnue';
       setJob((prev) => ({
@@ -1141,14 +1298,27 @@ export default function App() {
                 <span>Vider ({products.length})</span>
               </button>
 
-              <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
+              <button
+                type="button"
+                onClick={handleTriggerPriceUpdate}
+                disabled={products.length === 0 || isUpdatingPrices}
+                className="px-2.5 py-1 rounded bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
+                title="Simuler des fluctuations de prix pour tester la détection de changements à la ré-aspiration"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Tester Changement Prix</span>
+              </button>
+
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer p-1 rounded bg-black/40 border border-slate-800">
                 <input
                   type="checkbox"
                   checked={replaceCatalog}
                   onChange={(e) => setReplaceCatalog(e.target.checked)}
                   className="rounded accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
                 />
-                Purger ancien catalogue
+                <span className={replaceCatalog ? 'text-amber-400 font-bold' : 'text-emerald-400 font-medium'}>
+                  {replaceCatalog ? '⚠️ Tout écraser (Purger existant)' : '⚡ Déduplication & MAJ intelligente active'}
+                </span>
               </label>
             </div>
           </div>

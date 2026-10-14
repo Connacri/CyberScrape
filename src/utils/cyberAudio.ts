@@ -61,9 +61,16 @@ class CyberAudioSynth {
     }
   }
 
-  // Product Aspirated Chime (Sci-fi quantum ping)
+  private lastItemSoundTime: number = 0;
+
+  // Product Aspirated Chime (Sci-fi quantum ping with rate limit for fluid 60fps UI)
   public playItemAspirated() {
     if (this.isMuted) return;
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (nowMs - this.lastItemSoundTime < 75) {
+      return; // prevent audio buffer pileup during high-volume aspiration
+    }
+    this.lastItemSoundTime = nowMs;
     this.initContext();
     if (!this.ctx) return;
 

@@ -6,7 +6,7 @@ interface MatrixRainCanvasProps {
   className?: string;
 }
 
-export const MatrixRainCanvas: React.FC<MatrixRainCanvasProps> = ({
+const MatrixRainCanvasComponent: React.FC<MatrixRainCanvasProps> = ({
   isActive = true,
   intensity = 'normal',
   className = '',
@@ -78,23 +78,16 @@ export const MatrixRainCanvas: React.FC<MatrixRainCanvasProps> = ({
         const y = drops[i] * fontSize;
 
         if (y > 0 && y < height) {
-          // Leading glow head
+          // Leading bright head vs body without expensive canvas shadowBlur
           if (Math.random() > 0.88 || intensity === 'turbo') {
             ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = '#00ff66';
-            ctx.shadowBlur = 8;
           } else if (i % 7 === 0) {
             ctx.fillStyle = '#00f0ff'; // Cyan accent
-            ctx.shadowColor = '#00f0ff';
-            ctx.shadowBlur = 4;
           } else {
-            ctx.fillStyle = intensity === 'subtle' ? '#00aa44' : '#00ff66';
-            ctx.shadowColor = '#00ff66';
-            ctx.shadowBlur = 2;
+            ctx.fillStyle = intensity === 'subtle' ? '#00bb44' : '#00ff66';
           }
 
           ctx.fillText(text, x, y);
-          ctx.shadowBlur = 0; // reset
         }
 
         // Reset drop or advance
@@ -123,3 +116,5 @@ export const MatrixRainCanvas: React.FC<MatrixRainCanvasProps> = ({
     />
   );
 };
+
+export const MatrixRainCanvas = React.memo(MatrixRainCanvasComponent);

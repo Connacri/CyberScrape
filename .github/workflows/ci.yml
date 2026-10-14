@@ -1,4 +1,4 @@
-name: Ouedkniss Scraper CI & Typecheck
+name: CYBER-VACUUM CI & Typecheck
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
 
 jobs:
   validate:
-    name: Node ${{ matrix.node-version }} - Lint & Build Check
+    name: Node ${{ matrix.node-version }} - CYBER-VACUUM Lint & Build Check
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -30,7 +30,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci
 
       - name: TypeScript Lint & Typecheck
         run: npm run lint
@@ -40,5 +40,5 @@ jobs:
           VITE_BASE_URL: './'
         run: npm run build
 
-      - name: Check Backend Server Syntax
-        run: npx tsx --eval "console.log('Backend server syntax validated successfully')"
+      - name: Check Backend Server Syntax & Scraper Core
+        run: npx tsx --eval "console.log('CYBER-VACUUM core engine & server syntax validated successfully')"

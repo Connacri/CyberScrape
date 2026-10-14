@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ProductDetailModal } from './ProductDetailModal';
+import { PriceRangeFilter } from './PriceRangeFilter';
 import {
   ensureProductDetails,
   buildTelLink,
@@ -72,6 +73,14 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
+  const [minPrice, setMinPrice] = useState<number | ''>('');
+  const [maxPrice, setMaxPrice] = useState<number | ''>('');
+
+  const handleResetPriceFilter = useCallback(() => {
+    setMinPrice('');
+    setMaxPrice('');
+  }, []);
+
   // Lazy loading state
   const [visibleCount, setVisibleCount] = useState<number>(CHUNK_SIZE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -88,7 +97,22 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   // Reset visibleCount whenever filters change
   useEffect(() => {
     setVisibleCount(CHUNK_SIZE);
-  }, [searchTerm, selectedCategory, selectedCurrency, sortBy]);
+  }, [searchTerm, selectedCategory, selectedCurrency, sortBy, minPrice, maxPrice]);
+
+  // Overall dataset min/max price for the range filter slider bounds
+  const datasetPriceStats = useMemo(() => {
+    if (products.length === 0) return { min: 0, max: 0 };
+    let min = Infinity;
+    let max = 0;
+    for (const p of products) {
+      if (p.currentPrice < min) min = p.currentPrice;
+      if (p.currentPrice > max) max = p.currentPrice;
+    }
+    return {
+      min: min === Infinity ? 0 : min,
+      max,
+    };
+  }, [products]);
 
   // Category map with count & price analytics
   const categoryStats = useMemo(() => {
@@ -136,8 +160,10 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
         const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
         const matchesCurrency = selectedCurrency === 'all' || p.currency === selectedCurrency;
+        const matchesMinPrice = minPrice === '' || p.currentPrice >= Number(minPrice);
+        const matchesMaxPrice = maxPrice === '' || p.currentPrice <= Number(maxPrice);
 
-        return matchesSearch && matchesCategory && matchesCurrency;
+        return matchesSearch && matchesCategory && matchesCurrency && matchesMinPrice && matchesMaxPrice;
       })
       .sort((a, b) => {
         if (sortBy === 'price_asc') return a.currentPrice - b.currentPrice;
@@ -145,7 +171,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         if (sortBy === 'discount') return (b.discountPercent || 0) - (a.discountPercent || 0);
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [products, searchTerm, selectedCategory, selectedCurrency, sortBy]);
+  }, [products, searchTerm, selectedCategory, selectedCurrency, sortBy, minPrice, maxPrice]);
 
   // Grouped products for "Vue Groupée par Catégories"
   const groupedProducts = useMemo(() => {
@@ -511,6 +537,24 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       </div>
 
       {/* ============================================================== */}
+      {/* 2.5 PRICE RANGE & BUDGET FILTER CONTROLLER */}
+      {/* ============================================================== */}
+      <PriceRangeFilter
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        onMinPriceChange={setMinPrice}
+        onMaxPriceChange={setMaxPrice}
+        selectedCurrency={selectedCurrency}
+        datasetMinPrice={datasetPriceStats.min}
+        datasetMaxPrice={datasetPriceStats.max}
+        totalProductsCount={products.length}
+        filteredCount={filteredProducts.length}
+        sortBy={sortBy}
+        onSortByChange={setSortBy}
+        onResetPriceFilter={handleResetPriceFilter}
+      />
+
+      {/* ============================================================== */}
       {/* 3. TELEMETRY BAR & LAZY BUFFER COUNTER */}
       {/* ============================================================== */}
       <div className="flex flex-wrap items-center justify-between text-xs font-mono text-slate-400 px-1 py-1">
@@ -539,8 +583,27 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       {/* 4. MAIN PRODUCT DISPLAY: GRID / GROUPED / TABLE */}
       {/* ============================================================== */}
       {filteredProducts.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800 font-mono text-xs text-slate-500">
-          Aucun produit ne correspond à vos filtres actuels. Modifiez la recherche ou lancez une nouvelle aspiration.
+        <div className="p-12 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800 font-mono text-xs text-slate-400 space-y-3">
+          <p className="text-slate-300">
+            Aucun article ne correspond à vos filtres actuels ou à la fourchette de prix sélectionnée.
+          </p>
+          {(minPrice !== '' || maxPrice !== '') && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleResetPriceFilter}
+                className="px-3 py-1.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/80 font-mono text-xs inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>
+                  Réinitialiser le filtre budget (
+                  {minPrice !== '' ? `${Number(minPrice).toLocaleString('fr-FR')} ${selectedCurrency === '€' ? '€' : 'DA'}` : '0'} —{' '}
+                  {maxPrice !== '' ? `${Number(maxPrice).toLocaleString('fr-FR')} ${selectedCurrency === '€' ? '€' : 'DA'}` : 'Max'}
+                  )
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       ) : viewMode === 'grouped' ? (
         /* ============================================================ */

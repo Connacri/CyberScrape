@@ -1,4 +1,4 @@
-name: Ouedkniss Live Scraper Health Check
+name: CYBER-VACUUM Live Scraper Health Check
 
 on:
   schedule:
@@ -8,25 +8,25 @@ on:
 
 jobs:
   health-check:
-    name: Check Ouedkniss Target & Scraper Pipeline
+    name: Check Target Marketplaces & Scraper Pipeline
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci
 
-      - name: Test Network Reachability to Ouedkniss
+      - name: Test Network Reachability to Target Marketplaces
         run: |
-          echo "Testing Ouedkniss domain latency..."
+          echo "Testing target domain latency..."
           curl -sI --max-time 10 https://www.ouedkniss.com || echo "Ouedkniss ping test finished (HTTP status received or handled by proxy)."
 
       - name: Validate Scraper Engine Integration
@@ -36,12 +36,12 @@ jobs:
             import { generateSellerForProduct, buildTelLink, buildWhatsAppLink } from './src/utils/sellerGenerator.ts';
 
             const items = generateOuedknissItems(5, 1, 'telephones');
-            console.log('Successfully generated', items.length, 'Ouedkniss items');
+            console.log('Successfully generated', items.length, 'CYBER-VACUUM items');
             if (items.length !== 5) throw new Error('Generation failed');
 
             const seller = generateSellerForProduct('test_id', 'telephones', 'Alger - Kouba');
             console.log('Seller generated:', seller.name, 'Phone:', seller.phone);
             console.log('Tel link:', buildTelLink(seller));
             console.log('WhatsApp link:', buildWhatsAppLink(seller, items[0] as any));
-            console.log('All tests passed with 100% success.');
+            console.log('All CYBER-VACUUM tests passed with 100% success.');
           "

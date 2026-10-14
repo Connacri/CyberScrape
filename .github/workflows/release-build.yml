@@ -1,4 +1,4 @@
-name: Release Build (Ouedkniss Cyber-Vacuum)
+name: Release Build (CYBER-VACUUM MK-IV)
 
 on:
   push:
@@ -63,14 +63,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci
 
       - name: TypeScript Lint & Typecheck
         run: npm run lint
@@ -89,13 +89,13 @@ jobs:
           mkdir -p release-pkg
           cp -r dist server.ts package.json package-lock.json .env.example release-pkg/ 2>/dev/null || cp -r dist server.ts package.json .env.example release-pkg/
           cp -r src release-pkg/src
-          cd release-pkg && zip -r ../ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}.zip . && cd ..
+          cd release-pkg && zip -r ../cyber-vacuum-v${{ needs.version.outputs.version }}.zip . && cd ..
 
       - name: Upload Release Archive Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}
-          path: ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}.zip
+          name: cyber-vacuum-v${{ needs.version.outputs.version }}
+          path: cyber-vacuum-v${{ needs.version.outputs.version }}.zip
 
   gh-release:
     name: Create GitHub Release
@@ -106,27 +106,23 @@ jobs:
       - name: Download Built Archive
         uses: actions/download-artifact@v4
         with:
-          name: ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}
+          name: cyber-vacuum-v${{ needs.version.outputs.version }}
 
       - name: Create GitHub Release with Artifact
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Ouedkniss Cyber-Vacuum v${{ needs.version.outputs.version }}
+          name: CYBER-VACUUM MK-IV v${{ needs.version.outputs.version }}
           draft: false
           prerelease: false
-          files: ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}.zip
+          files: cyber-vacuum-v${{ needs.version.outputs.version }}.zip
           body: |
-            ## Ouedkniss Cyber-Vacuum MK-IV — Release v${{ needs.version.outputs.version }}
+            ## CYBER-VACUUM MK-IV — Release v${{ needs.version.outputs.version }}
 
-            ### 🚀 Nouveautés & Fonctionnalités :
-            - **Aspiration Totale Multi-Catégories Ouedkniss** (Mode Illimité ∞ jusqu'à la dernière page).
-            - **Fiche Détail Annonce Ultra-Complète** :
-              - Coordonnées vendeur complètes avec badge vérifié et temps de réponse.
-              - **Appel Direct en 1 clic** (`tel:`) avec numérotation immédiate.
-              - **WhatsApp Direct en 1 clic** (`https://wa.me/...`) avec message pré-rempli.
-              - Copie instantanée du numéro de téléphone.
-              - Spécifications techniques détaillées par wilaya.
-              - Galerie photos haute résolution interactive.
-            - **Moteur Hybride Haute Vitesse** (Direct DOM Engine + Failover IA Gemini).
-            - **Synchronisation Supabase** intégrée pour le stockage du catalogue.
+            ### 🚀 Moteur E-Commerce Scraper & Matrix Data Engine :
+            - **Aspiration Totale Multi-Catégories Ouedkniss & E-Commerce** (Mode Illimité ∞ sans saccade).
+            - **Fiche Détail Annonce Complète** :
+              - Appel Direct 1-clic (`tel:`) et WhatsApp Direct (`wa.me`).
+              - Coordonnées vendeurs, wilayas algériennes, spécifications et galerie photos haute définition.
+            - **Moteur Hybride Haute Performance** (Direct DOM Engine MK-IV + Failover IA Gemini).
+            - **Synchronisation Supabase** intégrée pour le stockage persistant du catalogue.

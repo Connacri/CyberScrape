@@ -8,7 +8,7 @@ interface VacuumVisualizerProps {
   totalProductsCount: number;
 }
 
-export const VacuumVisualizer: React.FC<VacuumVisualizerProps> = ({
+const VacuumVisualizerComponent: React.FC<VacuumVisualizerProps> = ({
   job,
   latestProduct,
   totalProductsCount,
@@ -158,6 +158,10 @@ export const VacuumVisualizer: React.FC<VacuumVisualizerProps> = ({
         ctx.shadowBlur = 0;
       }
 
+      if (isAspirating) {
+        ctx.font = '10px "JetBrains Mono", monospace';
+      }
+
       // Draw and update swirling particles
       particles.forEach((p) => {
         p.dist -= p.speed;
@@ -173,7 +177,6 @@ export const VacuumVisualizer: React.FC<VacuumVisualizerProps> = ({
         }
 
         if (p.char && isAspirating) {
-          ctx.font = '10px "JetBrains Mono", monospace';
           ctx.fillStyle = p.color;
           ctx.fillText(p.char, p.x, p.y);
         } else {
@@ -380,3 +383,5 @@ export const VacuumVisualizer: React.FC<VacuumVisualizerProps> = ({
     </div>
   );
 };
+
+export const VacuumVisualizer = React.memo(VacuumVisualizerComponent);

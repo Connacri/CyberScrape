@@ -42,11 +42,27 @@ export function getStoredProducts(): ScrapedProduct[] {
   return [];
 }
 
-export function saveStoredProducts(products: ScrapedProduct[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
-  } catch {
-    // ignore
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+export function saveStoredProducts(products: ScrapedProduct[], immediate = false) {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+
+  const persist = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+    } catch {
+      // ignore
+    }
+  };
+
+  if (immediate) {
+    persist();
+  } else {
+    // Non-blocking debounced storage to keep UI at 60fps during intense aspiration
+    saveTimeout = setTimeout(persist, 1000);
   }
 }
 

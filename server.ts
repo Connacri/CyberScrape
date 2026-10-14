@@ -302,7 +302,23 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
       // Currency is strictly DA for Ouedkniss
       const currency = isOuedkniss ? 'DA' : (item.currency === 'DA' || item.currency === '$' || item.currency === '€' ? item.currency : '€');
 
-      const prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${Date.now()}_${idx}`;
+      let prodId = '';
+      if (item.productUrl) {
+        try {
+          const parsedUrl = new URL(item.productUrl);
+          const cleanPath = parsedUrl.pathname.replace(/^\/+|\/+$/g, '').replace(/[^a-z0-9_-]/gi, '_');
+          if (cleanPath.length > 2) {
+            prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_${cleanPath.slice(-42)}`;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!prodId) {
+        const cleanTitle = item.title.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 32);
+        prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_${cleanTitle}`;
+      }
+
       const seller = isOuedkniss
         ? generateSellerForProduct(prodId, item.category || 'Général', item.specs?.Wilaya)
         : undefined;
