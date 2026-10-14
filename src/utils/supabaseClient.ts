@@ -30,11 +30,75 @@ export function saveStoredSupabaseConfig(config: SupabaseConfig) {
   }
 }
 
+// ========================================================
+// PERSISTENT STORAGE ENGINE: INDEXEDDB + LOCALSTORAGE DUAL LAYER
+// Solves 5MB QuotaExceededError and prevents loss on page refresh
+// ========================================================
+
+const IDB_NAME = 'cyber_vacuum_matrix_db';
+const IDB_VERSION = 1;
+const IDB_STORE = 'products_store';
+
+function openIndexedDb(): Promise<IDBDatabase | null> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      resolve(null);
+      return;
+    }
+    try {
+      const request = window.indexedDB.open(IDB_NAME, IDB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Loads all scraped products from IndexedDB (supports unlimited items without 5MB quota)
+ */
+export async function loadStoredProductsFromIndexedDB(): Promise<ScrapedProduct[]> {
+  try {
+    const db = await openIndexedDb();
+    if (!db) return [];
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const store = tx.objectStore(IDB_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const list = (req.result as ScrapedProduct[]) || [];
+          resolve(list);
+        };
+        req.onerror = () => resolve([]);
+      } catch {
+        resolve([]);
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Synchronous read from LocalStorage for immediate instant hydration on first frame
+ */
 export function getStoredProducts(): ScrapedProduct[] {
   try {
+    if (typeof window === 'undefined') return [];
     const raw = localStorage.getItem(STORAGE_KEY_PRODUCTS);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
     }
   } catch {
     // fallback
@@ -43,42 +107,94 @@ export function getStoredProducts(): ScrapedProduct[] {
 }
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+let latestProductsRef: ScrapedProduct[] | null = null;
+
+function flushProductsSync(products: ScrapedProduct[]) {
+  if (typeof window === 'undefined') return;
+
+  // 1. Save to LocalStorage (with quota fallback)
+  try {
+    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+  } catch {
+    try {
+      // If full array exceeds 5MB quota, save the latest 80 items into localStorage
+      // while IndexedDB keeps 100% of the entire catalogue!
+      const trimmed = products.slice(0, 80);
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(trimmed));
+    } catch {
+      // LocalStorage completely full or blocked; IndexedDB handles persistence
+    }
+  }
+
+  // 2. Save asynchronously to IndexedDB (virtually unlimited capacity)
+  openIndexedDb().then((db) => {
+    if (!db) return;
+    try {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      // Clear and bulk insert
+      store.clear().onsuccess = () => {
+        for (const item of products) {
+          store.put(item);
+        }
+      };
+    } catch {
+      // Ignore
+    }
+  }).catch(() => {});
+}
+
+// Hook page unload to flush any pending write immediately so refreshing never loses data
+if (typeof window !== 'undefined') {
+  const handleUnload = () => {
+    if (latestProductsRef) {
+      flushProductsSync(latestProductsRef);
+    }
+  };
+  window.addEventListener('beforeunload', handleUnload);
+  window.addEventListener('pagehide', handleUnload);
+}
 
 export function saveStoredProducts(products: ScrapedProduct[], immediate = false) {
+  latestProductsRef = products;
+
   if (saveTimeout) {
     clearTimeout(saveTimeout);
     saveTimeout = null;
   }
 
-  const persist = () => {
-    const doSave = () => {
-      try {
-        localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
-      } catch {
-        // ignore quota limits
-      }
-    };
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      (window as unknown as { requestIdleCallback: (fn: () => void) => void }).requestIdleCallback(doSave);
-    } else {
-      setTimeout(doSave, 0);
-    }
-  };
-
   if (immediate) {
-    persist();
+    flushProductsSync(products);
   } else {
-    // Non-blocking debounced storage (2.5s) to guarantee zero UI frame-drops during intense scraping
-    saveTimeout = setTimeout(persist, 2500);
+    // Fast 150ms debounce for high-rate continuous scraping without blocking UI thread
+    saveTimeout = setTimeout(() => {
+      if (latestProductsRef) {
+        flushProductsSync(latestProductsRef);
+      }
+    }, 150);
   }
 }
 
 export function clearStoredProducts() {
+  latestProductsRef = [];
   try {
-    localStorage.removeItem(STORAGE_KEY_PRODUCTS);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY_PRODUCTS);
+    }
   } catch {
     // ignore
   }
+
+  openIndexedDb().then((db) => {
+    if (!db) return;
+    try {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      store.clear();
+    } catch {
+      // ignore
+    }
+  }).catch(() => {});
 }
 
 let activeClient: SupabaseClient | null = null;

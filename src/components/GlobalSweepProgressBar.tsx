@@ -100,7 +100,7 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
       (p) =>
         p.category?.toLowerCase() === cat.name.toLowerCase() ||
         p.category?.toLowerCase().includes(cat.slug.toLowerCase()) ||
-        (p.sourceUrl && p.sourceUrl.toLowerCase().includes(cat.slug.toLowerCase()))
+        (p.productUrl && p.productUrl.toLowerCase().includes(cat.slug.toLowerCase()))
     ).length;
     return { ...cat, productCount: count };
   });

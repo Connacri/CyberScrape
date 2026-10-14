@@ -26,6 +26,7 @@ import {
   getStoredSupabaseConfig,
   saveStoredSupabaseConfig,
   getStoredProducts,
+  loadStoredProductsFromIndexedDB,
   saveStoredProducts,
   clearStoredProducts,
   syncProductsToSupabase,
@@ -1166,6 +1167,26 @@ export default function App() {
     saveStoredProducts(products);
   }, [products]);
 
+  // Asynchronous recovery from IndexedDB (preserves complete catalogue across reloads without 5MB quota limit)
+  useEffect(() => {
+    loadStoredProductsFromIndexedDB().then((idbProducts) => {
+      if (idbProducts && idbProducts.length > 0) {
+        setProducts((current) => {
+          // If IndexedDB has more items or current was only the demo seed items, restore from IndexedDB
+          if (idbProducts.length >= current.length || current === INITIAL_DEMO_PRODUCTS) {
+            return idbProducts;
+          }
+          const currentIds = new Set(current.map((p) => p.id));
+          const extra = idbProducts.filter((p) => !currentIds.has(p.id));
+          if (extra.length > 0) {
+            return [...current, ...extra];
+          }
+          return current;
+        });
+      }
+    });
+  }, []);
+
   // Purge specific currency (e.g. clean out old € items)
   const handleRemoveCurrency = (currency: string) => {
     setProducts((prev) => prev.filter((p) => p.currency !== currency));
@@ -1416,6 +1437,9 @@ export default function App() {
       'success',
       '0xDONE'
     );
+
+    // Immediate storage flush to ensure zero data loss on refresh
+    saveStoredProducts(accumulated, true);
 
     if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
       await syncProductsToSupabase(accumulated, supabaseConfig);
