@@ -367,7 +367,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </div>
 
           <div className="text-[11px] font-mono text-slate-400">
-            TOTAL : <strong className="text-[#00ff88]">{products.length}</strong> ARTICLES SCELLÉS
+            TOTAL : <strong className="text-[#00ff88]">{products.length.toLocaleString()}</strong> ARTICLES SCELLÉS
           </div>
         </div>
 
@@ -386,7 +386,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             <Sparkles className="w-3.5 h-3.5" />
             🌟 TOUTES LES CATÉGORIES
             <span className="ml-1 px-1.5 py-0.2 rounded-md bg-black/60 text-[10px] text-emerald-300 border border-emerald-500/30">
-              {products.length}
+              {products.length.toLocaleString()}
             </span>
           </button>
 
@@ -418,7 +418,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                       : 'bg-black/60 text-slate-400'
                   }`}
                 >
-                  {cat.count}
+                  {cat.count.toLocaleString()}
                 </span>
               </button>
             );

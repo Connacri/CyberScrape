@@ -1330,12 +1330,15 @@ export default function App() {
     setSweepCompletedCategories([]);
 
     const isUnlimited = sweepPagesPerCategory === 0;
-    const pagesPerCat = isUnlimited ? 15 : Math.max(1, sweepPagesPerCategory);
+    // Mode Illimité : aspiration profonde jusqu'au bout (150 pages par catégorie = 7 200+ articles par catégorie, aucune coupure à 720/722)
+    const pagesPerCat = isUnlimited ? 150 : Math.max(1, sweepPagesPerCategory);
     const totalCats = OUEDKNISS_CATEGORIES.length;
 
     addLog(
       `[BALAYAGE_SÉQUENTIEL_STRUCTURÉ] Démarrage de l'aspiration des ${totalCats} CATÉGORIES (${
-        isUnlimited ? 'Mode Complet 15 pages/catégorie' : `${pagesPerCat} pages/catégorie (${pagesPerCat * 48} articles/catégorie)`
+        isUnlimited
+          ? 'Mode Illimité jusqu\'au bout : 150 pages / 7 200+ articles par catégorie'
+          : `${pagesPerCat} pages/catégorie (${pagesPerCat * 48} articles/catégorie)`
       })`,
       'cyber',
       '0xGLOBAL_START'
@@ -1377,7 +1380,7 @@ export default function App() {
           status: 'aspirating',
           progress: progressPct,
           itemsFound: accumulated.length,
-          aiAgentAction: `[${catIdx + 1}/${totalCats}: ${cat.name}] Page ${page}/${pagesPerCat} en cours... (${accumulated.length} articles scellés)`,
+          aiAgentAction: `[${catIdx + 1}/${totalCats}: ${cat.name}] Page ${page}/${isUnlimited ? '∞ Illimité (jusqu\'au bout)' : pagesPerCat} en cours... (${accumulated.length.toLocaleString()} articles scellés)`,
           crawlerState: {
             ...prev.crawlerState,
             scrollY: currentStep * 1200,
@@ -1559,7 +1562,7 @@ export default function App() {
 
         addLog(`[CATÉGORIE_${cIdx + 1}/${targetCategorySlugs.length}] Début aspiration intégrale de "${catName}"...`, 'cyber');
 
-        const pagesToRun = effectiveCategorySlug ? 999 : 15;
+        const pagesToRun = 999; // Aspiration continue jusqu'au bout sans coupure à 15 pages
         let emptyStreak = 0;
 
         for (let page = 1; page <= pagesToRun; page++) {
@@ -2009,6 +2012,7 @@ export default function App() {
             addLog(`[CATÉGORIE_SÉLECTIONNÉE] ${cat.name} (${cat.url})`, 'info', `0xCAT_${cat.slug}`);
           }}
           onStartAllCategoriesSweep={handleStartAllCategoriesSweep}
+          onStopSweep={handleStopScrape}
           isScrapingActive={isContinuousScraping}
           activeSweepCategoryIndex={activeSweepCategoryIndex}
           sweepPagesPerCategory={sweepPagesPerCategory}

@@ -225,27 +225,29 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
             {isActive ? (
               <button
                 onClick={onStopSweep}
-                className="px-3 py-1.5 rounded-lg bg-rose-950/80 border border-rose-500/60 text-rose-300 hover:bg-rose-900 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-[0_0_12px_rgba(244,63,94,0.3)] transition-all cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(244,63,94,0.4)] transition-all cursor-pointer animate-pulse"
                 title="Stopper le balayage global immédiatement"
               >
-                <Square className="w-3.5 h-3.5 fill-rose-400 text-rose-400" />
-                <span className="hidden sm:inline">Stopper</span>
+                <Square className="w-3.5 h-3.5 fill-white" />
+                <span>Stopper</span>
               </button>
             ) : (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 {/* Quick depth selector */}
-                <div className="hidden md:flex items-center bg-slate-900 border border-slate-800 rounded-md p-0.5 text-[11px] font-mono">
+                <div className="hidden md:flex items-center bg-slate-900/90 border border-slate-800 rounded-lg p-0.5 text-[11px] font-mono">
                   {[
                     { label: '5p', val: 5 },
-                    { label: '10p', val: 10 },
-                    { label: 'Complet (15p)', val: 0 },
+                    { label: '25p', val: 25 },
+                    { label: '50p', val: 50 },
+                    { label: '100p', val: 100 },
+                    { label: '∞ Illimité', val: 0 },
                   ].map((opt) => (
                     <button
                       key={opt.val}
                       onClick={() => onChangeSweepPagesPerCategory(opt.val)}
-                      className={`px-2 py-0.5 rounded transition-colors ${
+                      className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
                         sweepPagesPerCategory === opt.val
-                          ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 font-bold'
+                          ? 'bg-emerald-500/25 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_8px_rgba(0,255,102,0.3)]'
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
@@ -256,10 +258,10 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
 
                 <button
                   onClick={onStartSweep}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-950/80 border border-emerald-500/60 text-[#00ff88] hover:bg-emerald-900/60 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,255,102,0.25)] transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00ff88] text-slate-950 hover:from-emerald-400 hover:to-cyan-300 text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,255,102,0.35)] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                   title="Démarrer l'aspiration séquentielle des 17 catégories Ouedkniss"
                 >
-                  <Zap className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />
+                  <Zap className="w-3.5 h-3.5 fill-black text-black" />
                   <span>Balayer les 17 Catégories</span>
                 </button>
               </div>
