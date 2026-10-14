@@ -991,6 +991,11 @@ export default function App() {
       'cyber',
       '0xGLOBAL_START'
     );
+    addLog(
+      `[ANTI_BOT_JITTER] Protection furtive armée : injection d'un délai aléatoire (jitter 350ms-800ms) entre chaque requête de page/catégorie.`,
+      'info',
+      '0xJITTER'
+    );
     cyberAudio.playVacuumSuck();
 
     let accumulated: ScrapedProduct[] = replaceCatalog ? [] : [...products];
@@ -1069,7 +1074,9 @@ export default function App() {
             setProducts([...accumulated]);
           }
 
-          await new Promise((r) => setTimeout(r, 220));
+          // Délai aléatoire (jitter anti-bot) pour imiter une navigation humaine et contourner les filtres Ouedkniss
+          const sweepJitterDelay = Math.floor(Math.random() * 450) + 350; // 350ms à 800ms
+          await new Promise((r) => setTimeout(r, sweepJitterDelay));
         } catch (catErr) {
           console.warn('Sweep category error:', catErr);
         }
@@ -1151,6 +1158,11 @@ export default function App() {
         `[ASPIRATION_CONTINUE] Démarrage du crawler infini vers ${targetUrl} [Aucune coupure à 720]`,
         'cyber',
         '0xALL_START'
+      );
+      addLog(
+        `[ANTI_BOT_JITTER] Temporisation furtive activée : injection d'une gigue temporelle aléatoire (400ms-950ms) entre chaque requête de page.`,
+        'info',
+        '0xJITTER'
       );
       cyberAudio.playVacuumSuck();
 
@@ -1238,8 +1250,9 @@ export default function App() {
             );
           }
 
-          // Small stagger for visual delight
-          await new Promise((r) => setTimeout(r, 450));
+          // Délai aléatoire (jitter anti-bot) entre chaque page pour contourner les protections Ouedkniss
+          const continuousJitterDelay = Math.floor(Math.random() * 550) + 400; // 400ms à 950ms
+          await new Promise((r) => setTimeout(r, continuousJitterDelay));
         } catch (pageErr) {
           console.warn('Page fetch issue:', pageErr);
           break;
@@ -1291,11 +1304,15 @@ export default function App() {
     const currentLotPage = lotPageRef.current[lotKey];
 
     try {
+      // Jitter furtif anti-bot avant l'appel pour casser les signatures de timing automatisées
+      const stealthLotJitter = Math.floor(Math.random() * 300) + 200; // 200ms à 500ms
+      await new Promise((r) => setTimeout(r, stealthLotJitter));
+
       setJob((prev) => ({
         ...prev,
         status: 'aspirating',
         progress: 50,
-        aiAgentAction: `Aspiration quantique en cours (${scrapeVolume} articles)...`,
+        aiAgentAction: `Aspiration furtive en cours (${scrapeVolume} articles - jitter anti-bot actif)...`,
       }));
       cyberAudio.playVacuumSuck();
 
