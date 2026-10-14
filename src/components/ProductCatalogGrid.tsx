@@ -32,6 +32,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
+import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
 import { ProductDetailModal } from './ProductDetailModal';
 import { PriceRangeFilter } from './PriceRangeFilter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -85,7 +86,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   const [sortBy, setSortBy] = useState<
     'recent' | 'wilaya_asc' | 'wilaya_desc' | 'category_asc' | 'category_desc' | 'price_asc' | 'price_desc' | 'discount'
   >('recent');
-  const [viewMode, setViewMode] = useState<'grid' | 'grouped' | 'table'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'grouped' | 'table'>('grid');
   const [groupCriteria, setGroupCriteria] = useState<'category' | 'wilaya'>('category');
   const [inspectingProduct, setInspectingProduct] = useState<ScrapedProduct | null>(null);
   const [selectedDetailProduct, setSelectedDetailProduct] = useState<ScrapedProduct | null>(null);
@@ -518,12 +519,16 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             aria-label="Filtrer par Wilaya"
             className="bg-slate-900 border border-emerald-500/30 rounded-lg px-2.5 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer max-w-[200px]"
           >
-            <option value="all">📍 69 Wilayas ({wilayaStats.length > 0 ? `${wilayaStats.length} détectées` : 'Toutes'})</option>
-            {wilayaStats.map((w) => (
-              <option key={w.name} value={w.name}>
-                {w.name} ({w.count})
-              </option>
-            ))}
+            <option value="all">📍 69 Wilayas d'Algérie (Toutes)</option>
+            {ALGERIA_69_WILAYAS.map((w) => {
+              const matched = wilayaStats.find((s) => s.name.toLowerCase().includes(w.name.toLowerCase()));
+              const count = matched?.count || 0;
+              return (
+                <option key={w.codeStr} value={w.name}>
+                  {w.codeStr} - {w.name} {count > 0 ? `(${count})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -561,19 +566,31 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </select>
         </div>
 
-        {/* View Mode Toggle: Grid vs Grouped (Category or Wilaya) vs Table */}
+        {/* View Mode Toggle: Grid vs List vs Grouped (Category or Wilaya) vs Table */}
         <div className="flex items-center rounded-lg bg-black/60 p-0.5 border border-slate-800 font-mono text-xs">
           <button
             type="button"
             onClick={() => setViewMode('grid')}
-            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded flex items-center gap-1.5 transition-all cursor-pointer ${
               viewMode === 'grid'
-                ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold'
+                ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                 : 'text-slate-400 hover:text-white'
             }`}
             title="Vue Grille Infinie Lazy"
           >
             <LayoutGrid className="w-3.5 h-3.5" /> Grille
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-1.5 rounded flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewMode === 'list'
+                ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_10px_rgba(0,255,102,0.2)]'
+                : 'text-slate-400 hover:text-white'
+            }`}
+            title="Vue Liste Ergonomique et Compacte"
+          >
+            <List className="w-3.5 h-3.5" /> Liste
           </button>
           <button
             type="button"
@@ -970,6 +987,15 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             </table>
           </div>
         </div>
+      ) : viewMode === 'list' ? (
+        /* ============================================================ */
+        /* VUE LISTE COMPACTE & ERGONOMIQUE                             */
+        /* ============================================================ */
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout">
+            {lazyProducts.map((product, index) => renderProductListRow(product, index))}
+          </AnimatePresence>
+        </div>
       ) : (
         /* ============================================================ */
         /* VUE GRILLE LAZY INFINIE OPTIMISÉE 60 FPS                     */
@@ -984,7 +1010,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       {/* ============================================================== */}
       {/* 5. LAZY LOADING SENTINEL OBSERVER & END OF STREAM INDICATOR    */}
       {/* ============================================================== */}
-      {viewMode === 'grid' && (
+      {(viewMode === 'grid' || viewMode === 'list') && (
         <div ref={sentinelRef} className="py-6 flex flex-col items-center justify-center">
           {!isAllLoaded ? (
             <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-950/80 border border-emerald-500/30 font-mono text-xs text-emerald-300 backdrop-blur-md animate-pulse">
@@ -1279,6 +1305,170 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             >
               <Database className="w-2.5 h-2.5" />
               {isSyncing ? '...' : det.syncedToSupabase ? 'Sync ✓' : 'Supabase'}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Helper function to render a product in compact, ergonomic list row format
+  function renderProductListRow(product: ScrapedProduct, index: number = 0) {
+    const det = ensureProductDetails(product);
+    const seller = det.seller!;
+    const tel = buildTelLink(seller);
+    const wa = buildWhatsAppLink(seller, det);
+    const originUrl = getOuedknissOriginUrl(det);
+
+    const hasDiscount = det.discountPercent > 0;
+    const isSyncing = syncingId === det.id;
+    const wilaya = seller.wilaya || det.specs?.Wilaya;
+
+    return (
+      <motion.div
+        key={det.id}
+        layout="position"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.3, delay: Math.min((index % 10) * 0.025, 0.2) }}
+        onClick={() => setSelectedDetailProduct(det)}
+        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3 sm:p-4 transition-colors duration-300 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 hover:shadow-[0_0_20px_rgba(0,255,102,0.15)] cursor-pointer"
+      >
+        <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+          {/* Square Image Thumbnail */}
+          <div className="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
+            <img
+              src={det.imageUrl}
+              alt={det.title}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src =
+                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=60';
+              }}
+            />
+            {hasDiscount && (
+              <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-rose-600/90 text-white font-mono font-bold text-[9px] border border-rose-400/40">
+                -{det.discountPercent}%
+              </div>
+            )}
+            <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 text-cyan-300 font-mono text-[8px] border border-cyan-500/30">
+              {det.aiConfidence}% IA
+            </div>
+          </div>
+
+          {/* Details & Specs */}
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+              <span className="px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-400 border border-cyan-500/30 font-bold truncate max-w-[160px]">
+                {det.category || det.brand}
+              </span>
+              {wilaya && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedWilaya(extractWilaya(product));
+                  }}
+                  className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 hover:border-emerald-300 cursor-pointer"
+                  title="Filtrer par cette wilaya"
+                >
+                  <MapPin className="w-2.5 h-2.5 text-emerald-400" />
+                  <span className="truncate max-w-[130px]">{wilaya}</span>
+                </span>
+              )}
+              <span className={`flex items-center gap-1 font-bold ${det.inStock ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${det.inStock ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                {det.inStock ? 'En stock' : 'Rupture'}
+              </span>
+            </div>
+
+            <h3 className="font-mono text-sm font-bold text-slate-100 group-hover:text-emerald-300 transition-colors line-clamp-2 leading-snug">
+              {det.title}
+            </h3>
+
+            {/* Specs Tags */}
+            {det.specs && Object.keys(det.specs).length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {Object.entries(det.specs)
+                  .filter(([k]) => k !== 'Wilaya')
+                  .slice(0, 3)
+                  .map(([k, v]) => (
+                    <span key={k} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono">
+                      <strong className="text-emerald-400/80">{k}:</strong> {v}
+                    </span>
+                  ))}
+              </div>
+            )}
+
+            {/* Seller Info */}
+            <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 pt-0.5">
+              <span className="flex items-center gap-1 text-slate-300 font-semibold truncate max-w-[150px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                {seller.name}
+              </span>
+              <span>•</span>
+              <span className="text-slate-500">{seller.type}</span>
+              <span>•</span>
+              <span className="text-cyan-400">{seller.responseTime}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Price & Actions Row */}
+        <div
+          className="flex flex-col sm:items-end justify-between gap-2 shrink-0 border-t sm:border-t-0 sm:border-l border-slate-900 pt-2 sm:pt-0 sm:pl-4 min-w-[200px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Price */}
+          <div className="text-left sm:text-right space-y-0.5">
+            <div className="text-lg font-black font-mono text-[#00ff66]">
+              {formatPrice(det.currentPrice, det.currency)}
+            </div>
+            {hasDiscount && (
+              <div className="text-xs line-through text-slate-500 font-mono">
+                {formatPrice(det.originalPrice, det.currency)}
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs w-full sm:w-auto">
+            <a
+              href={tel}
+              className="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title={`Appeler directement : ${seller.phone}`}
+            >
+              <PhoneCall className="w-3 h-3 text-slate-950 animate-pulse" />
+              <span>{seller.phone}</span>
+            </a>
+
+            <a
+              href={wa}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+              title="Contacter sur WhatsApp"
+            >
+              <MessageCircle className="w-3 h-3" /> WhatsApp
+            </a>
+
+            <a
+              href={originUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+              title="Ouvrir sur Ouedkniss.com directement sans 404"
+            >
+              <ExternalLink className="w-3 h-3 text-emerald-400" />
+            </a>
+
+            <button
+              onClick={() => setSelectedDetailProduct(det)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-emerald-400 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <Eye className="w-3 h-3" />
             </button>
           </div>
         </div>

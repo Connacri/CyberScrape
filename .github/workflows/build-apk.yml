@@ -28,11 +28,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Install dependencies
         run: |
-          npm ci || npm install --legacy-peer-deps
+          npm ci || npm install --legacy-peer-deps --no-audit
 
       - name: Build Web Application
         env:
@@ -46,8 +45,23 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle 8.5
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
+
+      - name: Setup Android SDK Environment & Accept Licenses
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          mkdir -p "$ANDROID_HOME/licenses" || true
+          printf "\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n" > "$ANDROID_HOME/licenses/android-sdk-license" || true
+          printf "\n84831b9409646a2a10e44161826cd3000b05e197\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license" || true
+          printf "\n33b6a2b64607f11b759f320ef9dff4ae5c47d97a\n" > "$ANDROID_HOME/licenses/google-gdk-license" || true
+          if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes 2>/dev/null | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          fi
 
       - name: Initialize Android Native Wrapper & Build APK
         run: |
@@ -188,10 +202,12 @@ jobs:
           </manifest>
           EOF
 
-          # Build APK using gradle wrapper
+          # Write Android SDK path to local.properties
+          echo "sdk.dir=$ANDROID_HOME" > android-app/local.properties
+
+          # Build native Android APK using Gradle
           cd android-app
-          gradle wrapper --gradle-version 8.5
-          ./gradlew assembleDebug || true
+          gradle assembleDebug || gradle assembleRelease || true
           cd ..
 
           # Package APK artifact

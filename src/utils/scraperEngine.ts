@@ -16,6 +16,7 @@ import {
   generateAnnouncementDescription,
   generateGalleryImages,
 } from './sellerGenerator';
+import { getOuedknissOriginUrl } from './ouedknissUrls';
 
 export interface ScrapeRequestParams {
   url: string;
@@ -213,7 +214,9 @@ export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultR
         item.imageUrl ||
         `https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80`,
       images: productImages,
-      productUrl: item.productUrl || url,
+      productUrl: isOuedkniss
+        ? getOuedknissOriginUrl({ title: item.title, productUrl: item.productUrl, sourceDomain: domain, category: item.category })
+        : (item.productUrl || url),
       sourceDomain: domain,
       scrapedAt: nowIso,
       lastUpdated: nowIso,
@@ -301,6 +304,10 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
       isServerAvailable = true;
       const data = await res.json();
       if (data && Array.isArray(data.products) && data.products.length > 0) {
+        data.products = data.products.map((p: ScrapedProduct) => ({
+          ...p,
+          productUrl: getOuedknissOriginUrl(p),
+        }));
         return data;
       }
     }

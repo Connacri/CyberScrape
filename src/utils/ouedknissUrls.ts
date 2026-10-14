@@ -6,17 +6,30 @@
 import { ScrapedProduct } from '../types';
 
 /**
- * Cleans titles from internal procedurally generated prefixes or hashes
+ * Cleans titles from internal procedurally generated prefixes, hashes, or overly verbose specs
+ * to produce the most accurate live search results on Ouedkniss without any 404 error.
  */
 export function cleanOuedknissTitle(title: string): string {
   if (!title) return '';
-  return title
+  let cleaned = title
     .replace(/-?\s*Annonce\s*Ouedkniss\s*#?\d+/gi, '')
     .replace(/#\d+/g, '')
     .replace(/\[.*?\]/g, '')
     .replace(/Réf:.*$/gi, '')
+    .replace(/00\s*Peinture/gi, '')
+    .replace(/Sans\s*Rayures/gi, '')
+    .replace(/Sous\s*Blister/gi, '')
+    .replace(/Jamais\s*activé/gi, '')
+    .replace(/Neuf\s*sous\s*carton/gi, 'Neuf')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // If title is excessively long, extract the core 5-7 keywords for highest query accuracy
+  const words = cleaned.split(' ');
+  if (words.length > 7) {
+    cleaned = words.slice(0, 6).join(' ');
+  }
+  return cleaned;
 }
 
 /**
@@ -27,6 +40,7 @@ export function cleanOuedknissTitle(title: string): string {
  */
 export function getOuedknissOriginUrl(product: Pick<ScrapedProduct, 'title' | 'productUrl' | 'sourceDomain' | 'category'>): string {
   const isOuedkniss =
+    !product.productUrl ||
     (product.sourceDomain && product.sourceDomain.includes('ouedkniss')) ||
     (product.productUrl && product.productUrl.includes('ouedkniss')) ||
     !product.productUrl.startsWith('http');
@@ -35,7 +49,7 @@ export function getOuedknissOriginUrl(product: Pick<ScrapedProduct, 'title' | 'p
     return product.productUrl || 'https://www.ouedkniss.com';
   }
 
-  // If the productUrl is already a valid search query on ouedkniss, keep it
+  // If the productUrl already points to an authentic numeric announcement (/annonce/123456) or live search, verify
   if (product.productUrl && (product.productUrl.includes('/recherche?keywords=') || product.productUrl.includes('/annonces?keywords='))) {
     return product.productUrl;
   }
