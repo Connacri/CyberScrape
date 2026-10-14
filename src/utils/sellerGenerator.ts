@@ -97,6 +97,8 @@ function hashString(str: string): number {
 /**
  * Generates rich seller information for any product
  */
+import { getRandom69Wilaya } from '../data/algeriaWilayas';
+
 export function generateSellerForProduct(
   productId: string,
   category: string = 'Général',
@@ -119,7 +121,7 @@ export function generateSellerForProduct(
   const responseTime = RESPONSE_TIMES[seed % RESPONSE_TIMES.length];
   const memberSince = MEMBER_SINCE[seed % MEMBER_SINCE.length];
 
-  const wilaya = wilayaHint || (seed % 3 === 0 ? 'Alger - Kouba' : seed % 3 === 1 ? 'Oran - Akid Lotfi' : 'Sétif - Centre');
+  const wilaya = wilayaHint || getRandom69Wilaya(seed);
   const commune = wilaya.includes('-') ? wilaya.split('-')[1]?.trim() : wilaya;
 
   return {

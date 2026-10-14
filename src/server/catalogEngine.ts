@@ -21,38 +21,13 @@ export interface ScrapedRawItem {
   specs?: Record<string, string>;
 }
 
-// 58 Wilayas of Algeria for realistic Ouedkniss scraping
-const ALGERIA_WILAYAS = [
-  'Alger - Kouba',
-  'Alger - Bab Ezzouar',
-  'Alger - Hydra',
-  'Alger - Chéraga',
-  'Alger - Bir Mourad Raïs',
-  'Oran - Akid Lotfi',
-  'Oran - Maraval',
-  'Oran - Es Sénia',
-  'Constantine - Nouvelle Ville',
-  'Constantine - Sidi Mabrouk',
-  'Sétif - Centre Ville',
-  'Sétif - Ain Oulmene',
-  'Blida - Ouled Yaich',
-  'Blida - Centre',
-  'Batna - Bouakal',
-  'Annaba - Cours Révolution',
-  'Tizi Ouzou - Centre',
-  'Béjaïa - Ihaddaden',
-  'Tlemcen - Imama',
-  'Chlef - Centre',
-  'Biskra - Les Allées',
-  'Mostaganem - Salamandre',
-  'Boumerdès - Bordj Menaïel',
-  'Bordj Bou Arréridj - Centre',
-  'Tipaza - Koléa',
-  'Médéa - Centre',
-  'Skikda - Les Platanes',
-  'Ghardaïa - Beni Isguen',
-  'Ouargla - Hassi Messaoud',
-];
+import { ALGERIA_69_WILAYAS, getRandom69Wilaya } from '../data/algeriaWilayas.ts';
+
+// 69 Wilayas d'Algérie complètes (Organisation territoriale officielle)
+const ALGERIA_WILAYAS = ALGERIA_69_WILAYAS.map((w, idx) => {
+  const commune = w.communes[0] || w.name;
+  return `${w.name} - ${commune}`;
+});
 
 // Ouedkniss base verified announcement templates
 const OUEDKNISS_PRODUCTS_DATABASE: ScrapedRawItem[] = [
@@ -915,12 +890,13 @@ export function generateOuedknissItems(count: number, page: number = 1, category
     const brand = profile.brands[globalIdx % profile.brands.length];
     const modelsList = profile.models[brand] || [`Modèle Pro Édition DZ #${100 + globalIdx}`];
     const model = modelsList[Math.floor(globalIdx / profile.brands.length) % modelsList.length];
-    const wilaya = ALGERIA_WILAYAS[(globalIdx * 3 + i) % ALGERIA_WILAYAS.length];
+    const wilaya = getRandom69Wilaya(globalIdx * 3 + i);
     const imageUrl = profile.imagePool[globalIdx % profile.imagePool.length];
 
     const { currentPrice, discountPercent } = profile.priceCalc(globalIdx);
     const originalPrice = Math.round(currentPrice * (1 + discountPercent / 100));
     const specs = profile.specsGenerator(globalIdx, wilaya);
+    const cleanSearchKeywords = `${brand} ${model}`;
 
     items.push({
       title: `${brand} ${model} - Annonce Ouedkniss #${1000 + globalIdx}`,
@@ -935,7 +911,7 @@ export function generateOuedknissItems(count: number, page: number = 1, category
       inStock: true,
       stockLevel: 'IN_STOCK',
       imageUrl,
-      productUrl: `https://www.ouedkniss.com/${catKey}/annonce-${1000000 + globalIdx}`,
+      productUrl: `https://www.ouedkniss.com/recherche?keywords=${encodeURIComponent(cleanSearchKeywords)}`,
       specs: {
         ...specs,
         Réf: `0xDZ_${catKey.substring(0, 3).toUpperCase()}_${1000 + globalIdx}`,

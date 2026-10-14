@@ -31,6 +31,7 @@ import {
   buildTelLink,
   buildSmsLink,
 } from '../utils/sellerGenerator';
+import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
 
 interface ProductDetailModalProps {
   product: ScrapedProduct;
@@ -524,13 +525,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <div className="sticky bottom-0 z-30 flex items-center justify-between px-5 py-3.5 bg-slate-950/95 border-t border-slate-800 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <a
-              href={product.productUrl}
+              href={getOuedknissOriginUrl(product)}
               target="_blank"
               rel="noopener noreferrer"
               className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-emerald-500/40 font-mono text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Ouvrir l'annonce ou la recherche directe sur Ouedkniss.com sans erreur 404"
             >
               <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Voir sur Ouedkniss.com</span>
+              <span>Voir sur Ouedkniss.com (Direct)</span>
             </a>
 
             {onInspectJson && (

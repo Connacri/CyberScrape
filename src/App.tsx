@@ -28,10 +28,14 @@ import {
   getStoredProducts,
   loadStoredProductsFromIndexedDB,
   saveStoredProducts,
+  saveScrapedProductsBatch,
   clearStoredProducts,
   syncProductsToSupabase,
 } from './utils/supabaseClient';
 import { cyberAudio } from './utils/cyberAudio';
+import { backgroundScraper } from './utils/backgroundScraperWorker';
+import { TemuEcommerceHub } from './components/TemuEcommerceHub';
+import { ProductDetailModal } from './components/ProductDetailModal';
 import {
   executeScrapeRequest,
   executeSimulatePriceUpdate,
@@ -1096,7 +1100,8 @@ export default function App() {
   const [sweepCompletedCategories, setSweepCompletedCategories] = useState<string[]>([]);
   const [isSweepComplete, setIsSweepComplete] = useState<boolean>(false);
   const [replaceCatalog, setReplaceCatalog] = useState<boolean>(false); // Par défaut: Fusion incrémentale intelligente
-  const [activeTab, setActiveTab] = useState<'vacuum' | 'trends' | 'catalog'>('vacuum');
+  const [activeTab, setActiveTab] = useState<'vacuum' | 'temu' | 'trends' | 'catalog'>('temu');
+  const [selectedModalProduct, setSelectedModalProduct] = useState<ScrapedProduct | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [rainIntensity, setRainIntensity] = useState<'subtle' | 'normal' | 'turbo' | 'off'>('normal');
   const [isContinuousScraping, setIsContinuousScraping] = useState<boolean>(false);
@@ -1110,7 +1115,7 @@ export default function App() {
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
 
-  // Products State with full persistence strategy from localStorage
+  // Products State with full persistence strategy from IndexedDB & LocalStorage (Zero fake items on startup!)
   const [products, setProducts] = useState<ScrapedProduct[]>(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -1126,15 +1131,17 @@ export default function App() {
       console.warn('Failed to parse products from localStorage on initial load:', err);
     }
     const cached = getStoredProducts();
-    if (cached.length === 0) return INITIAL_DEMO_PRODUCTS;
-    // If cache only had a few categories from an older build, ensure all 17 categories are present
-    const cachedCategories = new Set(cached.map((p) => p.category));
-    const missingSeedItems = INITIAL_DEMO_PRODUCTS.filter((seed) => !cachedCategories.has(seed.category));
-    if (missingSeedItems.length > 0) {
-      return [...cached, ...missingSeedItems];
-    }
-    return cached;
+    return cached; // Zero fake demo list: starts pure and empty until user scrapes!
   });
+
+  // Hydrate full real dataset from IndexedDB on startup
+  useEffect(() => {
+    loadStoredProductsFromIndexedDB().then((stored) => {
+      if (stored && stored.length > 0) {
+        setProducts(stored);
+      }
+    });
+  }, []);
 
   // Scraping Job State
   const [job, setJob] = useState<ScrapeJob>({
@@ -1904,8 +1911,23 @@ export default function App() {
           {/* Quick HUD Navigation Tabs */}
           <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-lg p-1 text-xs">
             <button
+              onClick={() => setActiveTab('temu')}
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-bold transition-all cursor-pointer ${
+                activeTab === 'temu'
+                  ? 'bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white shadow-[0_0_15px_rgba(251,82,0,0.4)]'
+                  : 'text-orange-400 hover:text-orange-200 hover:bg-orange-950/40'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>MARKET TEMU-DZ</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] text-yellow-300">
+                {products.length}
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('vacuum')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
                 activeTab === 'vacuum'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -1916,20 +1938,8 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveTab('trends')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all ${
-                activeTab === 'trends'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <LineChart className="w-3.5 h-3.5" />
-              Tendances Prix
-            </button>
-
-            <button
               onClick={() => setActiveTab('catalog')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
                 activeTab === 'catalog'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -1937,6 +1947,18 @@ export default function App() {
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               Catalogue ({products.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('trends')}
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
+                activeTab === 'trends'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <LineChart className="w-3.5 h-3.5" />
+              Tendances
             </button>
           </div>
 
@@ -2247,6 +2269,16 @@ export default function App() {
         </section>
 
         {/* ============================================================== */}
+        {/* TAB 0: MARKET TEMU-DZ (TEMU E-COMMERCE HUB)                    */}
+        {/* ============================================================== */}
+        {activeTab === 'temu' && (
+          <TemuEcommerceHub
+            products={products}
+            onSelectProduct={(p) => setSelectedModalProduct(p)}
+          />
+        )}
+
+        {/* ============================================================== */}
         {/* TAB 1: VORTEX D'ASPIRATION & IA CRAWLER LIVE HUD */}
         {/* ============================================================== */}
         {activeTab === 'vacuum' && (
@@ -2263,6 +2295,7 @@ export default function App() {
             {/* The AI Scrolling Browser & Telemetry Console */}
             <AiCrawlerLiveHud
               job={job}
+              products={products}
               scrapeVolume={scrapeVolume}
               totalProductsCount={products.length}
               onClearLogs={() =>
@@ -2316,6 +2349,15 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Product Detail Modal */}
+      {selectedModalProduct && (
+        <ProductDetailModal
+          product={selectedModalProduct}
+          onClose={() => setSelectedModalProduct(null)}
+          onSyncSupabase={handleSyncSingleProduct}
+        />
+      )}
 
       {/* Cyberpunk Footer */}
       <footer className="relative z-20 border-t border-slate-900 bg-slate-950/90 py-4 mt-8 font-mono text-xs text-slate-500">

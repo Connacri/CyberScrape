@@ -40,6 +40,7 @@ import {
   buildTelLink,
   buildWhatsAppLink,
 } from '../utils/sellerGenerator';
+import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
 
 interface ProductCatalogGridProps {
   products: ScrapedProduct[];
@@ -77,6 +78,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   discoveredCategories = [],
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [titleFilter, setTitleFilter] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedWilaya, setSelectedWilaya] = useState<string>('all');
   const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
@@ -116,7 +118,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   // Reset visibleCount whenever filters change
   useEffect(() => {
     setVisibleCount(CHUNK_SIZE);
-  }, [searchTerm, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice]);
+  }, [searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice]);
 
   // Overall dataset min/max price for the range filter slider bounds
   const datasetPriceStats = useMemo(() => {
@@ -178,12 +180,17 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     }));
   }, [products]);
 
-  // Filtered and sorted products
+  // Filtered and sorted products with real-time title filtering
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
+    const titleTerm = titleFilter.trim().toLowerCase();
 
     return products
       .filter((p) => {
+        // Direct real-time title filter
+        const matchesTitle = !titleTerm || p.title.toLowerCase().includes(titleTerm);
+
+        // Broad keyword filter
         const matchesSearch =
           !term ||
           p.title.toLowerCase().includes(term) ||
@@ -198,7 +205,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         const matchesMinPrice = minPrice === '' || p.currentPrice >= Number(minPrice);
         const matchesMaxPrice = maxPrice === '' || p.currentPrice <= Number(maxPrice);
 
-        return matchesSearch && matchesCategory && matchesWilaya && matchesCurrency && matchesMinPrice && matchesMaxPrice;
+        return matchesTitle && matchesSearch && matchesCategory && matchesWilaya && matchesCurrency && matchesMinPrice && matchesMaxPrice;
       })
       .sort((a, b) => {
         if (sortBy === 'wilaya_asc') {
@@ -218,7 +225,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         if (sortBy === 'discount') return (b.discountPercent || 0) - (a.discountPercent || 0);
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [products, searchTerm, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice]);
+  }, [products, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice]);
 
   // Grouped products for "Vue Groupée" (either by Category or by Wilaya)
   const groupedProducts = useMemo(() => {
@@ -458,28 +465,60 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       {/* 2. SEARCH, SORT & VIEW MODE CONTROLLER BAR */}
       {/* ============================================================== */}
       <div className="p-4 rounded-xl bg-slate-950/80 border border-emerald-500/30 backdrop-blur-md flex flex-wrap items-center justify-between gap-3">
-        {/* Search input with wilaya & specs detection */}
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        {/* DEDICATED REAL-TIME TITLE FILTER INPUT */}
+        <div className="relative flex-1 min-w-[240px]">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+            <Tag className="w-3.5 h-3.5 text-emerald-400" />
+          </div>
           <input
             type="text"
-            placeholder="Recherche instantanée : Alger, Oran, iPhone, Clio, PS5, F4, Kouba..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+            placeholder="⚡ Filtrer par titre en direct (ex: Golf 8, iPhone 16, Clio 4...)"
+            value={titleFilter}
+            onChange={(e) => setTitleFilter(e.target.value)}
+            className="w-full bg-slate-900 border border-emerald-500/40 rounded-lg pl-9 pr-8 py-2 text-xs font-mono text-[#00ff88] placeholder-slate-500 focus:outline-none focus:border-emerald-300 focus:ring-1 focus:ring-emerald-400/30 transition-all font-semibold"
           />
+          {titleFilter && (
+            <button
+              onClick={() => setTitleFilter('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
+              title="Effacer le filtre de titre"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Wilaya Filter Selector (58 Wilayas) */}
+        {/* Global Search input with wilaya & specs detection */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Recherche générale : wilaya, specs, vendeur..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900/90 border border-slate-800 rounded-lg pl-8 pr-7 py-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
+              title="Effacer la recherche"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Wilaya Filter Selector (69 Wilayas d'Algérie) */}
         <div className="flex items-center gap-1.5 font-mono text-xs">
           <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <select
             value={selectedWilaya}
             onChange={(e) => setSelectedWilaya(e.target.value)}
             aria-label="Filtrer par Wilaya"
-            className="bg-slate-900 border border-emerald-500/30 rounded-lg px-2.5 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer"
+            className="bg-slate-900 border border-emerald-500/30 rounded-lg px-2.5 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer max-w-[200px]"
           >
-            <option value="all">📍 Toutes Wilayas ({wilayaStats.length})</option>
+            <option value="all">📍 69 Wilayas ({wilayaStats.length > 0 ? `${wilayaStats.length} détectées` : 'Toutes'})</option>
             {wilayaStats.map((w) => (
               <option key={w.name} value={w.name}>
                 {w.name} ({w.count})

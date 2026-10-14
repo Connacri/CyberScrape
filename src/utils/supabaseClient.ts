@@ -112,43 +112,33 @@ let latestProductsRef: ScrapedProduct[] | null = null;
 function flushProductsSync(products: ScrapedProduct[]) {
   if (typeof window === 'undefined') return;
 
-  // 1. Save to LocalStorage (with quota fallback)
+  // 1. Save lightweight preview slice (max 40 items) to LocalStorage for fast boot
   try {
-    const serialized = JSON.stringify(products);
-    localStorage.setItem('products', serialized);
+    const previewSlice = products.slice(0, 40);
+    const serialized = JSON.stringify(previewSlice);
     localStorage.setItem(STORAGE_KEY_PRODUCTS, serialized);
+    localStorage.setItem('cyber_vacuum_total_count', String(products.length));
   } catch {
-    try {
-      // If full array exceeds 5MB quota, save the latest 80 items into localStorage
-      // while IndexedDB keeps 100% of the entire catalogue!
-      const trimmed = products.slice(0, 80);
-      const serialized = JSON.stringify(trimmed);
-      localStorage.setItem('products', serialized);
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, serialized);
-    } catch {
-      // LocalStorage completely full or blocked; IndexedDB handles persistence
-    }
+    // Quota reached or private mode; IndexedDB holds the authoritative database
   }
 
-  // 2. Save asynchronously to IndexedDB (virtually unlimited capacity)
+  // 2. Save asynchronously to IndexedDB in a single bulk transaction
   openIndexedDb().then((db) => {
     if (!db) return;
     try {
       const tx = db.transaction(IDB_STORE, 'readwrite');
       const store = tx.objectStore(IDB_STORE);
-      // Clear and bulk insert
-      store.clear().onsuccess = () => {
-        for (const item of products) {
-          store.put(item);
-        }
-      };
+      // Batch write items
+      for (let i = 0; i < products.length; i++) {
+        store.put(products[i]);
+      }
     } catch {
-      // Ignore
+      // Ignore background write errors
     }
   }).catch(() => {});
 }
 
-// Hook page unload to flush any pending write immediately so refreshing never loses data
+// Hook page unload to flush any pending write immediately
 if (typeof window !== 'undefined') {
   const handleUnload = () => {
     if (latestProductsRef) {
@@ -170,12 +160,30 @@ export function saveStoredProducts(products: ScrapedProduct[], immediate = false
   if (immediate) {
     flushProductsSync(products);
   } else {
-    // Fast 150ms debounce for high-rate continuous scraping without blocking UI thread
+    // Debounce to batch writes smoothly without stuttering the 60fps UI
     saveTimeout = setTimeout(() => {
       if (latestProductsRef) {
         flushProductsSync(latestProductsRef);
       }
-    }, 150);
+    }, 250);
+  }
+}
+
+/**
+ * High-speed incremental batch writer for live streaming scraping
+ */
+export async function saveScrapedProductsBatch(newBatch: ScrapedProduct[]): Promise<void> {
+  if (!newBatch || newBatch.length === 0) return;
+  const db = await openIndexedDb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    for (let i = 0; i < newBatch.length; i++) {
+      store.put(newBatch[i]);
+    }
+  } catch (err) {
+    console.warn('[LocalDB] Batch write error:', err);
   }
 }
 
