@@ -8,18 +8,18 @@
     --cyber-gold: #ffbe0b;
     --cyber-dark: #030712;
     --cyber-card: rgba(8, 14, 26, 0.75);
-    --matrix-font: 'JetBrains Mono', monospace;
+    --matrix-font: 'JetBrains Mono', 'Chakra Petch', monospace;
   }
 
   body {
     background-color: #030712;
     background-image: 
-      radial-gradient(ellipse at 50% 0%, rgba(0, 255, 102, 0.06) 0%, transparent 60%),
-      radial-gradient(circle at 10% 90%, rgba(0, 240, 255, 0.04) 0%, transparent 40%),
-      linear-gradient(rgba(0, 255, 102, 0.015) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 255, 102, 0.015) 1px, transparent 1px);
+      radial-gradient(ellipse at 50% 0%, rgba(0, 255, 102, 0.08) 0%, transparent 60%),
+      radial-gradient(circle at 10% 90%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+      linear-gradient(rgba(0, 255, 102, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 102, 0.02) 1px, transparent 1px);
     background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-family: 'JetBrains Mono', 'Chakra Petch', monospace;
     min-height: 100vh;
   }
 }

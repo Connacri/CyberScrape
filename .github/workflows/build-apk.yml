@@ -251,15 +251,27 @@ jobs:
           </resources>
           EOF
 
+          mkdir -p android-app/app/src/main/assets/assets
+          cp -r dist/* android-app/app/src/main/assets/
+          cp -r dist/assets/* android-app/app/src/main/assets/assets/ 2>/dev/null || true
+          mkdir -p android-app/app/src/main/assets/public
+          cp -r dist/* android-app/app/src/main/assets/public/
+
           mkdir -p android-app/app/src/main/java/com/cybervacuum/app
           cat << 'EOF' > android-app/app/src/main/java/com/cybervacuum/app/MainActivity.java
           package com.cybervacuum.app;
 
           import android.os.Bundle;
+          import android.net.Uri;
+          import android.webkit.ConsoleMessage;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
-          import android.webkit.WebViewClient;
           import androidx.appcompat.app.AppCompatActivity;
+          import androidx.webkit.WebViewAssetLoader;
+          import androidx.webkit.WebViewClientCompat;
 
           public class MainActivity extends AppCompatActivity {
               private WebView webView;
@@ -268,7 +280,14 @@ jobs:
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   webView = new WebView(this);
+                  // Eliminate white flash: set dark cyberpunk background immediately
+                  webView.setBackgroundColor(0xFF030712);
                   setContentView(webView);
+
+                  // Assets loader serves local assets as a secure HTTPS origin to eliminate file:// CORS blocks on ES modules
+                  final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
+                      .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
+                      .build();
 
                   WebSettings settings = webView.getSettings();
                   settings.setJavaScriptEnabled(true);
@@ -276,14 +295,45 @@ jobs:
                   settings.setDatabaseEnabled(true);
                   settings.setAllowFileAccess(true);
                   settings.setAllowContentAccess(true);
+                  settings.setAllowFileAccessFromFileURLs(true);
+                  settings.setAllowUniversalAccessFromFileURLs(true);
+                  settings.setMediaPlaybackRequiresUserGesture(false);
+                  settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
-                  webView.setWebViewClient(new WebViewClient());
-                  webView.loadUrl("file:///android_asset/public/index.html");
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                          android.util.Log.d("CyberVacuumJS", consoleMessage.message() + " [" + consoleMessage.sourceId() + ":" + consoleMessage.lineNumber() + "]");
+                          return true;
+                      }
+                  });
+
+                  webView.setWebViewClient(new WebViewClientCompat() {
+                      @Override
+                      public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                          return assetLoader.shouldInterceptRequest(request.getUrl());
+                      }
+
+                      @Override
+                      @SuppressWarnings("deprecation")
+                      public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+                          return assetLoader.shouldInterceptRequest(Uri.parse(url));
+                      }
+
+                      @Override
+                      public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                          android.util.Log.e("CyberVacuum", "WebView error: " + description + " at " + failingUrl);
+                      }
+                  });
+
+                  // Load via secure asset loader origin to avoid Chromium file:// ES Module CORS restrictions
+                  webView.loadUrl("https://appassets.androidplatform.net/assets/index.html");
               }
 
               @Override
               public void onBackPressed() {
-                  if (webView.canGoBack()) {
+                  if (webView != null && webView.canGoBack()) {
                       webView.goBack();
                   } else {
                       super.onBackPressed();

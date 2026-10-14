@@ -1109,7 +1109,7 @@ export default function App() {
   const [sweepCompletedCategories, setSweepCompletedCategories] = useState<string[]>([]);
   const [isSweepComplete, setIsSweepComplete] = useState<boolean>(false);
   const [replaceCatalog, setReplaceCatalog] = useState<boolean>(false); // Par défaut: Fusion incrémentale intelligente
-  const [activeTab, setActiveTab] = useState<'vacuum' | 'temu' | 'trends' | 'catalog'>('temu');
+  const [activeTab, setActiveTab] = useState<'vacuum' | 'temu' | 'trends' | 'catalog'>('vacuum');
   const [selectedModalProduct, setSelectedModalProduct] = useState<ScrapedProduct | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [rainIntensity, setRainIntensity] = useState<'subtle' | 'normal' | 'turbo' | 'off'>('normal');
@@ -1972,23 +1972,8 @@ export default function App() {
           {/* Zone 2: Navigation Switcher Tabs (Single-line, horizontally scrollable on mobile) */}
           <nav className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs overflow-x-auto scrollbar-none max-w-full">
             <button
-              onClick={() => setActiveTab('temu')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
-                activeTab === 'temu'
-                  ? 'bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white shadow-[0_0_12px_rgba(251,82,0,0.4)]'
-                  : 'text-orange-400 hover:text-orange-200 hover:bg-orange-950/30'
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
-              <span>MARKET TEMU-DZ</span>
-              <span className="px-1.5 py-0.2 rounded-md bg-black/40 text-[10px] font-mono-numbers text-yellow-300">
-                {products.length}
-              </span>
-            </button>
-
-            <button
               onClick={() => setActiveTab('vacuum')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'vacuum'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -2009,6 +1994,21 @@ export default function App() {
               <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
               <span>Catalogue</span>
               <span className="text-[10px] text-slate-400 font-mono-numbers">({products.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('temu')}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+                activeTab === 'temu'
+                  ? 'bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white shadow-[0_0_12px_rgba(251,82,0,0.4)]'
+                  : 'text-orange-400 hover:text-orange-200 hover:bg-orange-950/30'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
+              <span>MARKET TEMU-DZ</span>
+              <span className="px-1.5 py-0.2 rounded-md bg-black/40 text-[10px] font-mono-numbers text-yellow-300">
+                {products.length}
+              </span>
             </button>
 
             <button
@@ -2412,6 +2412,28 @@ export default function App() {
                 }))
               }
             />
+
+            {/* The Live Aspirated Cards Stream & Animations directly below Vortex */}
+            {products.length > 0 && (
+              <div className="pt-4 border-t border-slate-900">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#00ff88] animate-ping" />
+                  <h3 className="font-mono text-sm font-bold text-white tracking-wider uppercase">
+                    FLUX MATRICIEL DES ARTICLES ASPIRÉS EN DIRECT ({products.length})
+                  </h3>
+                </div>
+                <ProductCatalogGrid
+                  products={products}
+                  onSyncSingleProduct={handleSyncSingleProduct}
+                  onBulkSyncSupabase={handleBulkSyncSupabase}
+                  isSupabaseConfigured={Boolean(supabaseConfig.url && supabaseConfig.anonKey)}
+                  onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+                  onRemoveCurrency={handleRemoveCurrency}
+                  onClearAllProducts={handleClearAllProducts}
+                  discoveredCategories={discoveredCategories}
+                />
+              </div>
+            )}
           </div>
         )}
 
