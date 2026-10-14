@@ -1883,93 +1883,90 @@ export default function App() {
       {/* Cyber Screen Scanline Overlay */}
       <div className="fixed inset-0 cyber-scanlines pointer-events-none z-10 opacity-30" />
 
-      {/* Top Header HUD Navigation Bar */}
-      <header className="relative z-20 border-b border-emerald-500/30 bg-slate-950/85 backdrop-blur-md sticky top-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
-          {/* Logo & Brand Identity */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-black border-2 border-emerald-400 text-[#00ff66] shadow-[0_0_15px_rgba(0,255,102,0.4)]">
-              <Zap className="w-5 h-5 animate-pulse" />
-              <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-black animate-ping" />
+      {/* Top Header HUD Navigation Bar (Strict 1-row, 3-zone Top Bar Contract, 15% mobile sticky cap) */}
+      <header className="relative z-20 border-b border-emerald-500/30 bg-slate-950/90 backdrop-blur-md sticky top-0 shadow-lg">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4">
+          {/* Zone 1: Brand Wordmark (Single text element with glowing accent) */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-black border border-emerald-400/80 text-[#00ff66] shadow-[0_0_12px_rgba(0,255,102,0.35)] shrink-0">
+              <Zap className="w-4 h-4 text-emerald-400" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 border border-black animate-ping" />
             </div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black tracking-wider text-white font-mono flex items-center gap-2">
-                  CYBER-VACUUM <span className="text-[#00ff66]">// MK-IV</span>
-                </h1>
-                <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
-                  IA E-COMMERCE ENGINE
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-mono hidden sm:block">
-                Aspiration matricielle de bases de données & analyse prédictive des prix
-              </p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-sm sm:text-base font-black tracking-wider text-white font-mono whitespace-nowrap">
+                CYBER-VACUUM
+              </span>
+              <span className="text-xs font-mono font-bold text-emerald-400 whitespace-nowrap">
+                MK-IV
+              </span>
             </div>
           </div>
 
-          {/* Quick HUD Navigation Tabs */}
-          <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-lg p-1 text-xs">
+          {/* Zone 2: Navigation Switcher Tabs (Single-line, horizontally scrollable on mobile) */}
+          <nav className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs overflow-x-auto scrollbar-none max-w-full">
             <button
               onClick={() => setActiveTab('temu')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-bold transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'temu'
-                  ? 'bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white shadow-[0_0_15px_rgba(251,82,0,0.4)]'
-                  : 'text-orange-400 hover:text-orange-200 hover:bg-orange-950/40'
+                  ? 'bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white shadow-[0_0_12px_rgba(251,82,0,0.4)]'
+                  : 'text-orange-400 hover:text-orange-200 hover:bg-orange-950/30'
               }`}
             >
-              <Zap className="w-3.5 h-3.5 fill-current" />
+              <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
               <span>MARKET TEMU-DZ</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] text-yellow-300">
+              <span className="px-1.5 py-0.2 rounded-md bg-black/40 text-[10px] font-mono-numbers text-yellow-300">
                 {products.length}
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab('vacuum')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'vacuum'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Cpu className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Vortex &</span> IA Crawler
+              <Cpu className="w-3.5 h-3.5 shrink-0" />
+              <span>Vortex & IA</span>
             </button>
 
             <button
               onClick={() => setActiveTab('catalog')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'catalog'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              Catalogue ({products.length})
+              <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+              <span>Catalogue</span>
+              <span className="text-[10px] text-slate-400 font-mono-numbers">({products.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('trends')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 font-semibold transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'trends'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <LineChart className="w-3.5 h-3.5" />
-              Tendances
+              <LineChart className="w-3.5 h-3.5 shrink-0" />
+              <span>Tendances</span>
             </button>
-          </div>
+          </nav>
 
-          {/* Right Action Tools: Quick Clear, Supabase Config, Sound FX & Matrix Rain */}
-          <div className="flex items-center gap-2">
+          {/* Zone 3: Primary Action Cluster (Touch-friendly minimum 40px buttons) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Quick Clear All Button */}
             <button
               onClick={handleClearAllProducts}
               disabled={products.length === 0}
-              className="p-1.5 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-white transition-colors disabled:opacity-30 cursor-pointer"
+              className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-white transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center shrink-0"
               title="Vider tous les articles aspirés (remise à zéro)"
+              aria-label="Vider tous les articles"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -1977,16 +1974,17 @@ export default function App() {
             {/* Supabase Status Button */}
             <button
               onClick={() => setIsSupabaseModalOpen(true)}
-              className={`px-2.5 py-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition-all ${
+              className={`h-9 sm:h-8 px-2.5 rounded-xl border text-xs flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                 supabaseConfig.url && supabaseConfig.anonKey
                   ? 'bg-emerald-950/60 border-emerald-400/50 text-[#00ff88] hover:bg-emerald-900/40'
                   : 'bg-slate-900 border-slate-800 text-amber-400 hover:border-amber-400/50'
               }`}
               title="Configurer la base de données Supabase"
+              aria-label="Configurer Supabase"
             >
               <Database className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">
-                {supabaseConfig.url && supabaseConfig.anonKey ? 'Supabase Connecté' : 'Lier Supabase'}
+              <span className="hidden md:inline font-mono">
+                {supabaseConfig.url && supabaseConfig.anonKey ? 'Supabase' : 'Lier DB'}
               </span>
             </button>
 
@@ -1997,8 +1995,9 @@ export default function App() {
                 const next = modes[(modes.indexOf(rainIntensity) + 1) % modes.length];
                 setRainIntensity(next);
               }}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+              className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center shrink-0 cursor-pointer"
               title={`Pluie Matrix: ${rainIntensity.toUpperCase()}`}
+              aria-label="Changer intensité pluie Matrix"
             >
               <Layers className="w-4 h-4 text-emerald-400" />
             </button>
@@ -2006,12 +2005,13 @@ export default function App() {
             {/* Audio SFX Toggle */}
             <button
               onClick={handleToggleAudio}
-              className={`p-1.5 rounded-lg border transition-colors ${
+              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer ${
                 isAudioMuted
                   ? 'bg-slate-900 border-slate-800 text-slate-500'
                   : 'bg-emerald-950/40 border-emerald-500/40 text-[#00ff88]'
               }`}
               title={isAudioMuted ? 'Activer le son cyber' : 'Couper le son cyber'}
+              aria-label="Activer ou couper le son"
             >
               {isAudioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
@@ -2058,17 +2058,18 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#00ff66]" />
           <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#00ff66]" />
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-3">
+            <div className="flex items-center gap-2 shrink-0">
               <Globe className="w-4 h-4 text-emerald-400 animate-spin" />
-              <span className="text-xs font-mono font-bold tracking-wider text-emerald-300 uppercase">
+              <span className="text-xs font-mono font-bold tracking-wider text-emerald-300 uppercase whitespace-nowrap">
                 CIBLE D'EXTRACTION // URL E-COMMERCE
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
-              <span>PRÉSETS POPULAIRES :</span>
-              <div className="flex flex-wrap gap-1.5">
+            {/* Presets with horizontal touch scrolling on mobile */}
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono overflow-x-auto scrollbar-none max-w-full py-0.5">
+              <span className="shrink-0 text-slate-400 hidden sm:inline">PRÉSETS :</span>
+              <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
                 {PRESET_URLS.map((preset) => (
                   <button
                     key={preset.name}
@@ -2076,7 +2077,7 @@ export default function App() {
                       setTargetUrl(preset.url);
                       cyberAudio.playChirp(900, 0.03);
                     }}
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono border transition-all whitespace-nowrap shrink-0 cursor-pointer min-h-[30px] ${
                       targetUrl === preset.url
                         ? 'bg-emerald-500/20 text-[#00ff88] border-emerald-400 font-bold'
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -2090,24 +2091,24 @@ export default function App() {
           </div>
 
           {/* Engine Mode & Scraping Volume Selector */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4 p-2.5 sm:p-3 rounded-xl bg-slate-900/60 border border-slate-800">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-mono text-slate-400">MOTEUR D'ASPIRATION :</span>
-              <div className="flex rounded-lg bg-black/60 p-0.5 border border-slate-800">
+              <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">MOTEUR :</span>
+              <div className="flex flex-wrap sm:flex-nowrap rounded-lg bg-black/60 p-0.5 border border-slate-800 gap-0.5">
                 <button
                   type="button"
                   onClick={() => {
                     setEngineMode('direct');
                     cyberAudio.playChirp(800, 0.04);
                   }}
-                  className={`px-3 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1.5 ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer min-h-[34px] ${
                     engineMode === 'direct'
                       ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400 shadow-[0_0_10px_rgba(0,255,102,0.3)]'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  ⚡ DIRECT SANS IA (Instantané & Illimité)
+                  <Zap className="w-3.5 h-3.5 shrink-0" />
+                  <span>DIRECT SANS IA (Illimité)</span>
                 </button>
                 <button
                   type="button"
@@ -2115,21 +2116,21 @@ export default function App() {
                     setEngineMode('ai');
                     cyberAudio.playChirp(1000, 0.04);
                   }}
-                  className={`px-3 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1.5 ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer min-h-[34px] ${
                     engineMode === 'ai'
                       ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Cpu className="w-3.5 h-3.5" />
-                  🧠 HYBRIDE IA (Gemini 3.8)
+                  <Cpu className="w-3.5 h-3.5 shrink-0" />
+                  <span>HYBRIDE IA (Gemini 3.8)</span>
                 </button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-slate-400">VOLUME :</span>
+                <span className="text-slate-400 whitespace-nowrap">VOLUME :</span>
                 <div className="flex flex-wrap gap-1">
                   {[
                     { label: '24', val: 24 },
@@ -2137,13 +2138,13 @@ export default function App() {
                     { label: '100', val: 100 },
                     { label: '500', val: 500 },
                     { label: '1000', val: 1000 },
-                    { label: '♾️ TOUT ASPIRER', val: 0 },
+                    { label: '∞ Tout', val: 0 },
                   ].map((item) => (
                     <button
                       type="button"
                       key={item.label}
                       onClick={() => setScrapeVolume(item.val)}
-                      className={`px-2 py-0.5 rounded text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-2 py-1 rounded text-xs font-bold transition-all cursor-pointer min-h-[32px] ${
                         scrapeVolume === item.val
                           ? 'bg-[#00ff66] text-black shadow-[0_0_10px_rgba(0,255,102,0.4)]'
                           : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
@@ -2160,7 +2161,7 @@ export default function App() {
                 type="button"
                 onClick={handleClearAllProducts}
                 disabled={products.length === 0}
-                className="px-2.5 py-1 rounded bg-rose-950/50 border border-rose-500/40 text-rose-300 hover:bg-rose-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-300 hover:bg-rose-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[32px]"
                 title="Vider tous les articles déjà aspirés"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -2171,14 +2172,14 @@ export default function App() {
                 type="button"
                 onClick={handleTriggerPriceUpdate}
                 disabled={products.length === 0 || isUpdatingPrices}
-                className="px-2.5 py-1 rounded bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-lg bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[32px]"
                 title="Simuler des fluctuations de prix pour tester la détection de changements à la ré-aspiration"
               >
                 <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Tester Changement Prix</span>
+                <span>Tester Prix</span>
               </button>
 
-              <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer p-1 rounded bg-black/40 border border-slate-800">
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer p-1.5 rounded-lg bg-black/40 border border-slate-800">
                 <input
                   type="checkbox"
                   checked={replaceCatalog}
@@ -2186,7 +2187,7 @@ export default function App() {
                   className="rounded accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
                 />
                 <span className={replaceCatalog ? 'text-amber-400 font-bold' : 'text-emerald-400 font-medium'}>
-                  {replaceCatalog ? '⚠️ Tout écraser (Purger existant)' : '⚡ Déduplication & MAJ intelligente active'}
+                  {replaceCatalog ? 'Écraser base' : 'Fusion intelligente'}
                 </span>
               </label>
             </div>
@@ -2198,7 +2199,7 @@ export default function App() {
               e.preventDefault();
               handleStartScrape();
             }}
-            className="flex flex-col sm:flex-row gap-3 items-stretch"
+            className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch"
           >
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-emerald-400">
@@ -2209,8 +2210,8 @@ export default function App() {
                 required
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
-                placeholder="Entrez l'URL du site e-commerce (ex: https://www.ouedkniss.com/telephones ou https://www.amazon.fr/...)"
-                className="w-full bg-slate-900/90 border-2 border-emerald-500/40 rounded-xl pl-10 pr-4 py-3 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#00ff66] focus:shadow-[0_0_15px_rgba(0,255,102,0.3)] transition-all"
+                placeholder="Entrez l'URL du site e-commerce (ex: https://www.ouedkniss.com/telephones)"
+                className="w-full bg-slate-900/90 border-2 border-emerald-500/40 rounded-xl pl-10 pr-4 py-3 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#00ff66] focus:shadow-[0_0_15px_rgba(0,255,102,0.3)] transition-all min-h-[46px]"
               />
             </div>
 
@@ -2218,7 +2219,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleStopScrape}
-                className="relative px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black font-mono text-sm tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center justify-center gap-2 cursor-pointer flex-shrink-0 animate-pulse"
+                className="relative px-5 py-3 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black font-mono text-sm tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center justify-center gap-2 cursor-pointer flex-shrink-0 animate-pulse min-h-[46px]"
               >
                 <StopCircle className="w-4 h-4" />
                 <span>ARRÊTER L'ASPIRATION</span>
@@ -2227,41 +2228,41 @@ export default function App() {
               <button
                 type="submit"
                 disabled={job.status === 'scanning'}
-                className="relative px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-black font-mono text-sm tracking-wider uppercase transition-all transform active:scale-95 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
+                className="relative px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-black font-mono text-sm tracking-wider uppercase transition-all transform active:scale-95 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex-shrink-0 min-h-[46px]"
               >
                 <Zap className="w-4 h-4" />
                 <span>
-                  {scrapeVolume === 0 ? '♾️ ASPIRER TOUT LE CATALOGUE (JUSQU\'AU DERNIER)' : `ASPIRER LE CATALOGUE (${scrapeVolume})`}
+                  {scrapeVolume === 0 ? '♾️ ASPIRER TOUT LE CATALOGUE' : `ASPIRER (${scrapeVolume})`}
                 </span>
               </button>
             )}
           </form>
 
           {/* Quick Telemetry Bar under input */}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-900">
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-900">
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Moteur : <strong className="text-[#00ff66]">{engineMode === 'direct' ? '⚡ DIRECT SANS IA (0 Quota, 0 Latence)' : '🧠 HYBRIDE IA (Gemini 3.8 Flash)'}</strong>
+                Moteur : <strong className="text-[#00ff66]">{engineMode === 'direct' ? 'DIRECT SANS IA' : 'HYBRIDE IA (Gemini 3.8)'}</strong>
               </span>
               <span className="text-slate-600 hidden sm:inline">|</span>
               <span className="flex items-center gap-1">
                 Volume :{' '}
                 {scrapeVolume === 0 ? (
                   <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold animate-pulse">
-                    ∞ Mode Illimité (Jusqu'au bout)
+                    ∞ Illimité
                   </span>
                 ) : (
-                  <strong className="text-slate-200">{scrapeVolume} annonces ciblées</strong>
+                  <strong className="text-slate-200">{scrapeVolume} annonces</strong>
                 )}
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-cyan-400 font-bold">
-                {products.length.toLocaleString()} articles récoltés en direct
+            <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+              <span className="text-cyan-400 font-bold font-mono-numbers">
+                {products.length.toLocaleString()} articles récoltés
               </span>
-              <span className="text-slate-400 hidden sm:inline">
+              <span className="text-slate-400">
                 Devise : <strong className="text-white">{targetUrl.includes('ouedkniss') ? '🇩🇿 DA' : '🇪🇺 €'}</strong>
               </span>
             </div>

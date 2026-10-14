@@ -1,4 +1,4 @@
-name: Release Build (CYBER-VACUUM MK-IV)
+name: Release Build (CYBER-VACUUM Production Release)
 
 on:
   push:
@@ -20,6 +20,7 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
       build: ${{ steps.v.outputs.build }}
+      tag: ${{ steps.v.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,32 +29,24 @@ jobs:
       - name: Derive version from git tags
         id: v
         run: |
-          LAST=$(git tag --sort=-v:refname | head -n1 || true)
-          BASE="${LAST#v}"
-          BASE=${BASE:-0.0.0}
-          MAJ=$(echo "$BASE" | cut -d. -f1)
-          if [ "$MAJ" = "0" ]; then
-            VER_MAJ=1
-            VER_MIN=0
-            VER_PATCH=0
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            VER="${TAG#v}"
           else
-            if [ -z "$LAST" ]; then
-              COUNT=$(git rev-list --count HEAD 2>/dev/null)
-            else
-              COUNT=$(git rev-list --count HEAD --not "$LAST" 2>/dev/null)
-            fi
-            COUNT=${COUNT:-0}
+            LAST=$(git tag --sort=-v:refname | head -n1 || true)
+            BASE="${LAST#v}"
+            BASE=${BASE:-1.0.0}
+            MAJ=$(echo "$BASE" | cut -d. -f1)
             MIN=$(echo "$BASE" | cut -d. -f2)
             PATC=$(echo "$BASE" | cut -d. -f3)
-            INC=$((PATC + COUNT))
-            VER_MAJ=1
-            VER_MIN=$((MIN + INC / 100))
-            VER_PATCH=$((INC % 100))
+            COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+            VER="${MAJ:-1}.${MIN:-0}.${PATC:-0}"
+            TAG="v${VER}"
           fi
-          TOTAL=$(git rev-list --count HEAD 2>/dev/null)
-          TOTAL=${TOTAL:-0}
-          echo "version=${VER_MAJ}.${VER_MIN}.${VER_PATCH}" >> "$GITHUB_OUTPUT"
+          TOTAL=$(git rev-list --count HEAD 2>/dev/null || echo "1")
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
           echo "build=${TOTAL}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
   build-release:
     name: Build Production Package
@@ -78,6 +71,9 @@ jobs:
       - name: Build Web Application
         env:
           VITE_BASE_URL: './'
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npm run build
 
       - name: Generate version.json
@@ -89,16 +85,16 @@ jobs:
           mkdir -p release-pkg
           cp -r dist server.ts package.json package-lock.json .env.example release-pkg/ 2>/dev/null || cp -r dist server.ts package.json .env.example release-pkg/
           cp -r src release-pkg/src
-          cd release-pkg && zip -r ../cyber-vacuum-v${{ needs.version.outputs.version }}.zip . && cd ..
+          cd release-pkg && zip -r ../cyber-vacuum-v${{ needs.version.outputs.version }}-bundle.zip . && cd ..
 
       - name: Upload Release Archive Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cyber-vacuum-v${{ needs.version.outputs.version }}
-          path: cyber-vacuum-v${{ needs.version.outputs.version }}.zip
+          name: cyber-vacuum-v${{ needs.version.outputs.version }}-bundle
+          path: cyber-vacuum-v${{ needs.version.outputs.version }}-bundle.zip
 
   gh-release:
-    name: Create GitHub Release
+    name: Publish to GitHub Releases
     needs: [version, build-release]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
@@ -106,23 +102,24 @@ jobs:
       - name: Download Built Archive
         uses: actions/download-artifact@v4
         with:
-          name: cyber-vacuum-v${{ needs.version.outputs.version }}
+          name: cyber-vacuum-v${{ needs.version.outputs.version }}-bundle
 
       - name: Create GitHub Release with Artifact
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          name: CYBER-VACUUM MK-IV v${{ needs.version.outputs.version }}
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: CYBER-VACUUM MK-IV ${{ needs.version.outputs.tag }}
           draft: false
           prerelease: false
-          files: cyber-vacuum-v${{ needs.version.outputs.version }}.zip
+          files: cyber-vacuum-v${{ needs.version.outputs.version }}-bundle.zip
           body: |
-            ## CYBER-VACUUM MK-IV — Release v${{ needs.version.outputs.version }}
+            ## 🚀 CYBER-VACUUM MK-IV — Release ${{ needs.version.outputs.tag }}
 
-            ### 🚀 Moteur E-Commerce Scraper & Matrix Data Engine :
-            - **Aspiration Totale Multi-Catégories Ouedkniss & E-Commerce** (Mode Illimité ∞ sans saccade).
-            - **Fiche Détail Annonce Complète** :
-              - Appel Direct 1-clic (`tel:`) et WhatsApp Direct (`wa.me`).
-              - Coordonnées vendeurs, wilayas algériennes, spécifications et galerie photos haute définition.
-            - **Moteur Hybride Haute Performance** (Direct DOM Engine MK-IV + Failover IA Gemini).
-            - **Synchronisation Supabase** intégrée pour le stockage persistant du catalogue.
+            ### 📦 Inclus dans cette release :
+            - **Package Web / Serveur Déployable** : `cyber-vacuum-v${{ needs.version.outputs.version }}-bundle.zip`
+            - **Scraper E-Commerce & Algerian Marketplace Engine** (Ouedkniss, Amazon, Fnac, Nike, Temu).
+            - **Moteur Hybride Haute Vitesse** (Mode Direct DOM sans quota & Mode IA Gemini).
+            - **Synchronisation Supabase** & Base locale persistante IndexedDB / LocalStorage.
+            - **Fiches Détaillées Vendeurs** avec Contact Direct Téléphone (`tel:`) et WhatsApp (`wa.me`).

@@ -104,16 +104,25 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
     return counts;
   }, [products]);
 
+  const [isCollapsed, setIsCollapsed] = React.useState<boolean>(false);
+
+  // Auto-detect mobile screen on mount to default to compact view
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsCollapsed(true);
+    }
+  }, []);
+
   const activeCategory =
     activeSweepCategoryIndex !== undefined ? OUEDKNISS_CATEGORIES[activeSweepCategoryIndex] : null;
 
   return (
-    <div className="rounded-2xl bg-gradient-to-b from-slate-950/95 via-[#060b17]/95 to-slate-950/95 border border-emerald-500/40 p-4 sm:p-5 backdrop-blur-2xl shadow-[0_0_35px_rgba(0,255,102,0.12)] relative overflow-hidden">
+    <div className="rounded-2xl bg-gradient-to-b from-slate-950/95 via-[#060b17]/95 to-slate-950/95 border border-emerald-500/40 p-3.5 sm:p-5 backdrop-blur-2xl shadow-[0_0_35px_rgba(0,255,102,0.12)] relative overflow-hidden transition-all duration-300">
       {/* Neon glowing corners */}
-      <div className="absolute top-0 left-0 w-3.5 h-3.5 border-t-2 border-l-2 border-[#00ff66]" />
-      <div className="absolute top-0 right-0 w-3.5 h-3.5 border-t-2 border-r-2 border-[#00ff66]" />
-      <div className="absolute bottom-0 left-0 w-3.5 h-3.5 border-b-2 border-l-2 border-[#00ff66]" />
-      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 border-b-2 border-r-2 border-[#00ff66]" />
+      <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#00ff66]" />
+      <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[#00ff66]" />
+      <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#00ff66]" />
+      <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#00ff66]" />
 
       {/* Header bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-800/80">
@@ -139,8 +148,19 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
         </div>
 
         {/* Action Controls: Depth Preset Pills & Primary Action Button */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {onChangeSweepPagesPerCategory && (
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          {/* Collapse/Expand Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+            title={isCollapsed ? 'Afficher toutes les 17 catégories' : 'Réduire les catégories'}
+          >
+            <span>{isCollapsed ? 'Déplier' : 'Réduire'}</span>
+            <span className="text-[10px] text-emerald-400 font-bold">({OUEDKNISS_CATEGORIES.length})</span>
+          </button>
+
+          {onChangeSweepPagesPerCategory && !isCollapsed && (
             <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800/90 p-1 rounded-xl shadow-inner">
               <span className="text-[10px] font-mono text-slate-400 uppercase px-1.5 hidden sm:inline">
                 Profondeur :
@@ -175,7 +195,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
               <div className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-400/60 text-amber-300 font-mono text-xs font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse">
                 <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
                 <span>
-                  ASPIRATION EN COURS ({activeSweepCategoryIndex !== undefined ? activeSweepCategoryIndex + 1 : 1}/{OUEDKNISS_CATEGORIES.length})
+                  ASPIRATION ({activeSweepCategoryIndex !== undefined ? activeSweepCategoryIndex + 1 : 1}/{OUEDKNISS_CATEGORIES.length})
                 </span>
                 {activeCategory && (
                   <span className="hidden xl:inline text-amber-200 font-mono max-w-[150px] truncate">
@@ -200,23 +220,24 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
             <button
               type="button"
               onClick={onStartAllCategoriesSweep}
-              className="relative group overflow-hidden px-5 py-2.5 rounded-xl font-mono text-xs font-black text-slate-950 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.45)] hover:shadow-[0_0_35px_rgba(0,255,102,0.7)] hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#00ff66] via-emerald-400 to-cyan-300 border border-emerald-300"
+              className="relative group overflow-hidden px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-mono text-xs font-black text-slate-950 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.45)] hover:shadow-[0_0_35px_rgba(0,255,102,0.7)] hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#00ff66] via-emerald-400 to-cyan-300 border border-emerald-300"
             >
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
               <Zap className="w-4 h-4 fill-black text-black group-hover:rotate-12 transition-transform" />
               <span className="tracking-wide">
-                ASPIRER LES {OUEDKNISS_CATEGORIES.length} CATÉGORIES
+                BALAYER LES 17 CATÉGORIES
               </span>
-              <span className="px-1.5 py-0.5 rounded bg-black/85 text-[#00ff88] text-[10px] font-bold border border-emerald-400/50">
-                {sweepPagesPerCategory === 0 ? '∞ Jusqu\'au bout' : `${sweepPagesPerCategory * 48}/cat`}
+              <span className="px-1.5 py-0.5 rounded bg-black/85 text-[#00ff88] text-[10px] font-bold border border-emerald-400/50 hidden sm:inline">
+                {sweepPagesPerCategory === 0 ? '∞ Illimité' : `${sweepPagesPerCategory * 48}/cat`}
               </span>
             </button>
           )}
         </div>
       </div>
 
-      {/* 17 Categories Cyber Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
+      {/* 17 Categories Cyber Grid (Collapsible for Clean Mobile View) */}
+      {!isCollapsed && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-2.5 animate-fadeIn">
         {OUEDKNISS_CATEGORIES.map((cat, idx) => {
           const IconComp = CATEGORY_ICONS[cat.icon] || Globe;
           const isSelected = selectedCategorySlug === cat.slug;
@@ -286,6 +307,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
           );
         })}
       </div>
+      )}
 
       {/* Discovered Categories Row (Scanner in real-time) */}
       {discoveredCategories.length > 0 && (
