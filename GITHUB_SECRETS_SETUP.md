@@ -6,11 +6,16 @@ Si vous ne voyez pas encore d'APK dans l'onglet **Releases** de votre dépôt Gi
 
 ## ⚡ Pourquoi l'APK n'était pas dans l'onglet Releases ?
 
-1. **Absence de déclenchement ou de Tag Git** :  
-   Les workflows GitHub Releases ne publiaient que si un Tag Git (`v*`) était poussé ou si l'option était cochée manuellement. L'APK était alors stocké dans l'onglet **Actions > Artifacts** (téléchargeable en ZIP) mais pas encore dans **Releases**.
-   👉 **C'est désormais corrigé :** Le workflow `.github/workflows/build-apk.yml` publie maintenant **automatiquement dans GitHub Releases** à chaque push sur `main`/`master`, à chaque tag `v*`, et à chaque clic sur *Run workflow* !
+1. **Erreur Gradle `checkReleaseAarMetadata` résolue** :  
+   Dans votre run GitHub Actions, Gradle s'était arrêté avec le message :  
+   `Configuration contains AndroidX dependencies, but the android.useAndroidX property is not enabled. Set android.useAndroidX=true in the gradle.properties file and retry.`  
+   👉 **C'est 100% résolu :** Le fichier `gradle.properties` avec `android.useAndroidX=true`, `android.enableJetifier=true`, et les paramètres JVM optimisés sont maintenant générés automatiquement avant la compilation Gradle.
 
-2. **Permission d'écriture GitHub Actions (CRITIQUE)** :  
+2. **Absence de déclenchement ou de Tag Git** :  
+   Les workflows GitHub Releases ne publiaient que si un Tag Git (`v*`) était poussé ou si l'option était cochée manuellement. L'APK était alors stocké dans l'onglet **Actions > Artifacts** (téléchargeable en ZIP) mais pas encore dans **Releases**.
+   👉 **C'est désormais corrigé :** Le workflow `.github/workflows/build-apk.yml` publie maintenant **automatiquement dans GitHub Releases** avec `target_commitish: ${{ github.sha }}` à chaque push sur `main`/`master`, à chaque tag `v*`, et à chaque clic sur *Run workflow* !
+
+3. **Permission d'écriture GitHub Actions (CRITIQUE)** :  
    Par défaut sur GitHub, les workflows n'ont souvent que la permission "Lecture seule". Pour que GitHub Actions puisse créer une Release et y déposer l'APK, il faut autoriser l'écriture (voir Étape 1 ci-dessous).
 
 ---

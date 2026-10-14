@@ -217,6 +217,76 @@ class CyberAudioSynth {
     }
   }
 
+  // High-Priority Attention Alert for Master Sweep Category Completion
+  public playMasterSweepCategoryAlert(categoryName?: string, itemsCount?: number) {
+    // 0. Trigger device vibration for smartphones in pockets or desks
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([200, 100, 200, 100, 400]);
+      } catch {
+        // ignore vibration permissions
+      }
+    }
+
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    try {
+      // 1. Crystal harmonic chime sequence (C5 -> E5 -> G5 -> C6 -> E6 bell harmonics with resonant shimmer)
+      const bells = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
+      bells.forEach((freq, idx) => {
+        setTimeout(() => {
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc1 = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(freq, now);
+
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(freq * 1.5, now); // Fifth harmonic shimmer
+
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 0.58);
+          osc2.stop(now + 0.58);
+        }, idx * 65);
+      });
+
+      // 2. Synthetic vocal notification via Web Speech API (tells user which category finished even if in another room/tab)
+      if (categoryName && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        setTimeout(() => {
+          try {
+            window.speechSynthesis.cancel(); // clear queue
+            const phrase = itemsCount && itemsCount > 0
+              ? `Catégorie ${categoryName} terminée avec succès ! ${itemsCount} nouveaux articles scellés.`
+              : `Catégorie ${categoryName} terminée avec succès.`;
+            const utter = new SpeechSynthesisUtterance(phrase);
+            utter.lang = 'fr-FR';
+            utter.rate = 1.05;
+            utter.pitch = 1.02;
+            utter.volume = 0.95;
+            window.speechSynthesis.speak(utter);
+          } catch {
+            // speech synthesis optional fallback
+          }
+        }, 420);
+      }
+    } catch {
+      // Ignore audio glitches
+    }
+  }
+
   // Futuristic Completion Fanfare
   public playComplete() {
     if (this.isMuted) return;

@@ -311,7 +311,7 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-6 sm:grid-cols-9 md:grid-cols-17 gap-1">
+            <div className="grid grid-cols-4 min-[420px]:grid-cols-6 sm:grid-cols-9 md:grid-cols-17 gap-1.5 sm:gap-1">
               {OUEDKNISS_CATEGORIES.map((cat, idx) => {
                 const IconComponent = CATEGORY_ICONS[cat.icon] || Globe;
                 const isCurrent = isActive && currentCategoryIndex === idx;
@@ -324,7 +324,7 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
                   <button
                     key={cat.id}
                     onClick={() => onSelectCategory && onSelectCategory(cat)}
-                    className={`relative p-1 rounded border text-left flex flex-col justify-between transition-all group cursor-pointer ${
+                    className={`relative p-1.5 sm:p-1 rounded-lg border text-left flex flex-col justify-between transition-all group cursor-pointer min-h-[42px] sm:min-h-0 ${
                       isCurrent
                         ? 'bg-cyan-950/90 border-cyan-400 ring-1 ring-cyan-400/50 shadow-[0_0_10px_rgba(0,240,255,0.4)] scale-105 z-10'
                         : isCompleted

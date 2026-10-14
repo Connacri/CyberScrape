@@ -37,6 +37,11 @@ import { backgroundScraper } from './utils/backgroundScraperWorker';
 import { TemuEcommerceHub } from './components/TemuEcommerceHub';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import {
+  MasterSweepAlertBanner,
+  CategoryCompletionAlertData,
+} from './components/MasterSweepAlertBanner';
+import { ApkReleaseModal } from './components/ApkReleaseModal';
+import {
   executeScrapeRequest,
   executeSimulatePriceUpdate,
 } from './utils/scraperEngine';
@@ -60,6 +65,10 @@ import {
   Trash2,
   Square,
   StopCircle,
+  Smartphone,
+  Bell,
+  BellRing,
+  Download,
 } from 'lucide-react';
 
 // Preset E-Commerce Target URLs
@@ -1107,8 +1116,38 @@ export default function App() {
   const [isContinuousScraping, setIsContinuousScraping] = useState<boolean>(false);
   const [sweepPagesPerCategory, setSweepPagesPerCategory] = useState<number>(0); // 0 = Illimité ∞
   const [discoveredCategories, setDiscoveredCategories] = useState<string[]>([]);
+  const [categoryCompletionAlert, setCategoryCompletionAlert] = useState<CategoryCompletionAlertData | null>(null);
+  const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const abortScrapingRef = useRef<boolean>(false);
   const lotPageRef = useRef<Record<string, number>>({});
+
+  // Check Notification API support on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    } else {
+      setNotificationPermission('unsupported');
+    }
+  }, []);
+
+  const handleRequestNotificationPermission = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        setNotificationPermission(perm);
+        if (perm === 'granted') {
+          cyberAudio.playChirp(880, 0.05);
+          new Notification('CYBER-VACUUM // Notifications Activées', {
+            body: 'Vous serez alerté(e) instantanément à chaque catégorie scellée, même si votre écran est éteint ou l\'onglet en arrière-plan !',
+            icon: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=128&auto=format&fit=crop&q=80',
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   // Supabase State
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getStoredSupabaseConfig);
@@ -1451,7 +1490,34 @@ export default function App() {
       }
 
       // Catégorie complètement terminée !
-      cyberAudio.playCategoryUnlocked();
+      // 1. Alerte sonore & vocale haute priorité + vibration mobile
+      cyberAudio.playMasterSweepCategoryAlert(cat.name, categoryTotalNew);
+
+      // 2. Notification système navigateur (OS Desktop / Mobile) même si écran éteint / onglet masqué
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(`🎉 [CYBER-VACUUM] Catégorie "${cat.name}" terminée !`, {
+            body: `+${categoryTotalNew} nouveaux articles scellés (${catIdx + 1}/${totalCats} catégories achevées). Total: ${accumulated.length.toLocaleString()} articles.`,
+            icon: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=128&auto=format&fit=crop&q=80',
+          });
+        } catch {
+          // ignore
+        }
+      }
+
+      // 3. Bannière visuelle HUD réactive avec persistance
+      setCategoryCompletionAlert({
+        id: `ALERT_${cat.slug}_${Date.now()}`,
+        categoryName: cat.name,
+        categorySlug: cat.slug,
+        categoryIndex: catIdx + 1,
+        totalCategories: totalCats,
+        newItemsCount: categoryTotalNew,
+        updatedCount: categoryTotalUpdated,
+        totalCatalog: accumulated.length,
+        timestamp: Date.now(),
+      });
+
       setSweepCompletedCategories((prev) => Array.from(new Set([...prev, cat.slug])));
       addLog(
         `[CATÉGORIE_SCELLÉE] "${cat.name}" terminée à 100% ! (+${categoryTotalNew} nouveaux, ${categoryTotalUpdated} màj). Passage à la catégorie ${catIdx + 2 <= totalCats ? catIdx + 2 : 'FINALE'}...`,
@@ -1988,6 +2054,39 @@ export default function App() {
               </span>
             </button>
 
+            {/* APK Android / Releases Button */}
+            <button
+              onClick={() => setIsApkModalOpen(true)}
+              className="h-9 sm:h-8 px-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+              title="Télécharger l'APK Android (Signé via GitHub Actions Releases)"
+              aria-label="Télécharger APK Android"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden lg:inline font-mono font-bold">APK Mobile</span>
+            </button>
+
+            {/* Browser Background Notification Bell */}
+            <button
+              onClick={handleRequestNotificationPermission}
+              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer ${
+                notificationPermission === 'granted'
+                  ? 'bg-emerald-950/40 border-emerald-500/40 text-[#00ff88]'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+              }`}
+              title={
+                notificationPermission === 'granted'
+                  ? 'Notifications navigateur actives (alerte fin de catégorie active en arrière-plan)'
+                  : 'Activer les notifications navigateur (alertes sans surveiller l\'écran)'
+              }
+              aria-label="Notifications de fin de catégorie"
+            >
+              {notificationPermission === 'granted' ? (
+                <BellRing className="w-4 h-4 text-[#00ff88]" />
+              ) : (
+                <Bell className="w-4 h-4" />
+              )}
+            </button>
+
             {/* Matrix Rain Intensity Toggle */}
             <button
               onClick={() => {
@@ -2382,6 +2481,23 @@ export default function App() {
         onClose={() => setIsSupabaseModalOpen(false)}
         config={supabaseConfig}
         onSaveConfig={handleSaveSupabaseConfig}
+      />
+
+      {/* High-Visibility Master Sweep Category Completion Banner (Audio & Visual Alert) */}
+      <MasterSweepAlertBanner
+        alert={categoryCompletionAlert}
+        onDismiss={() => setCategoryCompletionAlert(null)}
+        onViewCategory={(categorySlug) => {
+          setSelectedCategorySlug(categorySlug);
+          setActiveTab('catalog');
+          setCategoryCompletionAlert(null);
+        }}
+      />
+
+      {/* APK Mobile & GitHub Releases Modal */}
+      <ApkReleaseModal
+        isOpen={isApkModalOpen}
+        onClose={() => setIsApkModalOpen(false)}
       />
     </div>
   );

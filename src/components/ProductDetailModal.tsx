@@ -522,23 +522,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* ============================================================== */}
         {/* 4. FOOTER ACTIONS BAR                                         */}
         {/* ============================================================== */}
-        <div className="sticky bottom-0 z-30 flex items-center justify-between px-5 py-3.5 bg-slate-950/95 border-t border-slate-800 backdrop-blur-md">
+        <div className="sticky bottom-0 z-30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 px-4 sm:px-6 py-3 bg-slate-950/95 border-t border-slate-800 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <a
               href={getOuedknissOriginUrl(product)}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-emerald-500/40 font-mono text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-emerald-500/40 font-mono text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer min-h-[40px]"
               title="Ouvrir l'annonce ou la recherche directe sur Ouedkniss.com sans erreur 404"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Voir sur Ouedkniss.com (Direct)</span>
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="truncate">Voir sur Ouedkniss.com</span>
             </a>
 
             {onInspectJson && (
               <button
                 onClick={() => onInspectJson(product)}
-                className="hidden sm:inline-flex px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-cyan-400 font-mono text-xs items-center gap-1.5 transition-colors cursor-pointer"
+                className="hidden sm:inline-flex px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-cyan-400 font-mono text-xs items-center gap-1.5 transition-colors cursor-pointer min-h-[40px]"
               >
                 <Code className="w-3.5 h-3.5" />
                 <span>ADN Matrix</span>
@@ -551,18 +551,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               href={whatsAppLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 rounded-xl bg-[#25D366] text-white font-mono font-bold text-xs flex items-center gap-1.5 hover:bg-[#20ba59] transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#25D366] text-white font-mono font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-[#20ba59] transition-colors cursor-pointer min-h-[44px] shadow-sm active:scale-98"
             >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Contacter</span> WhatsApp
+              <MessageCircle className="w-4 h-4 shrink-0" />
+              <span>WhatsApp</span>
             </a>
 
             <a
               href={telLink}
-              className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-mono font-bold text-xs flex items-center gap-1.5 hover:bg-emerald-400 transition-colors cursor-pointer shadow-md"
+              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-mono font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-400 transition-colors cursor-pointer shadow-md min-h-[44px] active:scale-98"
             >
-              <PhoneCall className="w-3.5 h-3.5 text-slate-950" />
-              <span>Appeler {seller.phone}</span>
+              <PhoneCall className="w-4 h-4 text-slate-950 shrink-0" />
+              <span className="truncate">Appeler ({seller.phone})</span>
             </a>
           </div>
         </div>

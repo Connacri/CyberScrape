@@ -152,6 +152,18 @@ jobs:
           cp -r dist/* android-app/app/src/main/assets/public/
 
           mkdir -p android-app/gradle/wrapper
+
+          # CRITICAL FIX: android.useAndroidX=true is required by AndroidX dependencies
+          cat << EOF > android-app/gradle.properties
+          android.useAndroidX=true
+          android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          RELEASE_STORE_FILE=../keystore/release.keystore
+          RELEASE_STORE_PASSWORD=$KEYSTORE_PASSWORD
+          RELEASE_KEY_ALIAS=$KEY_ALIAS
+          RELEASE_KEY_PASSWORD=$KEY_PASSWORD
+          EOF
+
           cat << 'EOF' > android-app/settings.gradle
           rootProject.name = 'CyberVacuum'
           include ':app'
@@ -195,10 +207,10 @@ jobs:
 
               signingConfigs {
                   release {
-                      storeFile file("../keystore/release.keystore")
-                      storePassword "${KEYSTORE_PASSWORD}"
-                      keyAlias "${KEY_ALIAS}"
-                      keyPassword "${KEY_PASSWORD}"
+                      storeFile file(project.findProperty('RELEASE_STORE_FILE') ?: '../keystore/release.keystore')
+                      storePassword project.findProperty('RELEASE_STORE_PASSWORD') ?: ''
+                      keyAlias project.findProperty('RELEASE_KEY_ALIAS') ?: ''
+                      keyPassword project.findProperty('RELEASE_KEY_PASSWORD') ?: ''
                       v1SigningEnabled true
                       v2SigningEnabled true
                   }
@@ -227,6 +239,15 @@ jobs:
           cat << 'EOF' > android-app/app/src/main/res/values/strings.xml
           <resources>
               <string name="app_name">CYBER-VACUUM</string>
+          </resources>
+          EOF
+
+          cat << 'EOF' > android-app/app/src/main/res/values/styles.xml
+          <resources>
+              <style name="Theme.CyberVacuum" parent="Theme.AppCompat.NoActionBar">
+                  <item name="android:windowBackground">#030712</item>
+                  <item name="android:statusBarColor">#030712</item>
+              </style>
           </resources>
           EOF
 
@@ -281,7 +302,7 @@ jobs:
                   android:label="@string/app_name"
                   android:supportsRtl="true"
                   android:usesCleartextTraffic="true"
-                  android:theme="@style/Theme.AppCompat.NoActionBar">
+                  android:theme="@style/Theme.CyberVacuum">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true"
@@ -355,6 +376,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.versioning.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: CYBER-VACUUM MK-IV ${{ steps.versioning.outputs.tag }} (Signed APK)
           draft: false
           prerelease: false
