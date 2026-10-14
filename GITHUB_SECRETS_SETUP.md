@@ -1,93 +1,73 @@
-# 🔐 Guide de Configuration des Variables Secrets GitHub (CI/CD & APK Signé)
+# 🔐 Guide Complet : Génération d'APK Signé & Publication GitHub Releases
 
-Ce document décrit en détail les **GitHub Actions Secrets** à renseigner dans votre dépôt GitHub (`Settings > Secrets and variables > Actions`) pour activer la signature cryptographique automatique des APK Android, la publication sur GitHub Releases et la connexion aux API backend.
-
----
-
-## 📋 Résumé des Secrets GitHub Supportés
-
-| Nom du Secret GitHub | Description | Requis / Optionnel |
-| :--- | :--- | :--- |
-| `ANDROID_KEYSTORE_BASE64` | Contenu encodé en base64 de votre fichier de clé `.keystore` ou `.jks` | **Recommandé pour APK signé officiel** (fallback auto si absent) |
-| `KEYSTORE_PASSWORD` | Mot de passe du keystore Android | Optionnel (défaut: `cybervacuum123`) |
-| `KEY_ALIAS` | Alias de la clé privée de signature | Optionnel (défaut: `cybervacuum`) |
-| `KEY_PASSWORD` | Mot de passe de l'alias de signature | Optionnel (défaut: `KEYSTORE_PASSWORD`) |
-| `GEMINI_API_KEY` | Clé d'API Google Gemini AI (pour le mode d'aspiration IA avancé) | Optionnel (le mode Direct fonctionne sans clé) |
-| `VITE_SUPABASE_URL` | URL de votre instance Supabase | Optionnel (peut être configuré directement dans l'UI) |
-| `VITE_SUPABASE_ANON_KEY` | Clé publique anonyme Supabase | Optionnel (peut être configuré directement dans l'UI) |
+Si vous ne voyez pas encore d'APK dans l'onglet **Releases** de votre dépôt GitHub, voici **exactement pourquoi** et **les 2 étapes rapides** pour que GitHub le génère et le publie immédiatement.
 
 ---
 
-## 🛠️ 1. Générer et Configurer le Keystore Android
+## ⚡ Pourquoi l'APK n'était pas dans l'onglet Releases ?
 
-### Étape 1 : Générer un fichier Keystore en local (sur votre machine)
-Exécutez cette commande dans votre terminal :
+1. **Absence de déclenchement ou de Tag Git** :  
+   Les workflows GitHub Releases ne publiaient que si un Tag Git (`v*`) était poussé ou si l'option était cochée manuellement. L'APK était alors stocké dans l'onglet **Actions > Artifacts** (téléchargeable en ZIP) mais pas encore dans **Releases**.
+   👉 **C'est désormais corrigé :** Le workflow `.github/workflows/build-apk.yml` publie maintenant **automatiquement dans GitHub Releases** à chaque push sur `main`/`master`, à chaque tag `v*`, et à chaque clic sur *Run workflow* !
 
-```bash
-keytool -genkey -v \
-  -keystore cybervacuum-release.keystore \
-  -alias cybervacuum \
-  -keyalg RSA \
-  -keysize 2048 \
-  -validity 10000 \
-  -storepass MonSuperMotDePasse123 \
-  -keypass MonSuperMotDePasse123 \
-  -dname "CN=CyberVacuum, OU=Mobile, O=CyberVacuum, L=Algiers, C=DZ"
-```
-
-### Étape 2 : Encoder le fichier en Base64
-Convertissez le fichier keystore binaire en chaîne de caractères Base64 :
-
-- **Sur Linux / macOS / WSL :**
-  ```bash
-  base64 -w 0 cybervacuum-release.keystore > keystore_base64.txt
-  # Sur macOS si -w 0 n'est pas supporté :
-  base64 -i cybervacuum-release.keystore -o keystore_base64.txt
-  ```
-
-- **Sur Windows (PowerShell) :**
-  ```powershell
-  [Convert]::ToBase64String([IO.File]::ReadAllBytes("cybervacuum-release.keystore")) | Out-File -Encoding ASCII keystore_base64.txt
-  ```
-
-### Étape 3 : Ajouter les Secrets dans GitHub
-1. Allez sur votre dépôt GitHub : `https://github.com/Connacri/CyberScrape`
-2. Cliquez sur **Settings** (Paramètres du dépôt).
-3. Dans la barre latérale gauche, cliquez sur **Secrets and variables** > **Actions**.
-4. Cliquez sur le bouton vert **New repository secret**.
-5. Ajoutez les secrets suivants :
-   - **`ANDROID_KEYSTORE_BASE64`** : Collez l'intégralité du contenu du fichier `keystore_base64.txt`.
-   - **`KEYSTORE_PASSWORD`** : Le mot de passe choisi (ex: `MonSuperMotDePasse123`).
-   - **`KEY_ALIAS`** : Le nom de l'alias (ex: `cybervacuum`).
-   - **`KEY_PASSWORD`** : Le mot de passe de l'alias (ex: `MonSuperMotDePasse123`).
-
-> ℹ️ **Note sur le Fallback automatique :**  
-> Si vous n'avez pas encore renseigné `ANDROID_KEYSTORE_BASE64`, le workflow GitHub Actions génère automatiquement une clé valide à la volée pour que la compilation ne plante jamais. Dès que vous ajoutez votre secret, il bascule instantanément sur votre clé officielle !
+2. **Permission d'écriture GitHub Actions (CRITIQUE)** :  
+   Par défaut sur GitHub, les workflows n'ont souvent que la permission "Lecture seule". Pour que GitHub Actions puisse créer une Release et y déposer l'APK, il faut autoriser l'écriture (voir Étape 1 ci-dessous).
 
 ---
 
-## 🌐 2. Configurer les Clés API (Gemini & Supabase)
+## 🛠️ Étape 1 : Activer la permission d'écriture GitHub Actions (1 clic)
 
-Dans la même section **Secrets and variables** > **Actions**, ajoutez :
-
-1. **`GEMINI_API_KEY`** : Votre clé d'API Google Gemini (obtenue sur Google AI Studio).
-2. **`VITE_SUPABASE_URL`** : L'URL de votre projet Supabase (ex: `https://xyzcompany.supabase.co`).
-3. **`VITE_SUPABASE_ANON_KEY`** : La clé anonyme `anon` `public` de Supabase.
+1. Rendez-vous sur votre dépôt : `https://github.com/Connacri/CyberScrape`
+2. Cliquez sur l'onglet **Settings** (Paramètres du dépôt).
+3. Dans le menu de gauche, allez dans **Actions** > **General**.
+4. Descendez jusqu'à la section **Workflow permissions**.
+5. Cochez : **`Read and write permissions`** (Lire et écrire).
+6. Cochez également : **`Allow GitHub Actions to create and approve pull requests`**.
+7. Cliquez sur **Save**.
 
 ---
 
-## 🚀 3. Comment Déclencher la Publication d'une Release avec APK Signé
+## 🚀 Étape 2 : Déclencher la création de la Release avec l'APK Signé
 
-### Méthode A : En poussant un Tag Git (Recommandé)
-Chaque fois que vous créez et poussez un tag commençant par `v`, GitHub compile l'application web, assemble et signe l'APK Android avec votre Keystore, génère les sommes de contrôle SHA-256 et publie automatiquement le tout dans les **Releases** de votre dépôt GitHub !
+Vous avez **2 méthodes très simples** :
 
+### Méthode A : En 1 clic depuis l'interface GitHub (Sans ligne de commande)
+1. Allez sur votre dépôt GitHub dans l'onglet **Actions** :  
+   `https://github.com/Connacri/CyberScrape/actions`
+2. Dans la colonne de gauche, cliquez sur le workflow :  
+   **`Build & Sign Android APK (CYBER-VACUUM)`**
+3. À droite, cliquez sur le bouton gris déroulant **`Run workflow`**.
+4. Laissez les options par défaut et cliquez sur le bouton vert **`Run workflow`**.
+5. Le build va s'exécuter (~3 à 5 minutes). Dès qu'il est terminé :
+   - Rendez-vous dans l'onglet **Releases** (`https://github.com/Connacri/CyberScrape/releases`) : votre APK signé `CyberVacuum-v1.0.X-signed-release.apk` s'y trouve, prêt à être téléchargé et installé !
+
+### Méthode B : En poussant un Tag Git depuis votre terminal
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
+Le push du tag déclenche automatiquement la compilation, la signature avec votre Keystore et la publication de la Release officielle sur GitHub.
 
-### Méthode B : Déclenchement Manuel dans GitHub Actions
-1. Allez dans l'onglet **Actions** de votre dépôt.
-2. Sélectionnez le workflow **Build & Sign Android APK (CYBER-VACUUM)**.
-3. Cliquez sur **Run workflow**.
-4. Cochez la case **Publish Signed APK to GitHub Releases?** et validez.
+---
+
+## 📦 Fichiers générés dans la Release GitHub
+
+Une fois le workflow terminé, votre Release contiendra :
+1. **`CyberVacuum-v1.0.X-signed-release.apk`** : L'APK officiel signé, installable sur n'importe quel smartphone Android (7.0+).
+2. **`CyberVacuum-v1.0.X-debug.apk`** : La version de debug.
+3. **`CyberVacuum-v1.0.X-WebBundle.zip`** : L'archive web complète.
+4. **`SHA256SUMS.txt`** : Les empreintes de contrôle cryptographiques certifiant l'authenticité de l'APK.
+
+---
+
+## 🔑 Rappel des Secrets GitHub (Optionnel si vous avez votre propre Keystore)
+
+Si vous souhaitez utiliser votre propre clé de signature Android de production au lieu de la clé auto-générée par le workflow, ajoutez ces 4 secrets dans **Settings > Secrets and variables > Actions** :
+
+- **`ANDROID_KEYSTORE_BASE64`** : Votre fichier `.keystore` encodé en base64 (`base64 -w 0 mon-fichier.keystore > key.txt`).
+- **`KEYSTORE_PASSWORD`** : Le mot de passe du keystore.
+- **`KEY_ALIAS`** : Le nom de l'alias de la clé.
+- **`KEY_PASSWORD`** : Le mot de passe de l'alias.
+- **`GEMINI_API_KEY`** : Votre clé d'API Gemini AI.
+- **`VITE_SUPABASE_URL`** : URL Supabase.
+- **`VITE_SUPABASE_ANON_KEY`** : Clé publique Supabase.

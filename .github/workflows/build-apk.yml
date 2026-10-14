@@ -14,12 +14,12 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: 'Publish Signed APK to GitHub Releases?'
+        description: 'Publier automatiquement sur GitHub Releases'
         required: false
         type: boolean
-        default: false
+        default: true
       custom_tag:
-        description: 'Custom tag name for release (optional, e.g. v1.0.0)'
+        description: 'Nom du tag (ex: v1.0.0 - laisser vide pour auto)'
         required: false
         type: string
         default: ''
@@ -39,7 +39,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Compute Version Tag
+      # Compute Version Tag (Auto-increments with run_number on main/master)
       - name: Determine Version
         id: versioning
         run: |
@@ -50,10 +50,9 @@ jobs:
             TAG="${{ github.event.inputs.custom_tag }}"
             VER="${TAG#v}"
           else
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
-            VER="${LATEST_TAG#v}"
-            COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "1")
-            TAG="v${VER}-build.${COMMIT_COUNT}"
+            RUN_NUM="${{ github.run_number }}"
+            VER="1.0.${RUN_NUM}"
+            TAG="v${VER}"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "version=$VER" >> $GITHUB_OUTPUT
@@ -103,7 +102,8 @@ jobs:
           printf "\n84831b9409646a2a10e44161826cd3000b05e197\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license" || true
           printf "\n33b6a2b64607f11b759f320ef9dff4ae5c47d97a\n" > "$ANDROID_HOME/licenses/google-gdk-license" || true
           if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-            yes 2>/dev/null | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null 2>&1 || true
           fi
 
       # Setup Keystore from GitHub Secrets (or dynamic fallback)
@@ -189,7 +189,7 @@ jobs:
                   applicationId "com.cybervacuum.app"
                   minSdk 24
                   targetSdk 34
-                  versionCode 1
+                  versionCode ${{ github.run_number }}
                   versionName "${{ steps.versioning.outputs.version }}"
               }
 
@@ -208,7 +208,6 @@ jobs:
                   release {
                       signingConfig signingConfigs.release
                       minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
                   }
                   debug {
                       applicationIdSuffix ".debug"
@@ -300,7 +299,7 @@ jobs:
 
           echo "Compiling and signing release APK with Gradle..."
           cd android-app
-          gradle assembleRelease || gradle assembleDebug || true
+          gradle assembleRelease --no-daemon --stacktrace || gradle assembleDebug --no-daemon --stacktrace
           cd ..
 
       # Package and verify the output APKs
@@ -309,7 +308,7 @@ jobs:
           mkdir -p output-apk
           VER="${{ steps.versioning.outputs.version }}"
 
-          # Locate generated APKs
+          # Locate generated APKs in build directories
           RELEASE_APK=$(find android-app -name "*release*.apk" | head -n 1)
           DEBUG_APK=$(find android-app -name "*debug*.apk" | head -n 1)
 
@@ -323,33 +322,34 @@ jobs:
             cp "$DEBUG_APK" "output-apk/CyberVacuum-v${VER}-debug.apk"
           fi
 
-          # Fallback package if gradle produced alternative names
+          # Fallback if APK name differed
           if [ ! -f "output-apk/CyberVacuum-v${VER}-signed-release.apk" ]; then
             ANY_APK=$(find android-app -name "*.apk" | head -n 1)
             if [ -n "$ANY_APK" ]; then
               cp "$ANY_APK" "output-apk/CyberVacuum-v${VER}-signed-release.apk"
-            else
-              echo "Creating offline PWA web package alongside installer..."
-              cd dist && zip -r "../output-apk/CyberVacuum-v${VER}-WebPWA.zip" . && cd ..
             fi
           fi
 
-          # Generate SHA-256 Checksums for security verification
+          # Always include web assets bundle
+          cd dist && zip -r "../output-apk/CyberVacuum-v${VER}-WebBundle.zip" . && cd ..
+
+          # Generate SHA-256 Checksums
           cd output-apk
           sha256sum * > SHA256SUMS.txt
+          echo "=== SHA256 CHECKSUMS GENERATED ==="
           cat SHA256SUMS.txt
           cd ..
 
-      # Upload Artifacts for download in workflow runs
+      # Upload Artifacts to Workflow Run
       - name: Upload APK & Checksums Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: CyberVacuum-Android-APK-${{ steps.versioning.outputs.tag }}
           path: output-apk/
 
-      # Publish directly to GitHub Releases on tag or workflow_dispatch request
+      # Publish directly to GitHub Releases (runs on push to main/master, tags, or workflow dispatch)
       - name: Publish Signed APK to GitHub Releases
-        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == true
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -358,6 +358,7 @@ jobs:
           name: CYBER-VACUUM MK-IV ${{ steps.versioning.outputs.tag }} (Signed APK)
           draft: false
           prerelease: false
+          make_latest: true
           files: |
             output-apk/*
           body: |
@@ -368,10 +369,11 @@ jobs:
             - **Vérification d'intégrité SHA-256** incluse dans le fichier `SHA256SUMS.txt`.
             - **Compatible Android 7.0+** (API 24 à API 34).
 
-            ### 📦 Fichiers Disponibles au Téléchargement :
-            1. `CyberVacuum-v${{ steps.versioning.outputs.version }}-signed-release.apk` : Version officielle signée prête à être installée sur tout smartphone Android.
-            2. `CyberVacuum-v${{ steps.versioning.outputs.version }}-debug.apk` : Version de débogage pour les développeurs.
-            3. `SHA256SUMS.txt` : Empreintes de contrôle cryptographiques.
+            ### 📦 Fichiers Disponibles au Téléchargement Immédiat :
+            1. **`CyberVacuum-v${{ steps.versioning.outputs.version }}-signed-release.apk`** : Application Android officielle signée prête à être installée sur smartphone.
+            2. **`CyberVacuum-v${{ steps.versioning.outputs.version }}-debug.apk`** : Version de débogage pour les développeurs.
+            3. **`CyberVacuum-v${{ steps.versioning.outputs.version }}-WebBundle.zip`** : Package Web complet prêt pour hébergement.
+            4. **`SHA256SUMS.txt`** : Empreintes de contrôle cryptographiques.
 
             ### ⚡ Fonctionnalités Clés :
             - **Aspiration Haute Vitesse Ouedkniss & E-Commerce** (mode instantané sans quota & mode IA Gemini).
