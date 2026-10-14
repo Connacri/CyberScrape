@@ -31,6 +31,10 @@ import {
 } from './utils/supabaseClient';
 import { cyberAudio } from './utils/cyberAudio';
 import {
+  executeScrapeRequest,
+  executeSimulatePriceUpdate,
+} from './utils/scraperEngine';
+import {
   Zap,
   Radio,
   Database,
@@ -86,178 +90,9 @@ const PRESET_URLS = [
   },
 ];
 
-// Rich initial seed data for immediate exploration
+// Rich initial seed data covering all 12 official Ouedkniss categories (Algerian Dinar DA)
 const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
-  {
-    id: 'prod_ouedkniss_s24ultra',
-    title: 'Samsung Galaxy S24 Ultra 512GB Titane Neuf Sous Blister',
-    brand: 'Samsung',
-    category: 'Téléphones & Smartphones',
-    currentPrice: 215000,
-    originalPrice: 235000,
-    currency: 'DA',
-    discountPercent: 8,
-    rating: 4.9,
-    reviewsCount: 1420,
-    inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/telephones/samsung-galaxy-s24-ultra',
-    sourceDomain: 'ouedkniss.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    lastUpdated: new Date().toISOString(),
-    specs: { Wilaya: 'Alger - Kouba', État: 'Neuf sous emballage avec facture', Vendeur: 'Boutique Tech Pro' },
-    aiConfidence: 99.6,
-    syncedToSupabase: true,
-    matrixHash: '0x0UED_01',
-    priceHistory: [
-      { date: '2026-10-01', price: 235000 },
-      { date: '2026-10-05', price: 230000 },
-      { date: '2026-10-09', price: 222000 },
-      { date: '2026-10-13', price: 215000, note: 'Baisse Ouedkniss -8%' },
-    ],
-  },
-  {
-    id: 'prod_ouedkniss_iphone15promax',
-    title: 'Apple iPhone 15 Pro Max 256GB Naturel Batterie 100%',
-    brand: 'Apple',
-    category: 'Téléphones & Smartphones',
-    currentPrice: 198000,
-    originalPrice: 218000,
-    currency: 'DA',
-    discountPercent: 9,
-    rating: 4.8,
-    reviewsCount: 980,
-    inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/telephones/iphone-15-pro-max',
-    sourceDomain: 'ouedkniss.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-    lastUpdated: new Date().toISOString(),
-    specs: { Wilaya: 'Oran - Akid Lotfi', État: '10/10 avec boîte d origine', Vendeur: 'Particulier certifié' },
-    aiConfidence: 99.2,
-    syncedToSupabase: true,
-    matrixHash: '0x0UED_02',
-    priceHistory: [
-      { date: '2026-10-01', price: 218000 },
-      { date: '2026-10-06', price: 210000 },
-      { date: '2026-10-10', price: 202000 },
-      { date: '2026-10-13', price: 198000, note: 'Offre négociation -9%' },
-    ],
-  },
-  {
-    id: 'prod_ouedkniss_xiaomi13pro',
-    title: 'Xiaomi Redmi Note 13 Pro+ 5G 512GB 12GB RAM Neuf Sous Blister',
-    brand: 'Xiaomi',
-    category: 'Téléphones & Smartphones',
-    currentPrice: 58500,
-    originalPrice: 65000,
-    currency: 'DA',
-    discountPercent: 10,
-    rating: 4.7,
-    reviewsCount: 430,
-    inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/telephones/xiaomi-redmi-note-13-pro-plus',
-    sourceDomain: 'ouedkniss.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-    lastUpdated: new Date().toISOString(),
-    specs: { Wilaya: 'Sétif - Centre', État: 'Neuf sous blister avec garantie', Vendeur: 'Boutique Mobile Store' },
-    aiConfidence: 98.5,
-    syncedToSupabase: true,
-    matrixHash: '0x0UED_03',
-    priceHistory: [
-      { date: '2026-10-01', price: 65000 },
-      { date: '2026-10-07', price: 61000 },
-      { date: '2026-10-13', price: 58500, note: 'Baisse -10%' },
-    ],
-  },
-  {
-    id: 'prod_ouedkniss_rogstrix',
-    title: 'Asus ROG Strix G16 Intel i7 13650HX RTX 4070 32GB RAM 1TB SSD',
-    brand: 'Asus',
-    category: 'Informatique & Laptops Gamer',
-    currentPrice: 268000,
-    originalPrice: 289000,
-    currency: 'DA',
-    discountPercent: 7,
-    rating: 4.9,
-    reviewsCount: 310,
-    inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/informatique/asus-rog-strix-g16',
-    sourceDomain: 'ouedkniss.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-    lastUpdated: new Date().toISOString(),
-    specs: { Wilaya: 'Constantine - Nouvelle Ville', État: 'Neuf carton scellé', Vendeur: 'Gaming Store DZ' },
-    aiConfidence: 99.1,
-    syncedToSupabase: true,
-    matrixHash: '0x0UED_04',
-    priceHistory: [
-      { date: '2026-10-01', price: 289000 },
-      { date: '2026-10-06', price: 278000 },
-      { date: '2026-10-13', price: 268000 },
-    ],
-  },
-  {
-    id: 'prod_ouedkniss_macbookm3',
-    title: 'Apple MacBook Pro 14" M3 Pro 18GB 512GB SSD Noir Sidéral',
-    brand: 'Apple',
-    category: 'Informatique & Ordinateurs',
-    currentPrice: 345000,
-    originalPrice: 375000,
-    currency: 'DA',
-    discountPercent: 8,
-    rating: 4.9,
-    reviewsCount: 220,
-    inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/informatique/macbook-pro-14-m3',
-    sourceDomain: 'ouedkniss.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 6).toISOString(),
-    lastUpdated: new Date().toISOString(),
-    specs: { Wilaya: 'Alger - Hydra', État: 'Neuf non activé', Vendeur: 'Importateur Direct' },
-    aiConfidence: 99.4,
-    syncedToSupabase: true,
-    matrixHash: '0x0UED_05',
-    priceHistory: [
-      { date: '2026-10-01', price: 375000 },
-      { date: '2026-10-08', price: 359000 },
-      { date: '2026-10-13', price: 345000 },
-    ],
-  },
-  {
-    id: 'prod_ouedkniss_ps5slim',
-    title: 'Sony PlayStation 5 Slim 1TB Édition Standard 2 Manettes Offertes',
-    brand: 'Sony',
-    category: 'Gaming & Consoles',
-    currentPrice: 112000,
-    originalPrice: 125000,
-    currency: 'DA',
-    discountPercent: 10,
-    rating: 4.8,
-    reviewsCount: 780,
-    inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/gaming/playstation-5-slim',
-    sourceDomain: 'ouedkniss.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    lastUpdated: new Date().toISOString(),
-    specs: { Wilaya: 'Blida - Ouled Yaich', État: 'Neuf avec garantie 6 mois', Vendeur: 'PlayZone DZ' },
-    aiConfidence: 98.6,
-    syncedToSupabase: true,
-    matrixHash: '0x0UED_06',
-    priceHistory: [
-      { date: '2026-10-01', price: 125000 },
-      { date: '2026-10-07', price: 118000 },
-      { date: '2026-10-13', price: 112000, note: 'Offre Pack -10%' },
-    ],
-  },
+  // 1. Véhicules & Automobiles
   {
     id: 'prod_ouedkniss_clio4gt',
     title: 'Renault Clio 4 GT Line 1.5 DCI 110ch Année 2019 Peinture d origine',
@@ -276,15 +111,608 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
     sourceDomain: 'ouedkniss.com',
     scrapedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
     lastUpdated: new Date().toISOString(),
-    specs: { Wilaya: 'Alger - Chéraga', État: '85 000 km réels carnet entretien', Vendeur: 'Particulier' },
+    specs: { Wilaya: 'Alger - Chéraga', Année: '2019', Kilométrage: '85 000 km', Papiers: 'Carte Grise Safia' },
     aiConfidence: 97.8,
-    syncedToSupabase: false,
-    matrixHash: '0x0UED_07',
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_AUTO1',
     priceHistory: [
       { date: '2026-10-01', price: 2980000 },
       { date: '2026-10-08', price: 2900000 },
       { date: '2026-10-13', price: 2850000 },
     ],
+  },
+  {
+    id: 'prod_ouedkniss_golf8rline',
+    title: 'Volkswagen Golf 8 R-Line 2.0 TDI 150ch DSG7 Toit Panoramique 00 Peinture',
+    brand: 'Volkswagen',
+    category: 'Véhicules & Automobiles',
+    currentPrice: 5200000,
+    originalPrice: 5450000,
+    currency: 'DA',
+    discountPercent: 5,
+    rating: 4.9,
+    reviewsCount: 840,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/automobiles/volkswagen-golf-8-r-line',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Sétif - Centre', Année: '2022', Kilométrage: '38 000 km', Boîte: 'Automatique DSG7' },
+    aiConfidence: 99.1,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_AUTO2',
+    priceHistory: [
+      { date: '2026-10-01', price: 5450000 },
+      { date: '2026-10-10', price: 5200000 },
+    ],
+  },
+
+  // 2. Téléphones & Tablettes
+  {
+    id: 'prod_ouedkniss_s24ultra',
+    title: 'Samsung Galaxy S24 Ultra 512GB Titane Neuf Sous Blister',
+    brand: 'Samsung',
+    category: 'Téléphones & Tablettes',
+    currentPrice: 215000,
+    originalPrice: 235000,
+    currency: 'DA',
+    discountPercent: 8,
+    rating: 4.9,
+    reviewsCount: 1420,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/telephones/samsung-galaxy-s24-ultra',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Kouba', État: 'Neuf sous emballage avec facture', Vendeur: 'Boutique Tech Pro' },
+    aiConfidence: 99.6,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_PH1',
+    priceHistory: [
+      { date: '2026-10-01', price: 235000 },
+      { date: '2026-10-05', price: 230000 },
+      { date: '2026-10-13', price: 215000, note: 'Baisse Ouedkniss -8%' },
+    ],
+  },
+  {
+    id: 'prod_ouedkniss_iphone15promax',
+    title: 'Apple iPhone 15 Pro Max 256GB Naturel Batterie 100%',
+    brand: 'Apple',
+    category: 'Téléphones & Tablettes',
+    currentPrice: 198000,
+    originalPrice: 218000,
+    currency: 'DA',
+    discountPercent: 9,
+    rating: 4.8,
+    reviewsCount: 980,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/telephones/iphone-15-pro-max',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Oran - Akid Lotfi', État: '10/10 avec boîte d origine', Vendeur: 'Particulier certifié' },
+    aiConfidence: 99.2,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_PH2',
+    priceHistory: [
+      { date: '2026-10-01', price: 218000 },
+      { date: '2026-10-13', price: 198000, note: 'Offre négociation -9%' },
+    ],
+  },
+
+  // 3. Informatique & Bureau
+  {
+    id: 'prod_ouedkniss_rogstrix',
+    title: 'Asus ROG Strix G16 Intel i7 13650HX RTX 4070 32GB RAM 1TB SSD',
+    brand: 'Asus',
+    category: 'Informatique & Bureau',
+    currentPrice: 268000,
+    originalPrice: 289000,
+    currency: 'DA',
+    discountPercent: 7,
+    rating: 4.9,
+    reviewsCount: 310,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/informatique/asus-rog-strix-g16',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Constantine - Nouvelle Ville', État: 'Neuf carton scellé', Vendeur: 'Gaming Store DZ' },
+    aiConfidence: 99.1,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_IT1',
+    priceHistory: [
+      { date: '2026-10-01', price: 289000 },
+      { date: '2026-10-13', price: 268000 },
+    ],
+  },
+  {
+    id: 'prod_ouedkniss_macbookm3',
+    title: 'Apple MacBook Pro 14" M3 Pro 18GB 512GB SSD Noir Sidéral',
+    brand: 'Apple',
+    category: 'Informatique & Bureau',
+    currentPrice: 345000,
+    originalPrice: 375000,
+    currency: 'DA',
+    discountPercent: 8,
+    rating: 4.9,
+    reviewsCount: 220,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/informatique/macbook-pro-14-m3',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Hydra', État: 'Neuf non activé', Vendeur: 'Importateur Direct' },
+    aiConfidence: 99.4,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_IT2',
+    priceHistory: [
+      { date: '2026-10-01', price: 375000 },
+      { date: '2026-10-13', price: 345000 },
+    ],
+  },
+
+  // 4. Électroménager & TV
+  {
+    id: 'prod_ouedkniss_samsungtv65',
+    title: 'Samsung Smart TV 65" Neo QLED 4K 120Hz HDR10+ Dolby Atmos',
+    brand: 'Samsung',
+    category: 'Électroménager & TV',
+    currentPrice: 175000,
+    originalPrice: 195000,
+    currency: 'DA',
+    discountPercent: 10,
+    rating: 4.8,
+    reviewsCount: 380,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/electromenager/samsung-neo-qled-65',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Blida - Centre', Garantie: '24 mois constructeur', Classe: 'A+++' },
+    aiConfidence: 98.7,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_ELEC1',
+    priceHistory: [{ date: '2026-10-05', price: 195000 }, { date: '2026-10-13', price: 175000 }],
+  },
+  {
+    id: 'prod_ouedkniss_climcondor',
+    title: 'Condor Climatiseur Alpha Inverter 12000 BTU Gaz R32 Tropicalisé T3',
+    brand: 'Condor',
+    category: 'Électroménager & TV',
+    currentPrice: 62000,
+    originalPrice: 69000,
+    currency: 'DA',
+    discountPercent: 10,
+    rating: 4.7,
+    reviewsCount: 510,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/electromenager/condor-climatiseur-alpha-12000',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Batna - Centre', Garantie: '3 ans compresseur', Livraison: '58 Wilayas' },
+    aiConfidence: 98.4,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_ELEC2',
+    priceHistory: [{ date: '2026-10-06', price: 69000 }, { date: '2026-10-13', price: 62000 }],
+  },
+
+  // 5. Immobilier & Terrains
+  {
+    id: 'prod_ouedkniss_apparf4hydra',
+    title: 'Appartement F4 Standing 135m² Vue Dégagée avec Box Sous-Sol',
+    brand: 'Promotion Immobilière',
+    category: 'Immobilier & Terrains',
+    currentPrice: 24500000,
+    originalPrice: 26000000,
+    currency: 'DA',
+    discountPercent: 6,
+    rating: 4.9,
+    reviewsCount: 160,
+    inStock: true,
+    stockLevel: 'LOW_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/immobilier/appartement-f4-hydra-135m',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 8).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Hydra', Papiers: 'Acte Notarié + Livret Foncier', Superficie: '135 m²' },
+    aiConfidence: 98.9,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_IMMO1',
+    priceHistory: [{ date: '2026-10-01', price: 26000000 }, { date: '2026-10-13', price: 24500000 }],
+  },
+  {
+    id: 'prod_ouedkniss_villakouba',
+    title: 'Villa R+2 Style Mauresque avec Piscine & Jardin 380m²',
+    brand: 'Particulier',
+    category: 'Immobilier & Terrains',
+    currentPrice: 45000000,
+    originalPrice: 48000000,
+    currency: 'DA',
+    discountPercent: 6,
+    rating: 4.8,
+    reviewsCount: 95,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/immobilier/villa-r2-mauresque-380m',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 9).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Oran - Akid Lotfi', Papiers: 'Acte dans l indivision + Permis de construire', Superficie: '380 m²' },
+    aiConfidence: 98.2,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_IMMO2',
+    priceHistory: [{ date: '2026-10-02', price: 48000000 }, { date: '2026-10-13', price: 45000000 }],
+  },
+
+  // 6. Maison & Fournitures
+  {
+    id: 'prod_ouedkniss_salondangle',
+    title: 'Salon d angle en L Velours Royal Anti-tache 7 Places Bois Rouge',
+    brand: 'Atelier Mobilier DZ',
+    category: 'Maison & Fournitures',
+    currentPrice: 85000,
+    originalPrice: 95000,
+    currency: 'DA',
+    discountPercent: 11,
+    rating: 4.8,
+    reviewsCount: 290,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/maison/salon-angle-velours-royal',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Blida - Ouled Yaich', Matière: 'Bois rouge 1er choix & Mousse D30', Garantie: '5 ans' },
+    aiConfidence: 98.6,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_MAIS1',
+    priceHistory: [{ date: '2026-10-04', price: 95000 }, { date: '2026-10-13', price: 85000 }],
+  },
+  {
+    id: 'prod_ouedkniss_chambremoderne',
+    title: 'Chambre à Coucher Moderne Bois Rouge 6 Portes Coulissantes Miroir',
+    brand: 'Design Italien',
+    category: 'Maison & Fournitures',
+    currentPrice: 145000,
+    originalPrice: 160000,
+    currency: 'DA',
+    discountPercent: 9,
+    rating: 4.9,
+    reviewsCount: 180,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/maison/chambre-a-coucher-moderne',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 7).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Tlemcen - Imama', Comprend: 'Lit 160x200 + Armoire 6P + 2 Tables de nuit + Commode', Finition: 'Laquée' },
+    aiConfidence: 98.8,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_MAIS2',
+    priceHistory: [{ date: '2026-10-05', price: 160000 }, { date: '2026-10-13', price: 145000 }],
+  },
+
+  // 7. Vêtements & Mode
+  {
+    id: 'prod_ouedkniss_rolexsubmariner',
+    title: 'Rolex Submariner Date Lunette Céramique Noire 41mm Boîte & Papier',
+    brand: 'Rolex',
+    category: 'Vêtements & Mode',
+    currentPrice: 1850000,
+    originalPrice: 1980000,
+    currency: 'DA',
+    discountPercent: 7,
+    rating: 4.9,
+    reviewsCount: 340,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/vetements/rolex-submariner-41mm',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Hydra', Authenticité: '100% Originale Certifiée', Mouvement: 'Automatique 3235' },
+    aiConfidence: 99.3,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_MODE1',
+    priceHistory: [{ date: '2026-10-03', price: 1980000 }, { date: '2026-10-13', price: 1850000 }],
+  },
+  {
+    id: 'prod_ouedkniss_nikeairmax',
+    title: 'Nike Air Max Plus TN 3 Originales Pointure 42 Neuf dans Boîte',
+    brand: 'Nike',
+    category: 'Vêtements & Mode',
+    currentPrice: 24500,
+    originalPrice: 28000,
+    currency: 'DA',
+    discountPercent: 12,
+    rating: 4.8,
+    reviewsCount: 410,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/vetements/nike-air-max-plus-tn3',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Annaba - Centre', Provenance: 'Import direct France', État: '10/10 Neuf jamais porté' },
+    aiConfidence: 98.5,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_MODE2',
+    priceHistory: [{ date: '2026-10-05', price: 28000 }, { date: '2026-10-13', price: 24500 }],
+  },
+
+  // 8. Jeux Vidéo & Consoles
+  {
+    id: 'prod_ouedkniss_ps5slim',
+    title: 'Sony PlayStation 5 Slim 1TB Édition Standard 2 Manettes Offertes',
+    brand: 'Sony',
+    category: 'Jeux Vidéo & Consoles',
+    currentPrice: 112000,
+    originalPrice: 125000,
+    currency: 'DA',
+    discountPercent: 10,
+    rating: 4.8,
+    reviewsCount: 780,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/jeux-video/playstation-5-slim',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Blida - Ouled Yaich', État: 'Neuf avec garantie 6 mois', Vendeur: 'PlayZone DZ' },
+    aiConfidence: 98.6,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_GAME1',
+    priceHistory: [
+      { date: '2026-10-01', price: 125000 },
+      { date: '2026-10-13', price: 112000, note: 'Offre Pack -10%' },
+    ],
+  },
+  {
+    id: 'prod_ouedkniss_switcholed',
+    title: 'Nintendo Switch OLED Modèle Zelda Tears of the Kingdom Neuf',
+    brand: 'Nintendo',
+    category: 'Jeux Vidéo & Consoles',
+    currentPrice: 58000,
+    originalPrice: 65000,
+    currency: 'DA',
+    discountPercent: 11,
+    rating: 4.9,
+    reviewsCount: 390,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/jeux-video/nintendo-switch-oled-zelda',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Béjaïa - Ihaddaden', Accessoires: 'Fourni complet avec station d accueil et câbles' },
+    aiConfidence: 99.0,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_GAME2',
+    priceHistory: [{ date: '2026-10-06', price: 65000 }, { date: '2026-10-13', price: 58000 }],
+  },
+
+  // 9. Emploi & Recrutement
+  {
+    id: 'prod_ouedkniss_devreact',
+    title: 'Recrutement Développeur Full-Stack React / Node.js Senior CDI Alger',
+    brand: 'Startup Tech DZ',
+    category: 'Emploi & Recrutement',
+    currentPrice: 160000,
+    originalPrice: 160000,
+    currency: 'DA',
+    discountPercent: 0,
+    rating: 4.9,
+    reviewsCount: 140,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/emploi/developpeur-fullstack-senior',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Bab Ezzouar', Contrat: 'CDI Plein Temps', Salaire: '160 000 DA Net' },
+    aiConfidence: 98.7,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_JOB1',
+    priceHistory: [{ date: '2026-10-01', price: 160000 }],
+  },
+  {
+    id: 'prod_ouedkniss_ingenieurbtp',
+    title: 'Ingénieur Suivi de Chantier & Conduite de Travaux BTP Expérimenté',
+    brand: 'Entreprise BTP & Travaux',
+    category: 'Emploi & Recrutement',
+    currentPrice: 120000,
+    originalPrice: 120000,
+    currency: 'DA',
+    discountPercent: 0,
+    rating: 4.8,
+    reviewsCount: 88,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/emploi/ingenieur-conduite-travaux-btp',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Oran - Centre', Contrat: 'CDI avec véhicule de fonction', Expérience: '3 ans min' },
+    aiConfidence: 98.1,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_JOB2',
+    priceHistory: [{ date: '2026-10-01', price: 120000 }],
+  },
+
+  // 10. Services & Artisanat
+  {
+    id: 'prod_ouedkniss_renovationstucco',
+    title: 'Peinture Moderne Effet Stucco & Plâtrerie BA13 Décorative Villas',
+    brand: 'Artisan Qualifié Pro',
+    category: 'Services & Artisanat',
+    currentPrice: 35000,
+    originalPrice: 40000,
+    currency: 'DA',
+    discountPercent: 12,
+    rating: 4.9,
+    reviewsCount: 230,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/services/peinture-stucco-ba13-pro',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Chéraga', Disponibilité: '7j/7 Devis gratuit', Garantie: 'Finitions soignées' },
+    aiConfidence: 98.4,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_SERV1',
+    priceHistory: [{ date: '2026-10-04', price: 40000 }, { date: '2026-10-13', price: 35000 }],
+  },
+  {
+    id: 'prod_ouedkniss_demenagement58w',
+    title: 'Déménagement Professionnel Camion Capitonnée 58 Wilayas Sécurisé',
+    brand: 'Service Express 58W',
+    category: 'Services & Artisanat',
+    currentPrice: 28000,
+    originalPrice: 32000,
+    currency: 'DA',
+    discountPercent: 12,
+    rating: 4.8,
+    reviewsCount: 310,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/services/demenagement-express-58-wilayas',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Constantine - Centre', Disponibilité: '24h/24 7j/7', Chauffeurs: 'Expérimentés' },
+    aiConfidence: 98.9,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_SERV2',
+    priceHistory: [{ date: '2026-10-06', price: 32000 }, { date: '2026-10-13', price: 28000 }],
+  },
+
+  // 11. Matériaux & Équipement Pro
+  {
+    id: 'prod_ouedkniss_groupecummins',
+    title: 'Groupe Électrogène Cummins 100 kVA Diesel Silencieux Insonorisé ATS',
+    brand: 'Cummins Power',
+    category: 'Matériaux & Équipement Pro',
+    currentPrice: 1850000,
+    originalPrice: 1980000,
+    currency: 'DA',
+    discountPercent: 7,
+    rating: 4.9,
+    reviewsCount: 150,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/materiaux/groupe-electrogene-cummins-100kva',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 7).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Sétif - Zone Industrielle', Norme: 'Certificat CE avec Facture', Garantie: '24 mois SAV' },
+    aiConfidence: 99.1,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_MAT1',
+    priceHistory: [{ date: '2026-10-02', price: 1980000 }, { date: '2026-10-13', price: 1850000 }],
+  },
+  {
+    id: 'prod_ouedkniss_postesouderbosch',
+    title: 'Poste à Souder Inverter TIG/MIG 250A Professionnel BOSCH Pro',
+    brand: 'BOSCH Pro',
+    category: 'Matériaux & Équipement Pro',
+    currentPrice: 68000,
+    originalPrice: 75000,
+    currency: 'DA',
+    discountPercent: 9,
+    rating: 4.8,
+    reviewsCount: 210,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/materiaux/poste-a-souder-inverter-bosch-250a',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 8).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Chlef - Centre', Puissance: '250A Triphasé', Accessoires: 'Fourni avec torche et masque' },
+    aiConfidence: 98.6,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_MAT2',
+    priceHistory: [{ date: '2026-10-05', price: 75000 }, { date: '2026-10-13', price: 68000 }],
+  },
+
+  // 12. Sports & Loisirs
+  {
+    id: 'prod_ouedkniss_velovttrockrider',
+    title: 'Vélo VTT All-Mountain Aluminium 29" Monoplateau 12V RockShox',
+    brand: 'Rockrider',
+    category: 'Sports & Loisirs',
+    currentPrice: 88000,
+    originalPrice: 98000,
+    currency: 'DA',
+    discountPercent: 10,
+    rating: 4.9,
+    reviewsCount: 290,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/sports-loisirs/velo-vtt-rockrider-29',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Tizi Ouzou - Centre', Cadre: 'Aluminium 6061', Freins: 'Hydrauliques Shimano' },
+    aiConfidence: 98.8,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_SPORT1',
+    priceHistory: [{ date: '2026-10-04', price: 98000 }, { date: '2026-10-13', price: 88000 }],
+  },
+  {
+    id: 'prod_ouedkniss_tapisdomyos',
+    title: 'Tapis de Course Motorisé Pliable 3.5 HP 18 km/h Domyos Pro',
+    brand: 'Domyos',
+    category: 'Sports & Loisirs',
+    currentPrice: 95000,
+    originalPrice: 110000,
+    currency: 'DA',
+    discountPercent: 14,
+    rating: 4.8,
+    reviewsCount: 320,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/sports-loisirs/tapis-de-course-domyos-35hp',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Alger - Kouba', Poids_max: '130 kg', Inclinaison: 'Électrique 15%' },
+    aiConfidence: 98.7,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_SPORT2',
+    priceHistory: [{ date: '2026-10-06', price: 110000 }, { date: '2026-10-13', price: 95000 }],
   },
 ];
 
@@ -417,6 +845,7 @@ export default function App() {
   const [isContinuousScraping, setIsContinuousScraping] = useState<boolean>(false);
   const [sweepPagesPerCategory, setSweepPagesPerCategory] = useState<number>(0); // 0 = Illimité ∞
   const abortScrapingRef = useRef<boolean>(false);
+  const lotPageRef = useRef<Record<string, number>>({});
 
   // Supabase State
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getStoredSupabaseConfig);
@@ -426,7 +855,14 @@ export default function App() {
   // Products State
   const [products, setProducts] = useState<ScrapedProduct[]>(() => {
     const cached = getStoredProducts();
-    return cached.length > 0 ? cached : INITIAL_DEMO_PRODUCTS;
+    if (cached.length === 0) return INITIAL_DEMO_PRODUCTS;
+    // If cache only had a few categories from an older build, ensure all 12 categories are present
+    const cachedCategories = new Set(cached.map((p) => p.category));
+    const missingSeedItems = INITIAL_DEMO_PRODUCTS.filter((seed) => !cachedCategories.has(seed.category));
+    if (missingSeedItems.length > 0) {
+      return [...cached, ...missingSeedItems];
+    }
+    return cached;
   });
 
   // Scraping Job State
@@ -484,6 +920,7 @@ export default function App() {
     if (window.confirm('Voulez-vous vider tous les produits déjà aspirés ?')) {
       setProducts([]);
       clearStoredProducts();
+      lotPageRef.current = {};
       cyberAudio.playChirp(450, 0.08);
       addLog('[PURGE] Catalogue et mémoire cache entièrement vidés (0 article).', 'warn', '0xCLEAR');
     }
@@ -534,6 +971,8 @@ export default function App() {
 
   // ==========================================================
   // MASTER SWEEP : ASPIRER TOUTES LES 12 CATÉGORIES OUEDKNISS
+  // Vagues synchronisées progressives : chaque catégorie reçoit
+  // immédiatement ses annonces dès la vague 1 !
   // ==========================================================
   const handleStartAllCategoriesSweep = async () => {
     setActiveTab('vacuum');
@@ -542,11 +981,12 @@ export default function App() {
     setIsAllCategoriesSweepActive(true);
 
     const isUnlimited = sweepPagesPerCategory === 0;
-    const maxPagesTarget = isUnlimited ? 999 : sweepPagesPerCategory;
+    const maxWaves = isUnlimited ? 999 : Math.max(1, sweepPagesPerCategory);
+    const totalCats = OUEDKNISS_CATEGORIES.length;
 
     addLog(
-      `[BALAYAGE_GLOBAL] Démarrage du scan des 12 CATÉGORIES OUEDKNISS (${
-        isUnlimited ? 'Illimité ∞ jusqu’au dernier article' : `${maxPagesTarget} pages (${maxPagesTarget * 48} articles) par catégorie`
+      `[BALAYAGE_GLOBAL] Démarrage de l'aspiration des 12 CATÉGORIES (${
+        isUnlimited ? 'Mode Vagues Multi-Catégories Illimité' : `${maxWaves} vagues (${maxWaves * 48} articles/catégorie)`
       })`,
       'cyber',
       '0xGLOBAL_START'
@@ -556,99 +996,82 @@ export default function App() {
     let accumulated: ScrapedProduct[] = replaceCatalog ? [] : [...products];
     accumulated = accumulated.filter((p) => p.currency === 'DA');
 
-    const totalCats = OUEDKNISS_CATEGORIES.length;
-
-    for (let catIdx = 0; catIdx < totalCats; catIdx++) {
+    for (let wave = 1; wave <= maxWaves; wave++) {
       if (abortScrapingRef.current) break;
 
-      const cat = OUEDKNISS_CATEGORIES[catIdx];
-      setActiveSweepCategoryIndex(catIdx);
-      setSelectedCategorySlug(cat.slug);
-      setTargetUrl(cat.url);
+      addLog(`[VAGUE_${wave}] Déploiement vague ${wave} sur les 12 catégories en simultané...`, 'info', `0xWAVE_${wave}`);
 
-      addLog(
-        `[CATÉGORIE_${catIdx + 1}/${totalCats}] Ingestion du flux: ${cat.name} (${cat.url})`,
-        'info',
-        `0xCAT_${cat.slug.slice(0, 4).toUpperCase()}`
-      );
-
-      for (let page = 1; page <= maxPagesTarget; page++) {
+      for (let catIdx = 0; catIdx < totalCats; catIdx++) {
         if (abortScrapingRef.current) break;
 
-        const globalStep = catIdx * maxPagesTarget + page;
-        const totalSteps = totalCats * maxPagesTarget;
-        const progressPct = isUnlimited
-          ? Math.min(99, Math.round(((catIdx + Math.min(page, 20) / 20) / totalCats) * 100))
-          : Math.min(99, Math.round((globalStep / totalSteps) * 100));
+        const cat = OUEDKNISS_CATEGORIES[catIdx];
+        setActiveSweepCategoryIndex(catIdx);
+        setSelectedCategorySlug(cat.slug);
+        setTargetUrl(cat.url);
+
+        const currentStep = (wave - 1) * totalCats + catIdx + 1;
+        const totalSteps = isUnlimited ? totalCats * 10 : maxWaves * totalCats;
+        const progressPct = Math.min(99, Math.round((currentStep / totalSteps) * 100));
 
         setJob((prev) => ({
           ...prev,
           status: 'aspirating',
           progress: progressPct,
           itemsFound: accumulated.length,
-          aiAgentAction: `[${catIdx + 1}/${totalCats} ${cat.name}] Page ${page}${
-            isUnlimited ? ' (∞ Illimité)' : `/${maxPagesTarget}`
-          } (${accumulated.length} articles indexés)...`,
+          aiAgentAction: `[${catIdx + 1}/12 ${cat.name}] Vague ${wave} en cours... (${accumulated.length} articles indexés)`,
           crawlerState: {
             ...prev.crawlerState,
-            scrollY: globalStep * 1200,
-            domNodesInspected: globalStep * 340,
-            tokensProcessed: globalStep * 1950,
+            scrollY: currentStep * 1200,
+            domNodesInspected: currentStep * 340,
+            tokensProcessed: currentStep * 1950,
           },
         }));
 
         try {
-          const res = await fetch('/api/scrape', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              url: cat.url,
-              maxItems: 48,
-              engineMode,
-              page,
-              categorySlug: cat.slug,
-            }),
+          const data = await executeScrapeRequest({
+            url: cat.url,
+            maxItems: 48,
+            engineMode,
+            page: wave,
+            categorySlug: cat.slug,
           });
 
-          if (!res.ok) break;
-          const data = await res.json();
+          if (data.isClientSideFallback && wave === 1 && catIdx === 0) {
+            addLog(
+              `[MOTEUR_AUTONOME] Mode client natif actif (Compatible GitHub Pages) : Aspiration des 12 catégories en cours.`,
+              'cyber',
+              '0xPAGES'
+            );
+          }
+
           const pageProducts: ScrapedProduct[] = data.products || [];
 
-          if (pageProducts.length === 0) {
-            addLog(`[${cat.name}] Fin du flux d'annonces atteinte à la page ${page}.`, 'info');
-            break;
-          }
-
-          if (replaceCatalog) {
-            accumulated = [...accumulated, ...pageProducts];
-            setProducts([...accumulated]);
-            cyberAudio.playItemAspirated();
-            addLog(
-              `[${cat.name} P${page}] +${pageProducts.length} articles aspirés (Total global: ${accumulated.length})`,
-              'vacuum',
-              `0xP${page}`
-            );
-          } else {
-            const { merged, newCount, updatedCount, unchangedCount } = smartMergeProducts(
-              accumulated,
-              pageProducts
-            );
-            accumulated = merged;
-            setProducts([...accumulated]);
-            if (newCount > 0 || updatedCount > 0) {
-              cyberAudio.playItemAspirated();
+          if (pageProducts.length > 0) {
+            if (replaceCatalog && wave === 1 && catIdx === 0) {
+              accumulated = [...pageProducts];
+            } else if (replaceCatalog) {
+              accumulated = [...accumulated, ...pageProducts];
+            } else {
+              const { merged, newCount, updatedCount } = smartMergeProducts(
+                accumulated,
+                pageProducts
+              );
+              accumulated = merged;
+              if (newCount > 0 || updatedCount > 0) {
+                cyberAudio.playItemAspirated();
+              }
+              addLog(
+                `[${cat.name} V${wave}] +${newCount} nouveaux, ${updatedCount} màj (${accumulated.length} total)`,
+                updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
+                `0x${cat.slug.slice(0, 4).toUpperCase()}`
+              );
             }
-            addLog(
-              `[${cat.name} P${page}] +${newCount} nouveaux, ${updatedCount} màj, ${unchangedCount} inchangés (Total: ${accumulated.length})`,
-              updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
-              `0xP${page}`
-            );
+            setProducts([...accumulated]);
           }
 
-          await new Promise((r) => setTimeout(r, 450));
+          await new Promise((r) => setTimeout(r, 220));
         } catch (catErr) {
-          console.warn('Sweep page error:', catErr);
-          break;
+          console.warn('Sweep category error:', catErr);
         }
       }
     }
@@ -744,10 +1167,14 @@ export default function App() {
       for (let page = 1; page <= maxPages; page++) {
         if (abortScrapingRef.current) break;
 
+        // When scraping without a single category locked, rotate across all 12 categories so all categories get populated!
+        const rotatingCat = OUEDKNISS_CATEGORIES[(page - 1) % OUEDKNISS_CATEGORIES.length];
+        const categoryForContinuous = effectiveCategorySlug || (isOuedkniss ? rotatingCat.slug : undefined);
+
         setJob((prev) => ({
           ...prev,
           progress: Math.min(99, Math.round(((page % 100) / 100) * 100)),
-          aiAgentAction: `Page ${page} (Sans coupure artificielle) en cours d'ingestion... (${accumulated.length} articles aspirés)`,
+          aiAgentAction: `Page ${page} ${categoryForContinuous ? `[${rotatingCat.name}]` : ''} en cours d'ingestion... (${accumulated.length} articles aspirés)`,
           crawlerState: {
             ...prev.crawlerState,
             scrollY: page * 1200,
@@ -757,20 +1184,22 @@ export default function App() {
         }));
 
         try {
-          const res = await fetch('/api/scrape', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              url: targetUrl,
-              maxItems: 48,
-              engineMode,
-              page,
-              categorySlug: effectiveCategorySlug || undefined,
-            }),
+          const data = await executeScrapeRequest({
+            url: targetUrl,
+            maxItems: 48,
+            engineMode,
+            page: effectiveCategorySlug ? page : Math.floor((page - 1) / OUEDKNISS_CATEGORIES.length) + 1,
+            categorySlug: categoryForContinuous,
           });
 
-          if (!res.ok) break;
-          const data = await res.json();
+          if (data.isClientSideFallback && page === 1) {
+            addLog(
+              `[MOTEUR_AUTONOME] Mode client actif (100% compatible GitHub Pages) : flux continu sans limite.`,
+              'cyber',
+              '0xPAGES'
+            );
+          }
+
           const pageProducts: ScrapedProduct[] = data.products || [];
 
           if (pageProducts.length === 0) {
@@ -856,6 +1285,11 @@ export default function App() {
     cyberAudio.playChirp(600, 0.08);
     addLog(`[CONNEXION] Mode: ${engineMode.toUpperCase()} | Volume: ${scrapeVolume} | Cible: ${targetUrl}`, 'info', '0x7F01');
 
+    // Track page pagination for lot scrapes so clicking multiple times yields new items
+    const lotKey = effectiveCategorySlug || targetUrl;
+    lotPageRef.current[lotKey] = (lotPageRef.current[lotKey] || 0) + 1;
+    const currentLotPage = lotPageRef.current[lotKey];
+
     try {
       setJob((prev) => ({
         ...prev,
@@ -865,22 +1299,26 @@ export default function App() {
       }));
       cyberAudio.playVacuumSuck();
 
-      const response = await fetch('/api/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl, maxItems: scrapeVolume, engineMode, page: 1 }),
+      const data = await executeScrapeRequest({
+        url: targetUrl,
+        maxItems: scrapeVolume,
+        engineMode,
+        page: currentLotPage,
+        categorySlug: effectiveCategorySlug || undefined,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Échec de l aspiration');
-      }
-
-      const data = await response.json();
       const extractedProducts: ScrapedProduct[] = data.products || [];
 
       if (data.fallbackNotice) {
         addLog(`[FAILOVER] ${data.fallbackNotice}`, 'warn', '0xFAILOVER');
+      }
+
+      if (data.isClientSideFallback) {
+        addLog(
+          `[MOTEUR_AUTONOME] Mode client natif actif (Compatible GitHub Pages) : ${extractedProducts.length} articles extraits.`,
+          'cyber',
+          '0xPAGES'
+        );
       }
 
       let finalProductsList: ScrapedProduct[] = [];
@@ -950,22 +1388,14 @@ export default function App() {
     cyberAudio.playChirp(720, 0.04);
 
     try {
-      const response = await fetch('/api/simulate-price-update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products }),
-      });
+      const updatedList = await executeSimulatePriceUpdate(products);
+      setProducts(updatedList);
+      addLog(`[AUTO_REFRESH] Prix mis à jour. Tendances recalculées et archivées.`, 'success', '0xUPDATED');
+      cyberAudio.playChirp(1100, 0.06);
 
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products || products);
-        addLog(`[AUTO_REFRESH] Prix mis à jour. Tendances recalculées et archivées.`, 'success', '0xUPDATED');
-        cyberAudio.playChirp(1100, 0.06);
-
-        // Auto-sync update to Supabase if configured
-        if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
-          await syncProductsToSupabase(data.products || products, supabaseConfig);
-        }
+      // Auto-sync update to Supabase if configured
+      if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
+        await syncProductsToSupabase(updatedList, supabaseConfig);
       }
     } catch (err) {
       console.error('Update error:', err);

@@ -34,6 +34,7 @@ import {
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ProductDetailModal } from './ProductDetailModal';
 import { PriceRangeFilter } from './PriceRangeFilter';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ensureProductDetails,
   buildTelLink,
@@ -658,7 +659,9 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                 {/* Dossier Items Grid */}
                 {!isCollapsed && (
                   <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-                    {catItems.map((product) => renderProductCard(product))}
+                    <AnimatePresence mode="popLayout">
+                      {catItems.map((product, index) => renderProductCard(product, index))}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
@@ -685,126 +688,137 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-900">
-                {lazyProducts.map((p) => {
-                  const det = ensureProductDetails(p);
-                  const seller = det.seller!;
-                  const tel = buildTelLink(seller);
-                  const wa = buildWhatsAppLink(seller, det);
+                <AnimatePresence mode="popLayout">
+                  {lazyProducts.map((p, index) => {
+                    const det = ensureProductDetails(p);
+                    const seller = det.seller!;
+                    const tel = buildTelLink(seller);
+                    const wa = buildWhatsAppLink(seller, det);
 
-                  return (
-                    <tr
-                      key={p.id}
-                      className="hover:bg-slate-900/40 transition-colors cursor-pointer group"
-                      onClick={() => setSelectedDetailProduct(det)}
-                    >
-                      <td className="p-3 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={p.imageUrl}
-                            alt={p.title}
-                            className="w-10 h-10 object-cover rounded bg-slate-900 border border-slate-800 group-hover:border-emerald-500/50 transition-colors"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=60';
-                            }}
-                          />
-                          <span className="text-[10px] text-cyan-400 font-mono">
-                            {p.matrixHash || p.id.slice(-6)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-bold text-slate-200 line-clamp-1 max-w-[240px] group-hover:text-emerald-300 transition-colors">
-                          {p.title}
-                        </div>
-                        <div className="text-[10px] text-slate-500">{p.category}</div>
-                      </td>
-                      <td className="p-3 whitespace-nowrap font-bold text-[#00ff66]">
-                        {formatPrice(p.currentPrice, p.currency)}
-                      </td>
-                      <td className="p-3 whitespace-nowrap">
-                        {p.discountPercent > 0 ? (
-                          <span className="px-1.5 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-500/40 text-[10px] font-bold">
-                            -{p.discountPercent}%
-                          </span>
-                        ) : (
-                          <span className="text-slate-600">—</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-slate-400 text-[10px] max-w-[170px] truncate">
-                        {p.specs?.Wilaya ? (
-                          <span className="text-emerald-300 font-semibold">{p.specs.Wilaya}</span>
-                        ) : (
-                          Object.entries(p.specs || {})
-                            .slice(0, 2)
-                            .map(([k, v]) => `${k}: ${v}`)
-                            .join(' | ') || 'N/A'
-                        )}
-                      </td>
-                      <td className="p-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="space-y-1">
-                          <div className="text-[11px] font-bold text-slate-200 truncate max-w-[150px] flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                            <span className="truncate">{seller.name}</span>
+                    return (
+                      <motion.tr
+                        key={p.id}
+                        layout="position"
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                        transition={{
+                          duration: 0.28,
+                          ease: 'easeOut',
+                          delay: Math.min((index % 12) * 0.025, 0.25),
+                        }}
+                        className="hover:bg-slate-900/40 transition-colors cursor-pointer group"
+                        onClick={() => setSelectedDetailProduct(det)}
+                      >
+                        <td className="p-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={p.imageUrl}
+                              alt={p.title}
+                              className="w-10 h-10 object-cover rounded bg-slate-900 border border-slate-800 group-hover:border-emerald-500/50 transition-colors"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src =
+                                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=60';
+                              }}
+                            />
+                            <span className="text-[10px] text-cyan-400 font-mono">
+                              {p.matrixHash || p.id.slice(-6)}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <a
-                              href={tel}
-                              className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                              title={`Appeler directement : ${seller.phone}`}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-200 line-clamp-1 max-w-[240px] group-hover:text-emerald-300 transition-colors">
+                            {p.title}
+                          </div>
+                          <div className="text-[10px] text-slate-500">{p.category}</div>
+                        </td>
+                        <td className="p-3 whitespace-nowrap font-bold text-[#00ff88]">
+                          {formatPrice(p.currentPrice, p.currency)}
+                        </td>
+                        <td className="p-3 whitespace-nowrap">
+                          {p.discountPercent > 0 ? (
+                            <span className="px-1.5 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-500/40 text-[10px] font-bold">
+                              -{p.discountPercent}%
+                            </span>
+                          ) : (
+                            <span className="text-slate-600">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-slate-400 text-[10px] max-w-[170px] truncate">
+                          {p.specs?.Wilaya ? (
+                            <span className="text-emerald-300 font-semibold">{p.specs.Wilaya}</span>
+                          ) : (
+                            Object.entries(p.specs || {})
+                              .slice(0, 2)
+                              .map(([k, v]) => `${k}: ${v}`)
+                              .join(' | ') || 'N/A'
+                          )}
+                        </td>
+                        <td className="p-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-1">
+                            <div className="text-[11px] font-bold text-slate-200 truncate max-w-[150px] flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                              <span className="truncate">{seller.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={tel}
+                                className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                title={`Appeler directement : ${seller.phone}`}
+                              >
+                                <PhoneCall className="w-2.5 h-2.5 text-emerald-400" />
+                                <span>{seller.phone}</span>
+                              </a>
+                              <a
+                                href={wa}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 rounded bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 text-[10px] cursor-pointer transition-colors"
+                                title="Contacter sur WhatsApp"
+                              >
+                                <MessageCircle className="w-3 h-3" />
+                              </a>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3 whitespace-nowrap">
+                          <span className={`flex items-center gap-1 ${p.inStock ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${p.inStock ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                            {p.inStock ? 'Dispo' : 'Rupture'}
+                          </span>
+                        </td>
+                        <td className="p-3 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setSelectedDetailProduct(det)}
+                              className="px-2 py-1 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 hover:text-white hover:bg-emerald-900/60 flex items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors"
+                              title="Voir l'annonce complète et ses détails"
                             >
-                              <PhoneCall className="w-2.5 h-2.5 text-emerald-400" />
-                              <span>{seller.phone}</span>
-                            </a>
+                              <Eye className="w-3 h-3 text-emerald-400" />
+                              <span>Détails</span>
+                            </button>
+                            <button
+                              onClick={() => setInspectingProduct(p)}
+                              className="p-1.5 rounded bg-slate-900 border border-slate-800 text-cyan-400 hover:text-white hover:border-cyan-400 cursor-pointer"
+                              title="Inspecter Matrix"
+                            >
+                              <Code className="w-3.5 h-3.5" />
+                            </button>
                             <a
-                              href={wa}
+                              href={p.productUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-1 rounded bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 text-[10px] cursor-pointer transition-colors"
-                              title="Contacter sur WhatsApp"
+                              className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-400 cursor-pointer"
+                              title="Voir l'annonce source sur Ouedkniss"
                             >
-                              <MessageCircle className="w-3 h-3" />
+                              <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                           </div>
-                        </div>
-                      </td>
-                      <td className="p-3 whitespace-nowrap">
-                        <span className={`flex items-center gap-1 ${p.inStock ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${p.inStock ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-                          {p.inStock ? 'Dispo' : 'Rupture'}
-                        </span>
-                      </td>
-                      <td className="p-3 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => setSelectedDetailProduct(det)}
-                            className="px-2 py-1 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 hover:text-white hover:bg-emerald-900/60 flex items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors"
-                            title="Voir l'annonce complète et ses détails"
-                          >
-                            <Eye className="w-3 h-3 text-emerald-400" />
-                            <span>Détails</span>
-                          </button>
-                          <button
-                            onClick={() => setInspectingProduct(p)}
-                            className="p-1.5 rounded bg-slate-900 border border-slate-800 text-cyan-400 hover:text-white hover:border-cyan-400 cursor-pointer"
-                            title="Inspecter Matrix"
-                          >
-                            <Code className="w-3.5 h-3.5" />
-                          </button>
-                          <a
-                            href={p.productUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-400 cursor-pointer"
-                            title="Voir l'annonce source sur Ouedkniss"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>
@@ -814,7 +828,9 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         /* VUE GRILLE LAZY INFINIE OPTIMISÉE 60 FPS                     */
         /* ============================================================ */
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {lazyProducts.map((product) => renderProductCard(product))}
+          <AnimatePresence mode="popLayout">
+            {lazyProducts.map((product, index) => renderProductCard(product, index))}
+          </AnimatePresence>
         </div>
       )}
 
@@ -934,8 +950,8 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     </div>
   );
 
-  // Helper function to render a product card
-  function renderProductCard(product: ScrapedProduct) {
+  // Helper function to render a product card with fluid fade and slide transition
+  function renderProductCard(product: ScrapedProduct, index: number = 0) {
     const det = ensureProductDetails(product);
     const seller = det.seller!;
     const tel = buildTelLink(seller);
@@ -946,10 +962,19 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     const wilaya = seller.wilaya || det.specs?.Wilaya;
 
     return (
-      <div
+      <motion.div
         key={det.id}
+        layout="position"
+        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
+        transition={{
+          duration: 0.38,
+          ease: [0.22, 1, 0.36, 1],
+          delay: Math.min((index % 8) * 0.035, 0.25),
+        }}
         onClick={() => setSelectedDetailProduct(det)}
-        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3.5 transition-all duration-300 flex flex-col justify-between hover:shadow-[0_0_25px_rgba(0,255,102,0.18)] overflow-hidden cursor-pointer"
+        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3.5 transition-colors duration-300 flex flex-col justify-between hover:shadow-[0_0_25px_rgba(0,255,102,0.18)] overflow-hidden cursor-pointer will-change-transform"
       >
         {/* Cyber corner accents */}
         <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-emerald-500/30 group-hover:border-emerald-400 transition-colors" />
@@ -1102,7 +1127,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 };
