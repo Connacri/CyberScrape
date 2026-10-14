@@ -24,6 +24,7 @@ interface ProductCatalogGridProps {
   onBulkSyncSupabase: () => Promise<void>;
   isSupabaseConfigured: boolean;
   onOpenSupabaseModal: () => void;
+  onRemoveCurrency?: (currency: string) => void;
 }
 
 export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
@@ -32,9 +33,11 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   onBulkSyncSupabase,
   isSupabaseConfigured,
   onOpenSupabaseModal,
+  onRemoveCurrency,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'discount' | 'recent'>('discount');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [inspectingProduct, setInspectingProduct] = useState<ScrapedProduct | null>(null);
@@ -59,7 +62,8 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           (p.brand && p.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
           p.sourceDomain.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+        const matchesCurrency = selectedCurrency === 'all' || p.currency === selectedCurrency;
+        return matchesSearch && matchesCategory && matchesCurrency;
       })
       .sort((a, b) => {
         if (sortBy === 'price_asc') return a.currentPrice - b.currentPrice;
@@ -67,7 +71,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         if (sortBy === 'discount') return (b.discountPercent || 0) - (a.discountPercent || 0);
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [products, searchTerm, selectedCategory, sortBy]);
+  }, [products, searchTerm, selectedCategory, selectedCurrency, sortBy]);
 
   const handleSyncProduct = async (product: ScrapedProduct) => {
     if (!isSupabaseConfigured) {
@@ -122,24 +126,40 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     setTimeout(() => setCopiedJson(false), 2000);
   };
 
+  const hasEuros = products.some((p) => p.currency === '€');
+
   return (
     <div className="space-y-4">
       {/* Search, Filter & Action Bar */}
       <div className="p-4 rounded-xl bg-slate-950/80 border border-emerald-500/30 backdrop-blur-md flex flex-wrap items-center justify-between gap-3">
         {/* Left: Search input */}
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Rechercher par nom, marque, domaine (ex: iPhone, Nike, amazon)..."
+            placeholder="Rechercher par nom, marque, wilaya (ex: iPhone, Alger, Oran)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-400"
           />
         </div>
 
+        {/* Currency filter selector */}
+        <div className="flex items-center gap-1.5 font-mono text-xs">
+          <select
+            value={selectedCurrency}
+            onChange={(e) => setSelectedCurrency(e.target.value)}
+            aria-label="Filtrer par devise"
+            className="bg-slate-900 border border-emerald-500/30 rounded-lg px-2.5 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400"
+          >
+            <option value="all">Toutes Devises ({products.length})</option>
+            <option value="DA">🇩🇿 En Dinars (DA) uniquement</option>
+            <option value="€">🇪🇺 En Euros (€) uniquement</option>
+          </select>
+        </div>
+
         {/* Category filter */}
-        <div className="flex items-center gap-2 font-mono text-xs">
+        <div className="flex items-center gap-1.5 font-mono text-xs">
           <Filter className="w-3.5 h-3.5 text-emerald-400" />
           <select
             value={selectedCategory}
@@ -147,7 +167,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             aria-label="Filtrer par catégorie"
             className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-400"
           >
-            <option value="all">Toutes Catégories ({products.length})</option>
+            <option value="all">Toutes Catégories</option>
             {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -157,7 +177,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         </div>
 
         {/* Sort by */}
-        <div className="flex items-center gap-2 font-mono text-xs">
+        <div className="flex items-center gap-1.5 font-mono text-xs">
           <ArrowUpDown className="w-3.5 h-3.5 text-cyan-400" />
           <select
             value={sortBy}
@@ -171,6 +191,17 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             <option value="recent">Plus Récent</option>
           </select>
         </div>
+
+        {/* Purge Euros action if mixed */}
+        {hasEuros && onRemoveCurrency && (
+          <button
+            onClick={() => onRemoveCurrency('€')}
+            className="px-2.5 py-2 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-300 hover:bg-rose-900/60 font-mono text-xs flex items-center gap-1 transition-all"
+            title="Supprimer les anciens articles de démo en Euros pour n'avoir que Ouedkniss en DA"
+          >
+            Purger les €
+          </button>
+        )}
 
         {/* Export & Supabase Sync Actions */}
         <div className="flex items-center gap-2 font-mono text-xs">

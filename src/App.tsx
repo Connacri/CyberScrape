@@ -137,178 +137,143 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
     ],
   },
   {
-    id: 'prod_apple_iphone16pro',
-    title: 'Apple iPhone 16 Pro Max 256 Go Titane Noir',
-    brand: 'Apple',
-    category: 'Smartphones & High-Tech',
-    currentPrice: 1399.0,
-    originalPrice: 1479.0,
-    currency: '€',
-    discountPercent: 5,
-    rating: 4.9,
-    reviewsCount: 384,
+    id: 'prod_ouedkniss_xiaomi13pro',
+    title: 'Xiaomi Redmi Note 13 Pro+ 5G 512GB 12GB RAM Neuf Sous Blister',
+    brand: 'Xiaomi',
+    category: 'Téléphones & Smartphones',
+    currentPrice: 58500,
+    originalPrice: 65000,
+    currency: 'DA',
+    discountPercent: 10,
+    rating: 4.7,
+    reviewsCount: 430,
     inStock: true,
     stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.apple.com/fr/shop/buy-iphone/iphone-16-pro',
-    sourceDomain: 'apple.com',
+    imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/telephones/xiaomi-redmi-note-13-pro-plus',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    lastUpdated: new Date().toISOString(),
+    specs: { Wilaya: 'Sétif - Centre', État: 'Neuf sous blister avec garantie', Vendeur: 'Boutique Mobile Store' },
+    aiConfidence: 98.5,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_03',
+    priceHistory: [
+      { date: '2026-10-01', price: 65000 },
+      { date: '2026-10-07', price: 61000 },
+      { date: '2026-10-13', price: 58500, note: 'Baisse -10%' },
+    ],
+  },
+  {
+    id: 'prod_ouedkniss_rogstrix',
+    title: 'Asus ROG Strix G16 Intel i7 13650HX RTX 4070 32GB RAM 1TB SSD',
+    brand: 'Asus',
+    category: 'Informatique & Laptops Gamer',
+    currentPrice: 268000,
+    originalPrice: 289000,
+    currency: 'DA',
+    discountPercent: 7,
+    rating: 4.9,
+    reviewsCount: 310,
+    inStock: true,
+    stockLevel: 'IN_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/informatique/asus-rog-strix-g16',
+    sourceDomain: 'ouedkniss.com',
     scrapedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
     lastUpdated: new Date().toISOString(),
-    specs: { Puce: 'A18 Pro', Finition: 'Titane de qualité aérospatiale', Écran: '6,9" Super Retina XDR' },
-    aiConfidence: 99.4,
+    specs: { Wilaya: 'Constantine - Nouvelle Ville', État: 'Neuf carton scellé', Vendeur: 'Gaming Store DZ' },
+    aiConfidence: 99.1,
     syncedToSupabase: true,
-    matrixHash: '0x8FA12E',
+    matrixHash: '0x0UED_04',
     priceHistory: [
-      { date: '2026-10-01', price: 1479.0 },
-      { date: '2026-10-04', price: 1479.0 },
-      { date: '2026-10-07', price: 1459.0 },
-      { date: '2026-10-10', price: 1429.0 },
-      { date: '2026-10-13', price: 1399.0, note: 'Baisse flash -5%' },
+      { date: '2026-10-01', price: 289000 },
+      { date: '2026-10-06', price: 278000 },
+      { date: '2026-10-13', price: 268000 },
     ],
   },
   {
-    id: 'prod_sony_wh1000xm5',
-    title: 'Sony WH-1000XM5 Casque Bluetooth Sans Fil à Réduction de Bruit',
-    brand: 'Sony',
-    category: 'Audio & Casques',
-    currentPrice: 329.99,
-    originalPrice: 419.0,
-    currency: '€',
-    discountPercent: 21,
-    rating: 4.8,
-    reviewsCount: 890,
-    inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.amazon.fr/dp/B09Y2MWN2',
-    sourceDomain: 'amazon.fr',
-    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    lastUpdated: new Date().toISOString(),
-    specs: { Autonomie: '30 heures', 'Réduction de bruit': 'Processeurs V1 & QN1', Audio: 'Hi-Res LDAC' },
-    aiConfidence: 98.7,
-    syncedToSupabase: true,
-    matrixHash: '0x43BC71',
-    priceHistory: [
-      { date: '2026-10-01', price: 419.0 },
-      { date: '2026-10-05', price: 399.0 },
-      { date: '2026-10-08', price: 379.0 },
-      { date: '2026-10-11', price: 349.0 },
-      { date: '2026-10-13', price: 329.99, note: 'Rabais -21%' },
-    ],
-  },
-  {
-    id: 'prod_nike_air_max_pulse',
-    title: 'Nike Air Max Pulse Chaussures Homme Phantom/Reflective',
-    brand: 'Nike',
-    category: 'Sneakers & Streetwear',
-    currentPrice: 119.99,
-    originalPrice: 159.99,
-    currency: '€',
-    discountPercent: 25,
-    rating: 4.7,
-    reviewsCount: 215,
-    inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.nike.com/fr/t/chaussure-air-max-pulse',
-    sourceDomain: 'nike.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 6).toISOString(),
-    lastUpdated: new Date().toISOString(),
-    specs: { Amorti: 'Unité Air Max à charge ponctuelle', Matière: 'Mesh respirant', Semelle: 'Gomme gaufrée' },
-    aiConfidence: 97.9,
-    syncedToSupabase: false,
-    matrixHash: '0x11A0FF',
-    priceHistory: [
-      { date: '2026-10-01', price: 159.99 },
-      { date: '2026-10-06', price: 149.99 },
-      { date: '2026-10-09', price: 139.99 },
-      { date: '2026-10-13', price: 119.99, note: 'Super promo -25%' },
-    ],
-  },
-  {
-    id: 'prod_macbook_pro_m3',
-    title: 'Apple MacBook Pro 16" M3 Max 36 Go 1 To SSD Gris Sidéral',
+    id: 'prod_ouedkniss_macbookm3',
+    title: 'Apple MacBook Pro 14" M3 Pro 18GB 512GB SSD Noir Sidéral',
     brand: 'Apple',
     category: 'Informatique & Ordinateurs',
-    currentPrice: 3599.0,
-    originalPrice: 3849.0,
-    currency: '€',
-    discountPercent: 6,
+    currentPrice: 345000,
+    originalPrice: 375000,
+    currency: 'DA',
+    discountPercent: 8,
     rating: 4.9,
-    reviewsCount: 160,
+    reviewsCount: 220,
     inStock: true,
     stockLevel: 'IN_STOCK',
     imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.apple.com/fr/macbook-pro',
-    sourceDomain: 'apple.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    productUrl: 'https://www.ouedkniss.com/informatique/macbook-pro-14-m3',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 6).toISOString(),
     lastUpdated: new Date().toISOString(),
-    specs: { CPU: '14 cœurs', GPU: '30 cœurs', Écran: 'Liquid Retina XDR 120Hz' },
-    aiConfidence: 99.1,
+    specs: { Wilaya: 'Alger - Hydra', État: 'Neuf non activé', Vendeur: 'Importateur Direct' },
+    aiConfidence: 99.4,
     syncedToSupabase: true,
-    matrixHash: '0xCCD091',
+    matrixHash: '0x0UED_05',
     priceHistory: [
-      { date: '2026-10-01', price: 3849.0 },
-      { date: '2026-10-06', price: 3799.0 },
-      { date: '2026-10-10', price: 3699.0 },
-      { date: '2026-10-13', price: 3599.0 },
+      { date: '2026-10-01', price: 375000 },
+      { date: '2026-10-08', price: 359000 },
+      { date: '2026-10-13', price: 345000 },
     ],
   },
   {
-    id: 'prod_playstation_5_pro',
-    title: 'Sony Console PlayStation 5 Pro 2 To Édition Blanche',
+    id: 'prod_ouedkniss_ps5slim',
+    title: 'Sony PlayStation 5 Slim 1TB Édition Standard 2 Manettes Offertes',
     brand: 'Sony',
     category: 'Gaming & Consoles',
-    currentPrice: 799.99,
-    originalPrice: 799.99,
-    currency: '€',
-    discountPercent: 0,
+    currentPrice: 112000,
+    originalPrice: 125000,
+    currency: 'DA',
+    discountPercent: 10,
     rating: 4.8,
-    reviewsCount: 520,
+    reviewsCount: 780,
     inStock: true,
-    stockLevel: 'LOW_STOCK',
+    stockLevel: 'IN_STOCK',
     imageUrl: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.fnac.com/SearchResult/ResultList.aspx?Search=ps5+pro',
-    sourceDomain: 'fnac.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    productUrl: 'https://www.ouedkniss.com/gaming/playstation-5-slim',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
     lastUpdated: new Date().toISOString(),
-    specs: { Résolution: '4K 120 FPS / Ray Tracing avancé', Stockage: '2 To SSD NVMe Ultra-rapide' },
-    aiConfidence: 98.4,
-    syncedToSupabase: false,
-    matrixHash: '0x99F440',
+    specs: { Wilaya: 'Blida - Ouled Yaich', État: 'Neuf avec garantie 6 mois', Vendeur: 'PlayZone DZ' },
+    aiConfidence: 98.6,
+    syncedToSupabase: true,
+    matrixHash: '0x0UED_06',
     priceHistory: [
-      { date: '2026-10-01', price: 799.99 },
-      { date: '2026-10-07', price: 799.99 },
-      { date: '2026-10-13', price: 799.99 },
+      { date: '2026-10-01', price: 125000 },
+      { date: '2026-10-07', price: 118000 },
+      { date: '2026-10-13', price: 112000, note: 'Offre Pack -10%' },
     ],
   },
   {
-    id: 'prod_samsung_galaxy_s24_ultra',
-    title: 'Samsung Galaxy S24 Ultra 512 Go Titane Gris avec S-Pen',
-    brand: 'Samsung',
-    category: 'Smartphones & High-Tech',
-    currentPrice: 1189.0,
-    originalPrice: 1469.0,
-    currency: '€',
-    discountPercent: 19,
-    rating: 4.8,
-    reviewsCount: 412,
+    id: 'prod_ouedkniss_clio4gt',
+    title: 'Renault Clio 4 GT Line 1.5 DCI 110ch Année 2019 Peinture d origine',
+    brand: 'Renault',
+    category: 'Véhicules & Automobiles',
+    currentPrice: 2850000,
+    originalPrice: 2980000,
+    currency: 'DA',
+    discountPercent: 4,
+    rating: 4.7,
+    reviewsCount: 1950,
     inStock: true,
-    stockLevel: 'IN_STOCK',
-    imageUrl: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.samsung.com/fr/smartphones/galaxy-s24-ultra',
-    sourceDomain: 'samsung.com',
-    scrapedAt: new Date(Date.now() - 3600000 * 8).toISOString(),
+    stockLevel: 'LOW_STOCK',
+    imageUrl: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&auto=format&fit=crop&q=80',
+    productUrl: 'https://www.ouedkniss.com/automobiles/renault-clio-4-gt-line',
+    sourceDomain: 'ouedkniss.com',
+    scrapedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
     lastUpdated: new Date().toISOString(),
-    specs: { Capteur: '200 MP avec Galaxy AI', Écran: '6.8" Dynamic AMOLED 2X', Batterie: '5000 mAh' },
-    aiConfidence: 98.2,
-    syncedToSupabase: true,
-    matrixHash: '0x33A188',
+    specs: { Wilaya: 'Alger - Chéraga', État: '85 000 km réels carnet entretien', Vendeur: 'Particulier' },
+    aiConfidence: 97.8,
+    syncedToSupabase: false,
+    matrixHash: '0x0UED_07',
     priceHistory: [
-      { date: '2026-10-01', price: 1469.0 },
-      { date: '2026-10-05', price: 1399.0 },
-      { date: '2026-10-09', price: 1249.0 },
-      { date: '2026-10-13', price: 1189.0, note: 'Offre IA -19%' },
+      { date: '2026-10-01', price: 2980000 },
+      { date: '2026-10-08', price: 2900000 },
+      { date: '2026-10-13', price: 2850000 },
     ],
   },
 ];
@@ -316,6 +281,9 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
 export default function App() {
   // Input State
   const [targetUrl, setTargetUrl] = useState<string>('https://www.ouedkniss.com/telephones');
+  const [engineMode, setEngineMode] = useState<'direct' | 'ai'>('direct');
+  const [scrapeVolume, setScrapeVolume] = useState<number>(24);
+  const [replaceCatalog, setReplaceCatalog] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'vacuum' | 'trends' | 'catalog'>('vacuum');
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [rainIntensity, setRainIntensity] = useState<'subtle' | 'normal' | 'turbo' | 'off'>('normal');
@@ -375,6 +343,12 @@ export default function App() {
     saveStoredProducts(products);
   }, [products]);
 
+  // Purge specific currency (e.g. clean out old € items)
+  const handleRemoveCurrency = (currency: string) => {
+    setProducts((prev) => prev.filter((p) => p.currency !== currency));
+    addLog(`[PURGE] Suppression de tous les articles en ${currency}. Catalogue 100% purifié.`, 'info');
+  };
+
   // Save Supabase config
   const handleSaveSupabaseConfig = (cfg: SupabaseConfig) => {
     setSupabaseConfig(cfg);
@@ -426,52 +400,52 @@ export default function App() {
       status: 'connecting',
       progress: 5,
       itemsFound: 0,
-      aiAgentAction: `Connexion TLS & Bypass pare-feu sur ${domain}...`,
+      aiAgentAction: `Connexion [Moteur: ${engineMode === 'direct' ? 'DIRECT SANS IA' : 'HYBRIDE IA'}] vers ${domain}...`,
     }));
 
     cyberAudio.playChirp(600, 0.08);
-    addLog(`[CONNEXION] Négociation du tunnel TLS chiffré vers ${targetUrl}`, 'info', '0x7F01');
+    addLog(`[CONNEXION] Mode: ${engineMode.toUpperCase()} | Cible: ${targetUrl}`, 'info', '0x7F01');
 
     // Simulated multi-step AI Crawler telemetry steps before server responds
     const step1Timer = setTimeout(() => {
       setJob((prev) => ({
         ...prev,
         status: 'scanning',
-        progress: 25,
-        aiAgentAction: `L'IA scroll la page, contourne les challenges et inspecte l'arborescence DOM...`,
+        progress: 30,
+        aiAgentAction: `Défilement dynamique, extraction DOM & parsing du catalogue ${domain}...`,
         crawlerState: {
           ...prev.crawlerState,
-          scrollY: 1250,
-          domNodesInspected: 340,
-          tokensProcessed: 1840,
+          scrollY: 1450,
+          domNodesInspected: 480,
+          tokensProcessed: 2200,
         },
       }));
       cyberAudio.playChirp(840, 0.05);
-      addLog(`[AI_SCROLL] Défilement vertical à 1250px. Détection de la grille de produits e-commerce.`, 'cyber', '0xDOM_SCAN');
-    }, 900);
+      addLog(`[AI_SCROLL] Détection du flux d'annonces. Indexation en lots de ${scrapeVolume} items.`, 'cyber', '0xDOM_SCAN');
+    }, 600);
 
     const step2Timer = setTimeout(() => {
       setJob((prev) => ({
         ...prev,
         status: 'aspirating',
-        progress: 55,
-        aiAgentAction: `Activation du vortex d'aspiration quantique. Déconstruction des microdonnées JSON-LD...`,
+        progress: 65,
+        aiAgentAction: `Aspiration quantique : Ingestion massive de ${scrapeVolume} articles...`,
         crawlerState: {
           ...prev.crawlerState,
-          scrollY: 2890,
-          domNodesInspected: 720,
-          tokensProcessed: 4200,
+          scrollY: 3200,
+          domNodesInspected: 920,
+          tokensProcessed: 5400,
         },
       }));
       cyberAudio.playVacuumSuck();
-      addLog(`[VORTEX_ENGAGED] Aspiration du catalogue en cours. Ingestion des flux de prix et stocks.`, 'vacuum', '0xSUCK');
-    }, 2100);
+      addLog(`[VORTEX_ENGAGED] Succion activée. Traitement des prix, wilayas, notes et images.`, 'vacuum', '0xSUCK');
+    }, 1200);
 
     try {
       const response = await fetch('/api/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl, maxItems: 12 }),
+        body: JSON.stringify({ url: targetUrl, maxItems: scrapeVolume, engineMode }),
       });
 
       clearTimeout(step1Timer);
@@ -508,8 +482,12 @@ export default function App() {
 
       // Final complete state after brief stagger
       setTimeout(async () => {
-        // Merge new products at top, avoiding duplicates by id
+        // Update products catalogue
         setProducts((prev) => {
+          if (replaceCatalog || targetUrl.includes('ouedkniss')) {
+            // Filter out any leftover Euro items if scraping Ouedkniss
+            return extractedProducts;
+          }
           const existingIds = new Set(extractedProducts.map((p) => p.id));
           const filteredOld = prev.filter((p) => !existingIds.has(p.id));
           return [...extractedProducts, ...filteredOld];
@@ -815,6 +793,77 @@ export default function App() {
             </div>
           </div>
 
+          {/* Engine Mode & Scraping Volume Selector */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-mono text-slate-400">MOTEUR D'ASPIRATION :</span>
+              <div className="flex rounded-lg bg-black/60 p-0.5 border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEngineMode('direct');
+                    cyberAudio.playChirp(800, 0.04);
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1.5 ${
+                    engineMode === 'direct'
+                      ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400 shadow-[0_0_10px_rgba(0,255,102,0.3)]'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  ⚡ DIRECT SANS IA (Instantané & Illimité)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEngineMode('ai');
+                    cyberAudio.playChirp(1000, 0.04);
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1.5 ${
+                    engineMode === 'ai'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Cpu className="w-3.5 h-3.5" />
+                  🧠 HYBRIDE IA (Gemini 3.8)
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400">VOLUME :</span>
+                <div className="flex gap-1">
+                  {[12, 24, 36, 48].map((qty) => (
+                    <button
+                      type="button"
+                      key={qty}
+                      onClick={() => setScrapeVolume(qty)}
+                      className={`px-2 py-0.5 rounded text-xs font-bold transition-all ${
+                        scrapeVolume === qty
+                          ? 'bg-[#00ff66] text-black shadow-md'
+                          : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {qty}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={replaceCatalog}
+                  onChange={(e) => setReplaceCatalog(e.target.checked)}
+                  className="rounded accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
+                />
+                Purger ancien catalogue
+              </label>
+            </div>
+          </div>
+
           {/* Input Bar Form */}
           <form
             onSubmit={(e) => {
@@ -832,7 +881,7 @@ export default function App() {
                 required
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
-                placeholder="Entrez l'URL du site e-commerce (ex: https://www.amazon.fr/s?k=macbook ou https://www.apple.com/...)"
+                placeholder="Entrez l'URL du site e-commerce (ex: https://www.ouedkniss.com/telephones ou https://www.amazon.fr/...)"
                 className="w-full bg-slate-900/90 border-2 border-emerald-500/40 rounded-xl pl-10 pr-4 py-3 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#00ff66] focus:shadow-[0_0_15px_rgba(0,255,102,0.3)] transition-all"
               />
             </div>
@@ -846,7 +895,7 @@ export default function App() {
               <span>
                 {job.status === 'aspirating' || job.status === 'scanning'
                   ? 'ASPIRATION EN COURS...'
-                  : 'ASPIRER LE CATALOGUE [VACUUM]'}
+                  : `ASPIRER LE CATALOGUE (${scrapeVolume})`}
               </span>
             </button>
           </form>
@@ -855,10 +904,10 @@ export default function App() {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-900">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              Moteur : <strong className="text-slate-200">Gemini 3.8 Flash + Deep DOM Vacuum</strong>
+              Moteur actif : <strong className="text-[#00ff66]">{engineMode === 'direct' ? '⚡ DIRECT SANS IA (0 Quota, 0 Latence)' : '🧠 HYBRIDE IA (Gemini 3.8 Flash)'}</strong>
             </span>
             <span className="text-cyan-400">
-              Détection auto : Prix, Stocks, Rabais, Spécifications, Images HD
+              Devise cible : <strong className="text-white">{targetUrl.includes('ouedkniss') ? '🇩🇿 DINAR ALGÉRIEN (DA)' : '🇪🇺 EURO (€)'}</strong>
             </span>
           </div>
         </section>
@@ -923,6 +972,7 @@ export default function App() {
             onBulkSyncSupabase={handleBulkSyncSupabase}
             isSupabaseConfigured={Boolean(supabaseConfig.url && supabaseConfig.anonKey)}
             onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+            onRemoveCurrency={handleRemoveCurrency}
           />
         )}
       </main>
