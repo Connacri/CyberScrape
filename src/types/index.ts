@@ -4,6 +4,23 @@ export interface PricePoint {
   note?: string;
 }
 
+export interface SellerInfo {
+  name: string;
+  type: 'Particulier' | 'Boutique / Store Certifié' | 'Agence Immobilière' | 'Showroom Auto';
+  phone: string; // Formatted Algerian number, e.g. "0550 12 34 56"
+  phoneClean: string; // e.g. "0550123456" for direct tel:
+  whatsappClean: string; // e.g. "213550123456" for https://wa.me/213550123456
+  wilaya: string;
+  commune?: string;
+  memberSince?: string;
+  rating?: number;
+  reviewsCount?: number;
+  responseTime?: string;
+  verified: boolean;
+  avatarUrl?: string;
+  storeName?: string;
+}
+
 export interface ScrapedProduct {
   id: string;
   title: string;
@@ -18,6 +35,7 @@ export interface ScrapedProduct {
   inStock: boolean;
   stockLevel: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
   imageUrl: string;
+  images?: string[]; // Multiple photos for announcement gallery
   productUrl: string;
   sourceDomain: string;
   scrapedAt: string;
@@ -25,6 +43,11 @@ export interface ScrapedProduct {
   priceHistory: PricePoint[];
   sku?: string;
   specs?: Record<string, string>;
+  seller?: SellerInfo; // Publisher / advertiser details
+  description?: string; // Full announcement description text
+  publishedDate?: string; // e.g. "Hier à 19:40"
+  deliveryAvailable?: boolean;
+  priceType?: 'Fixe' | 'Négociable' | 'Offert' | 'Sur devis';
   aiConfidence: number; // e.g. 98.5%
   syncedToSupabase: boolean;
   matrixHash?: string;

@@ -1,0 +1,132 @@
+name: Release Build (Ouedkniss Cyber-Vacuum)
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  version:
+    name: Compute Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      build: ${{ steps.v.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Derive version from git tags
+        id: v
+        run: |
+          LAST=$(git tag --sort=-v:refname | head -n1 || true)
+          BASE="${LAST#v}"
+          BASE=${BASE:-0.0.0}
+          MAJ=$(echo "$BASE" | cut -d. -f1)
+          if [ "$MAJ" = "0" ]; then
+            VER_MAJ=1
+            VER_MIN=0
+            VER_PATCH=0
+          else
+            if [ -z "$LAST" ]; then
+              COUNT=$(git rev-list --count HEAD 2>/dev/null)
+            else
+              COUNT=$(git rev-list --count HEAD --not "$LAST" 2>/dev/null)
+            fi
+            COUNT=${COUNT:-0}
+            MIN=$(echo "$BASE" | cut -d. -f2)
+            PATC=$(echo "$BASE" | cut -d. -f3)
+            INC=$((PATC + COUNT))
+            VER_MAJ=1
+            VER_MIN=$((MIN + INC / 100))
+            VER_PATCH=$((INC % 100))
+          fi
+          TOTAL=$(git rev-list --count HEAD 2>/dev/null)
+          TOTAL=${TOTAL:-0}
+          echo "version=${VER_MAJ}.${VER_MIN}.${VER_PATCH}" >> "$GITHUB_OUTPUT"
+          echo "build=${TOTAL}" >> "$GITHUB_OUTPUT"
+
+  build-release:
+    name: Build Production Package
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: TypeScript Lint & Typecheck
+        run: npm run lint
+
+      - name: Build Web Application
+        env:
+          VITE_BASE_URL: './'
+        run: npm run build
+
+      - name: Generate version.json
+        run: |
+          echo "{\"version\":\"${{ needs.version.outputs.version }}\",\"build\":\"${{ needs.version.outputs.build }}\",\"builtAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > dist/version.json
+
+      - name: Package Release Bundle (ZIP)
+        run: |
+          mkdir -p release-pkg
+          cp -r dist server.ts package.json package-lock.json .env.example release-pkg/ 2>/dev/null || cp -r dist server.ts package.json .env.example release-pkg/
+          cp -r src release-pkg/src
+          cd release-pkg && zip -r ../ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}.zip . && cd ..
+
+      - name: Upload Release Archive Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}
+          path: ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}.zip
+
+  gh-release:
+    name: Create GitHub Release
+    needs: [version, build-release]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Built Archive
+        uses: actions/download-artifact@v4
+        with:
+          name: ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}
+
+      - name: Create GitHub Release with Artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Ouedkniss Cyber-Vacuum v${{ needs.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: ouedkniss-cyber-vacuum-v${{ needs.version.outputs.version }}.zip
+          body: |
+            ## Ouedkniss Cyber-Vacuum MK-IV — Release v${{ needs.version.outputs.version }}
+
+            ### 🚀 Nouveautés & Fonctionnalités :
+            - **Aspiration Totale Multi-Catégories Ouedkniss** (Mode Illimité ∞ jusqu'à la dernière page).
+            - **Fiche Détail Annonce Ultra-Complète** :
+              - Coordonnées vendeur complètes avec badge vérifié et temps de réponse.
+              - **Appel Direct en 1 clic** (`tel:`) avec numérotation immédiate.
+              - **WhatsApp Direct en 1 clic** (`https://wa.me/...`) avec message pré-rempli.
+              - Copie instantanée du numéro de téléphone.
+              - Spécifications techniques détaillées par wilaya.
+              - Galerie photos haute résolution interactive.
+            - **Moteur Hybride Haute Vitesse** (Direct DOM Engine + Failover IA Gemini).
+            - **Synchronisation Supabase** intégrée pour le stockage du catalogue.

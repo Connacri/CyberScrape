@@ -1,0 +1,280 @@
+export interface OuedknissCategoryMeta {
+  id: string;
+  name: string;
+  nameAr: string;
+  slug: string;
+  url: string;
+  icon: string;
+  color: string;
+  gradient: string;
+  badge: string;
+  countEstimate: number;
+  description: string;
+  subcategories: string[];
+}
+
+export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
+  {
+    id: 'automobiles',
+    name: 'Véhicules & Automobiles',
+    nameAr: 'سيارات و مركبات',
+    slug: 'automobiles',
+    url: 'https://www.ouedkniss.com/automobiles',
+    icon: 'Car',
+    color: '#00ff66',
+    gradient: 'from-emerald-500/20 to-green-500/5',
+    badge: 'Marché N°1 DZ',
+    countEstimate: 185400,
+    description: 'Voitures occasion & 0km, 4x4, Motos, Camions, Pièces de rechange 58 Wilayas',
+    subcategories: [
+      'Voitures',
+      'Motos & Scooters',
+      'Camions & Engins BTP',
+      'Pièces détachées & Accessoires',
+      'Remorques & Caravanes',
+      'Bateaux & Barques',
+    ],
+  },
+  {
+    id: 'telephones',
+    name: 'Téléphones & Tablettes',
+    nameAr: 'هواتف و لوحات إلكترونية',
+    slug: 'telephones',
+    url: 'https://www.ouedkniss.com/telephones',
+    icon: 'Smartphone',
+    color: '#00f0ff',
+    gradient: 'from-cyan-500/20 to-blue-500/5',
+    badge: 'Haute Rotation',
+    countEstimate: 142000,
+    description: 'Smartphones récents, iPhones, Samsung Galaxy, Tablettes, Montres connectées',
+    subcategories: [
+      'Smartphones 5G',
+      'iPhones scellés & occasion',
+      'Tablettes iPad & Android',
+      'Smartwatches & Bracelets',
+      'Accessoires & Chargeurs originaux',
+    ],
+  },
+  {
+    id: 'informatique',
+    name: 'Informatique & Bureau',
+    nameAr: 'إعلام آلي و حواسيب',
+    slug: 'informatique',
+    url: 'https://www.ouedkniss.com/informatique',
+    icon: 'Laptop',
+    color: '#a855f7',
+    gradient: 'from-purple-500/20 to-indigo-500/5',
+    badge: 'Gaming & Workstations',
+    countEstimate: 96800,
+    description: 'Laptops Gamer RTX, MacBook Apple Silicon, PC fixes, GPU, Écrans 144Hz+',
+    subcategories: [
+      'Laptops Gamer & Pro',
+      'MacBook M1/M2/M3',
+      'Cartes Graphiques RTX & RX',
+      'Écrans & Moniteurs Gamer',
+      'Composants & RAM/SSD',
+      'Imprimantes & Réseau',
+    ],
+  },
+  {
+    id: 'electromenager',
+    name: 'Électroménager & TV',
+    nameAr: 'أجهزة كهرومنزلية',
+    slug: 'electromenager',
+    url: 'https://www.ouedkniss.com/electromenager',
+    icon: 'Tv',
+    color: '#f59e0b',
+    gradient: 'from-amber-500/20 to-orange-500/5',
+    badge: 'Maison & Confort',
+    countEstimate: 87500,
+    description: 'TV 4K OLED, Climatiseurs Inverter, Réfrigérateurs NoFrost, Lave-linge',
+    subcategories: [
+      'Téléviseurs Smart TV 4K',
+      'Climatiseurs Tropicalisés',
+      'Réfrigérateurs & Congélateurs',
+      'Machines à laver & Sèche-linge',
+      'Audio, Barres de son & Hi-Fi',
+      'Petit Électroménager',
+    ],
+  },
+  {
+    id: 'immobilier',
+    name: 'Immobilier & Terrains',
+    nameAr: 'عقارات و أراضي',
+    slug: 'immobilier',
+    url: 'https://www.ouedkniss.com/immobilier',
+    icon: 'Building2',
+    color: '#ec4899',
+    gradient: 'from-pink-500/20 to-rose-500/5',
+    badge: 'Valeur Refuge',
+    countEstimate: 124300,
+    description: 'Vente & Location Appartements F3/F4, Villas d\'architecte, Terrains, Locaux',
+    subcategories: [
+      'Vente Appartements F3/F4/F5',
+      'Location Appartements & Studios',
+      'Villas & Duplex de standing',
+      'Terrains avec Acte & Livret foncier',
+      'Locaux commerciaux & Hangars',
+      'Locations de vacances',
+    ],
+  },
+  {
+    id: 'maison',
+    name: 'Maison & Fournitures',
+    nameAr: 'أثاث و ديكور منزلي',
+    slug: 'maison',
+    url: 'https://www.ouedkniss.com/maison',
+    icon: 'Armchair',
+    color: '#10b981',
+    gradient: 'from-emerald-500/20 to-teal-500/5',
+    badge: 'Design & Bricolage',
+    countEstimate: 68400,
+    description: 'Salons modernes, Chambres à coucher en bois rouge, Tables marbre, Lustres',
+    subcategories: [
+      'Salons en L & Canapés velours',
+      'Chambres à coucher complètes',
+      'Tables à manger & Chaises',
+      'Décoration & Lustres modernes',
+      'Cuisine équipée & Rangements',
+      'Outillage & Bricolage',
+    ],
+  },
+  {
+    id: 'vetements',
+    name: 'Vêtements & Mode',
+    nameAr: 'ملابس و أزياء',
+    slug: 'vetements',
+    url: 'https://www.ouedkniss.com/vetements',
+    icon: 'Shirt',
+    color: '#8b5cf6',
+    gradient: 'from-violet-500/20 to-purple-500/5',
+    badge: 'Styles & Luxe',
+    countEstimate: 78900,
+    description: 'Montres certifiées, Baskets Nike/Adidas, Costumes, Sacs et vestes cuir',
+    subcategories: [
+      'Montres de luxe & Sport',
+      'Baskets & Chaussures originales',
+      'Mode Homme & Costumes',
+      'Mode Femme & Robes',
+      'Sacs & Maroquinerie',
+      'Parfums & Lunettes',
+    ],
+  },
+  {
+    id: 'jeux-video',
+    name: 'Jeux Vidéo & Consoles',
+    nameAr: 'ألعاب فيديو و كونسول',
+    slug: 'jeux-video',
+    url: 'https://www.ouedkniss.com/jeux-video',
+    icon: 'Gamepad2',
+    color: '#3b82f6',
+    gradient: 'from-blue-500/20 to-indigo-500/5',
+    badge: 'Next-Gen Gaming',
+    countEstimate: 45200,
+    description: 'PlayStation 5 Pro/Slim, Nintendo Switch OLED, Xbox Series X, Casques VR',
+    subcategories: [
+      'PlayStation 5 & PS4 Pro',
+      'Nintendo Switch OLED',
+      'Xbox Series X / S',
+      'Jeux CD originaux & Comptes',
+      'Accessoires, Volants & VR',
+    ],
+  },
+  {
+    id: 'emploi',
+    name: 'Emploi & Recrutement',
+    nameAr: 'وظائف و توظيف',
+    slug: 'emploi',
+    url: 'https://www.ouedkniss.com/emploi',
+    icon: 'Briefcase',
+    color: '#06b6d4',
+    gradient: 'from-cyan-500/20 to-teal-500/5',
+    badge: 'Carrières DZ',
+    countEstimate: 51200,
+    description: 'Offres d\'emploi ingénieurs, développeurs, commerciaux, comptables, santé',
+    subcategories: [
+      'Informatique & Tech',
+      'Génie Civil & BTP',
+      'Commerce & Marketing',
+      'Gestion & Finance',
+      'Santé & Médical',
+      'Chauffeurs & Logistique',
+    ],
+  },
+  {
+    id: 'services',
+    name: 'Services & Artisanat',
+    nameAr: 'خدمات و أشغال',
+    slug: 'services',
+    url: 'https://www.ouedkniss.com/services',
+    icon: 'Wrench',
+    color: '#eab308',
+    gradient: 'from-yellow-500/20 to-amber-500/5',
+    badge: 'Prestataires Vérifiés',
+    countEstimate: 62400,
+    description: 'Rénovation & Peinture, Installation Climatisation, Déménagement 58 wilayas',
+    subcategories: [
+      'Travaux BTP & Peinture',
+      'Climatisation & Plomberie',
+      'Déménagement & Transport',
+      'Réparation Smartphone & PC',
+      'Événements & Traiteurs',
+      'Formations & Cours de soutien',
+    ],
+  },
+  {
+    id: 'materiaux',
+    name: 'Matériaux & Équipement Pro',
+    nameAr: 'عتاد مهني و مواد أولية',
+    slug: 'materiaux',
+    url: 'https://www.ouedkniss.com/materiaux',
+    icon: 'Hammer',
+    color: '#f97316',
+    gradient: 'from-orange-500/20 to-red-500/5',
+    badge: 'Industrie & Pro',
+    countEstimate: 41800,
+    description: 'Groupes électrogènes industriels, Postes à souder, Tours métaux, Pizzerias',
+    subcategories: [
+      'Groupes Électrogènes',
+      'Matériel de Restauration',
+      'Outillage Industriel & CNC',
+      'Matériaux de Construction',
+      'Matériel Agricole & Serres',
+      'Équipement Médical',
+    ],
+  },
+  {
+    id: 'sports-loisirs',
+    name: 'Sports & Loisirs',
+    nameAr: 'رياضة و ترفيه',
+    slug: 'sports-loisirs',
+    url: 'https://www.ouedkniss.com/sports-loisirs',
+    icon: 'Dumbbell',
+    color: '#14b8a6',
+    gradient: 'from-teal-500/20 to-emerald-500/5',
+    badge: 'Fitness & Aventure',
+    countEstimate: 33700,
+    description: 'Vélos VTT aluminium, Tapis de course, Matériel de camping, Guitares',
+    subcategories: [
+      'Vélos VTT & Course',
+      'Musculation & Fitness',
+      'Camping, Tentes & Randonnée',
+      'Instruments de musique',
+      'Chasse & Pêche sous-marine',
+    ],
+  },
+];
+
+/**
+ * Detect category slug from an input URL or string
+ */
+export function detectOuedknissCategory(inputUrl: string): OuedknissCategoryMeta | undefined {
+  const lower = inputUrl.toLowerCase();
+  return OUEDKNISS_CATEGORIES.find((cat) => {
+    return (
+      lower.includes(`/${cat.slug}`) ||
+      lower.includes(cat.slug) ||
+      lower.includes(cat.id)
+    );
+  });
+}

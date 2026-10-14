@@ -15,6 +15,12 @@ import { AiCrawlerLiveHud } from './components/AiCrawlerLiveHud';
 import { PriceTrendDashboard } from './components/PriceTrendDashboard';
 import { ProductCatalogGrid } from './components/ProductCatalogGrid';
 import { SupabaseSyncModal } from './components/SupabaseSyncModal';
+import { OuedknissCategoryHub } from './components/OuedknissCategoryHub';
+import {
+  OUEDKNISS_CATEGORIES,
+  OuedknissCategoryMeta,
+  detectOuedknissCategory,
+} from './data/ouedknissCategories';
 import {
   getStoredSupabaseConfig,
   saveStoredSupabaseConfig,
@@ -287,11 +293,15 @@ export default function App() {
   const [targetUrl, setTargetUrl] = useState<string>('https://www.ouedkniss.com/telephones');
   const [engineMode, setEngineMode] = useState<'direct' | 'ai'>('direct');
   const [scrapeVolume, setScrapeVolume] = useState<number>(24);
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState<string | null>('telephones');
+  const [activeSweepCategoryIndex, setActiveSweepCategoryIndex] = useState<number | undefined>(undefined);
+  const [isAllCategoriesSweepActive, setIsAllCategoriesSweepActive] = useState<boolean>(false);
   const [replaceCatalog, setReplaceCatalog] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'vacuum' | 'trends' | 'catalog'>('vacuum');
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [rainIntensity, setRainIntensity] = useState<'subtle' | 'normal' | 'turbo' | 'off'>('normal');
   const [isContinuousScraping, setIsContinuousScraping] = useState<boolean>(false);
+  const [sweepPagesPerCategory, setSweepPagesPerCategory] = useState<number>(0); // 0 = Illimité ∞
   const abortScrapingRef = useRef<boolean>(false);
 
   // Supabase State
@@ -369,6 +379,8 @@ export default function App() {
   const handleStopScrape = () => {
     abortScrapingRef.current = true;
     setIsContinuousScraping(false);
+    setIsAllCategoriesSweepActive(false);
+    setActiveSweepCategoryIndex(undefined);
     setJob((prev) => ({
       ...prev,
       status: 'completed',
@@ -406,7 +418,138 @@ export default function App() {
     setIsAudioMuted(muted);
   };
 
+  // ==========================================================
+  // MASTER SWEEP : ASPIRER TOUTES LES 12 CATÉGORIES OUEDKNISS
+  // ==========================================================
+  const handleStartAllCategoriesSweep = async () => {
+    setActiveTab('vacuum');
+    abortScrapingRef.current = false;
+    setIsContinuousScraping(true);
+    setIsAllCategoriesSweepActive(true);
+
+    const isUnlimited = sweepPagesPerCategory === 0;
+    const maxPagesTarget = isUnlimited ? 999 : sweepPagesPerCategory;
+
+    addLog(
+      `[BALAYAGE_GLOBAL] Démarrage du scan des 12 CATÉGORIES OUEDKNISS (${
+        isUnlimited ? 'Illimité ∞ jusqu’au dernier article' : `${maxPagesTarget} pages (${maxPagesTarget * 48} articles) par catégorie`
+      })`,
+      'cyber',
+      '0xGLOBAL_START'
+    );
+    cyberAudio.playVacuumSuck();
+
+    let accumulated: ScrapedProduct[] = replaceCatalog ? [] : [...products];
+    accumulated = accumulated.filter((p) => p.currency === 'DA');
+
+    const totalCats = OUEDKNISS_CATEGORIES.length;
+
+    for (let catIdx = 0; catIdx < totalCats; catIdx++) {
+      if (abortScrapingRef.current) break;
+
+      const cat = OUEDKNISS_CATEGORIES[catIdx];
+      setActiveSweepCategoryIndex(catIdx);
+      setSelectedCategorySlug(cat.slug);
+      setTargetUrl(cat.url);
+
+      addLog(
+        `[CATÉGORIE_${catIdx + 1}/${totalCats}] Ingestion du flux: ${cat.name} (${cat.url})`,
+        'info',
+        `0xCAT_${cat.slug.slice(0, 4).toUpperCase()}`
+      );
+
+      for (let page = 1; page <= maxPagesTarget; page++) {
+        if (abortScrapingRef.current) break;
+
+        const globalStep = catIdx * maxPagesTarget + page;
+        const totalSteps = totalCats * maxPagesTarget;
+        const progressPct = isUnlimited
+          ? Math.min(99, Math.round(((catIdx + Math.min(page, 20) / 20) / totalCats) * 100))
+          : Math.min(99, Math.round((globalStep / totalSteps) * 100));
+
+        setJob((prev) => ({
+          ...prev,
+          status: 'aspirating',
+          progress: progressPct,
+          itemsFound: accumulated.length,
+          aiAgentAction: `[${catIdx + 1}/${totalCats} ${cat.name}] Page ${page}${
+            isUnlimited ? ' (∞ Illimité)' : `/${maxPagesTarget}`
+          } (${accumulated.length} articles indexés)...`,
+          crawlerState: {
+            ...prev.crawlerState,
+            scrollY: globalStep * 1200,
+            domNodesInspected: globalStep * 340,
+            tokensProcessed: globalStep * 1950,
+          },
+        }));
+
+        try {
+          const res = await fetch('/api/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: cat.url,
+              maxItems: 48,
+              engineMode,
+              page,
+              categorySlug: cat.slug,
+            }),
+          });
+
+          if (!res.ok) break;
+          const data = await res.json();
+          const pageProducts: ScrapedProduct[] = data.products || [];
+
+          if (pageProducts.length === 0) {
+            addLog(`[${cat.name}] Fin du flux d'annonces atteinte à la page ${page}.`, 'info');
+            break;
+          }
+
+          accumulated = [...accumulated, ...pageProducts];
+          setProducts([...accumulated]);
+          cyberAudio.playItemAspirated();
+
+          addLog(
+            `[${cat.name} P${page}] +${pageProducts.length} articles aspirés (Total global: ${accumulated.length})`,
+            'vacuum',
+            `0xP${page}`
+          );
+
+          await new Promise((r) => setTimeout(r, 450));
+        } catch (catErr) {
+          console.warn('Sweep page error:', catErr);
+          break;
+        }
+      }
+    }
+
+    setIsContinuousScraping(false);
+    setIsAllCategoriesSweepActive(false);
+    setActiveSweepCategoryIndex(undefined);
+
+    setJob((prev) => ({
+      ...prev,
+      status: 'completed',
+      progress: 100,
+      itemsFound: accumulated.length,
+      aiAgentAction: `Balayage complet des 12 catégories terminé ! ${accumulated.length} articles scellés dans la base.`,
+    }));
+
+    cyberAudio.playComplete();
+    addLog(
+      `[SUCCÈS QUANTIQUE] Balayage complet des 12 catégories achevé ! Total : ${accumulated.length} articles indexés.`,
+      'success',
+      '0xDONE'
+    );
+
+    if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
+      await syncProductsToSupabase(accumulated, supabaseConfig);
+    }
+  };
+
+  // ========================================================
   // START QUANTUM SCRAPE & ASPIRATION PIPELINE
+  // ========================================================
   const handleStartScrape = async () => {
     if (!targetUrl || !targetUrl.startsWith('http')) {
       alert('Veuillez entrer une URL valide (commençant par http:// ou https://)');
@@ -425,8 +568,19 @@ export default function App() {
 
     const isOuedkniss = domain.includes('ouedkniss');
 
+    // Auto-detect category slug from URL if not already selected
+    let effectiveCategorySlug = selectedCategorySlug;
+    if (isOuedkniss) {
+      const match = detectOuedknissCategory(targetUrl);
+      if (match) {
+        effectiveCategorySlug = match.slug;
+        setSelectedCategorySlug(match.slug);
+      }
+    }
+
     // ========================================================
     // MODE CONTINU : ASPIRER TOUT LE CATALOGUE JUSQU'AU BOUT
+    // (AUCUNE LIMITE ARTIFICIELLE À 720 ARTICLES / JUSQU'AU DERNIER ARTICLE)
     // ========================================================
     if (scrapeVolume === 0) {
       setIsContinuousScraping(true);
@@ -437,10 +591,14 @@ export default function App() {
         status: 'aspirating',
         progress: 10,
         itemsFound: replaceCatalog ? 0 : products.length,
-        aiAgentAction: `Aspiration exhaustive continue vers ${domain} jusqu'au dernier article...`,
+        aiAgentAction: `Aspiration continue sans limite vers ${domain} jusqu'au dernier article absolu...`,
       }));
 
-      addLog(`[ASPIRATION_CONTINUE] Démarrage du crawler multi-pages vers ${targetUrl}`, 'cyber', '0xALL_START');
+      addLog(
+        `[ASPIRATION_CONTINUE] Démarrage du crawler infini vers ${targetUrl} [Aucune coupure à 720]`,
+        'cyber',
+        '0xALL_START'
+      );
       cyberAudio.playVacuumSuck();
 
       let accumulated: ScrapedProduct[] = replaceCatalog ? [] : [...products];
@@ -449,14 +607,17 @@ export default function App() {
         accumulated = accumulated.filter((p) => !isOuedkniss || p.currency === 'DA');
       }
 
-      const maxPages = 20; // Crawls up to 20 pages automatically
+      // No 20-page cap! Up to 9999 pages or until the user halts or source ends
+      const maxPages = 9999;
+      let emptyStreak = 0;
+
       for (let page = 1; page <= maxPages; page++) {
         if (abortScrapingRef.current) break;
 
         setJob((prev) => ({
           ...prev,
-          progress: Math.min(95, Math.round((page / maxPages) * 100)),
-          aiAgentAction: `Page ${page}/${maxPages} en cours d'ingestion... (${accumulated.length} articles aspirés)`,
+          progress: Math.min(99, Math.round(((page % 100) / 100) * 100)),
+          aiAgentAction: `Page ${page} (Sans coupure artificielle) en cours d'ingestion... (${accumulated.length} articles aspirés)`,
           crawlerState: {
             ...prev.crawlerState,
             scrollY: page * 1200,
@@ -469,7 +630,13 @@ export default function App() {
           const res = await fetch('/api/scrape', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: targetUrl, maxItems: 36, engineMode, page }),
+            body: JSON.stringify({
+              url: targetUrl,
+              maxItems: 48,
+              engineMode,
+              page,
+              categorySlug: effectiveCategorySlug || undefined,
+            }),
           });
 
           if (!res.ok) break;
@@ -477,8 +644,13 @@ export default function App() {
           const pageProducts: ScrapedProduct[] = data.products || [];
 
           if (pageProducts.length === 0) {
-            addLog(`[FIN_CATALOGUE] Dernier article atteint à la page ${page}. Fin de liste.`, 'success', '0xEND');
-            break;
+            emptyStreak++;
+            if (emptyStreak >= 2) {
+              addLog(`[FIN_CATALOGUE] Dernier article absolu atteint à la page ${page}. Fin de la liste.`, 'success', '0xEND');
+              break;
+            }
+          } else {
+            emptyStreak = 0;
           }
 
           accumulated = [...accumulated, ...pageProducts];
@@ -486,13 +658,13 @@ export default function App() {
           cyberAudio.playItemAspirated();
 
           addLog(
-            `[LOT_${page}] +${pageProducts.length} articles aspirés depuis la page ${page} (Total: ${accumulated.length})`,
+            `[PAGE_${page}] +${pageProducts.length} articles aspirés depuis la page ${page} (Total: ${accumulated.length})`,
             'vacuum',
             `0xP${page}`
           );
 
           // Small stagger for visual delight
-          await new Promise((r) => setTimeout(r, 650));
+          await new Promise((r) => setTimeout(r, 550));
         } catch (pageErr) {
           console.warn('Page fetch issue:', pageErr);
           break;
@@ -509,7 +681,11 @@ export default function App() {
       }));
 
       cyberAudio.playComplete();
-      addLog(`[SUCCÈS QUANTIQUE] Aspiration exhaustive achevée. Total : ${accumulated.length} articles indexés.`, 'success', '0xDONE');
+      addLog(
+        `[SUCCÈS QUANTIQUE] Aspiration exhaustive achevée. Total : ${accumulated.length} articles indexés sans coupure.`,
+        'success',
+        '0xDONE'
+      );
 
       // Auto-sync to Supabase if configured
       if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
@@ -828,6 +1004,25 @@ export default function App() {
       {/* Main Content Body */}
       <main className="relative z-20 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* ============================================================== */}
+        {/* 0. OUEDKNISS CATEGORY HUB & MATRIX BALAYAGE GLOBAL             */}
+        {/* ============================================================== */}
+        <OuedknissCategoryHub
+          products={products}
+          selectedCategorySlug={selectedCategorySlug}
+          onSelectCategory={(cat) => {
+            setSelectedCategorySlug(cat.slug);
+            setTargetUrl(cat.url);
+            cyberAudio.playChirp(880, 0.04);
+            addLog(`[CATÉGORIE_SÉLECTIONNÉE] ${cat.name} (${cat.url})`, 'info', `0xCAT_${cat.slug}`);
+          }}
+          onStartAllCategoriesSweep={handleStartAllCategoriesSweep}
+          isScrapingActive={isContinuousScraping}
+          activeSweepCategoryIndex={activeSweepCategoryIndex}
+          sweepPagesPerCategory={sweepPagesPerCategory}
+          onChangeSweepPagesPerCategory={setSweepPagesPerCategory}
+        />
+
+        {/* ============================================================== */}
         {/* CENTRAL QUANTUM URL INPUT & VACUUM INGESTION CONTROLLER */}
         {/* ============================================================== */}
         <section className="relative overflow-hidden rounded-2xl bg-slate-950/90 border border-emerald-500/40 p-4 sm:p-6 backdrop-blur-xl shadow-[0_0_30px_rgba(0,255,102,0.12)]">
@@ -914,7 +1109,8 @@ export default function App() {
                     { label: '24', val: 24 },
                     { label: '50', val: 50 },
                     { label: '100', val: 100 },
-                    { label: '250', val: 250 },
+                    { label: '500', val: 500 },
+                    { label: '1000', val: 1000 },
                     { label: '♾️ TOUT ASPIRER', val: 0 },
                   ].map((item) => (
                     <button

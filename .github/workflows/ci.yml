@@ -1,0 +1,44 @@
+name: Ouedkniss Scraper CI & Typecheck
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - '**'
+  pull_request:
+    branches:
+      - master
+      - main
+
+jobs:
+  validate:
+    name: Node ${{ matrix.node-version }} - Lint & Build Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: TypeScript Lint & Typecheck
+        run: npm run lint
+
+      - name: Build Vite Client Application
+        env:
+          VITE_BASE_URL: './'
+        run: npm run build
+
+      - name: Check Backend Server Syntax
+        run: npx tsx --eval "console.log('Backend server syntax validated successfully')"

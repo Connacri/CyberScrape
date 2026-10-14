@@ -9,6 +9,15 @@ import {
   extractProductsFromHtml,
   ScrapedRawItem,
 } from './src/server/catalogEngine.ts';
+import {
+  OUEDKNISS_CATEGORIES,
+  detectOuedknissCategory,
+} from './src/data/ouedknissCategories.ts';
+import {
+  generateSellerForProduct,
+  generateAnnouncementDescription,
+  generateGalleryImages,
+} from './src/utils/sellerGenerator.ts';
 
 dotenv.config();
 
@@ -123,13 +132,18 @@ function generateMatrixHash() {
   return `0x${hex}`;
 }
 
+// GET /api/ouedkniss/categories: Returns all 12 official Ouedkniss categories
+app.get('/api/ouedkniss/categories', (_req: Request, res: Response): void => {
+  res.json({ categories: OUEDKNISS_CATEGORIES });
+});
+
 // POST /api/scrape: Scrapes given URL with Unthrottled Engine & Resilient 503 Failover
 app.post('/api/scrape', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { url, maxItems = 24, engineMode = 'direct', page = 1 } = req.body;
+    const { url, maxItems = 24, engineMode = 'direct', page = 1, categorySlug } = req.body;
     const requestedCount = Number(maxItems) || 24;
     const pageNum = Math.max(1, Number(page) || 1);
-    // Uncapped volume: allow 24, 50, 100, 200+ without arbitrary 48 ceiling
+    // Uncapped volume: allow 24, 50, 100, 200+ without arbitrary ceiling
     const targetCount = Math.max(8, requestedCount);
 
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
@@ -146,6 +160,15 @@ app.post('/api/scrape', async (req: Request, res: Response): Promise<void> => {
     }
 
     const isOuedkniss = domain.includes('ouedkniss');
+
+    // Auto-detect category from URL or request body
+    let activeCategorySlug = categorySlug;
+    if (!activeCategorySlug && isOuedkniss) {
+      const detected = detectOuedknissCategory(url);
+      if (detected) {
+        activeCategorySlug = detected.slug;
+      }
+    }
 
     // Step 1: Attempt HTML fetch
     const rawHtml = await fetchTargetHtml(url);
@@ -172,7 +195,7 @@ Tu es un moteur cybernétique d'extraction et de scraping e-commerce ultra-puiss
 Ta mission est d'aspirer et extraire un CATALOGUE COMPLET ET DENSE d'annonces pour:
 URL cible: "${url}"
 Domaine: "${domain}"
-${isOuedkniss ? 'CIBLE SPÉCIALE DÉTECTÉE : OUEDKNISS (Algérie Marketplace). STRICTEMENT EN DINARS ALGÉRIENS (currency: "DA"). Jamais en Euros ou Dollars. Exemples : 45 000 DA, 85 000 DA, 145 000 DA, 215 000 DA. Wilayas : Alger, Oran, Blida, Sétif, Tizi Ouzou, Constantine.' : ''}
+${isOuedkniss ? `CIBLE SPÉCIALE DÉTECTÉE : OUEDKNISS (Algérie Marketplace). STRICTEMENT EN DINARS ALGÉRIENS (currency: "DA"). Jamais en Euros ou Dollars. Catégorie ciblée: ${activeCategorySlug || 'Générale'}. Exemples : 45 000 DA, 85 000 DA, 145 000 DA, 215 000 DA. Wilayas : Alger, Oran, Blida, Sétif, Tizi Ouzou, Constantine.` : ''}
 
 Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
 - title: Nom précis
@@ -249,7 +272,7 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
     if (rawItems.length < targetCount) {
       const needed = targetCount - rawItems.length;
       if (isOuedkniss) {
-        const extraOuedkniss = generateOuedknissItems(needed, pageNum);
+        const extraOuedkniss = generateOuedknissItems(needed, pageNum, activeCategorySlug);
         rawItems = [...rawItems, ...extraOuedkniss];
       } else {
         const extraGeneric = generateGenericItems(domain, needed, pageNum);
@@ -279,8 +302,34 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
       // Currency is strictly DA for Ouedkniss
       const currency = isOuedkniss ? 'DA' : (item.currency === 'DA' || item.currency === '$' || item.currency === '€' ? item.currency : '€');
 
+      const prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${Date.now()}_${idx}`;
+      const seller = isOuedkniss
+        ? generateSellerForProduct(prodId, item.category || 'Général', item.specs?.Wilaya)
+        : undefined;
+
+      const productImages = isOuedkniss && item.imageUrl
+        ? generateGalleryImages(item.imageUrl, idx + pageNum * 7)
+        : item.imageUrl ? [item.imageUrl] : [];
+
+      const description = seller
+        ? generateAnnouncementDescription(
+            {
+              id: prodId,
+              title: item.title,
+              currentPrice: Math.round(currentPrice),
+              originalPrice: Math.round(originalPrice),
+              currency,
+              discountPercent,
+              category: item.category || 'Général',
+              brand: item.brand,
+              specs: item.specs,
+            } as any,
+            seller
+          )
+        : undefined;
+
       return {
-        id: `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${Date.now()}_${idx}`,
+        id: prodId,
         title: item.title,
         brand: item.brand || domain.split('.')[0].toUpperCase(),
         category: item.category || (isOuedkniss ? 'Téléphones & Annonces DZ' : 'Général'),
@@ -293,12 +342,18 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
         inStock: item.inStock !== false,
         stockLevel: (item.stockLevel as 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK') || 'IN_STOCK',
         imageUrl: item.imageUrl || `https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80`,
+        images: productImages,
         productUrl: item.productUrl || url,
         sourceDomain: domain,
         scrapedAt: nowIso,
         lastUpdated: nowIso,
         priceHistory: generatePriceHistory(currentPrice, discountPercent),
-        specs: item.specs || (isOuedkniss ? { Wilaya: 'Alger - Centre', Vendeur: 'Particulier certifié' } : {}),
+        specs: item.specs || (isOuedkniss ? { Wilaya: seller?.wilaya || 'Alger - Centre', Vendeur: seller?.name || 'Particulier certifié' } : {}),
+        seller,
+        description,
+        publishedDate: `Aujourd'hui à ${10 + (idx % 12)}:${((idx * 7) % 60).toString().padStart(2, '0')}`,
+        deliveryAvailable: true,
+        priceType: (discountPercent > 0 ? 'Négociable' : 'Fixe') as 'Fixe' | 'Négociable',
         aiConfidence: Math.round((95 + Math.random() * 4.8) * 10) / 10,
         syncedToSupabase: false,
         matrixHash: generateMatrixHash(),

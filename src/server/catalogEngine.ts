@@ -378,89 +378,403 @@ const OUEDKNISS_PRODUCTS_DATABASE: ScrapedRawItem[] = [
   },
 ];
 
+// Category-specific definitions for all 12 Ouedkniss categories
+interface CategoryDataProfile {
+  name: string;
+  brands: string[];
+  models: Record<string, string[]>;
+  imagePool: string[];
+  specsGenerator: (idx: number, wilaya: string) => Record<string, string>;
+  priceCalc: (idx: number) => { currentPrice: number; discountPercent: number };
+}
+
+const CATEGORY_PROFILES: Record<string, CategoryDataProfile> = {
+  automobiles: {
+    name: 'Véhicules & Automobiles',
+    brands: ['Renault', 'Volkswagen', 'Dacia', 'Toyota', 'Hyundai', 'Peugeot', 'Seat', 'Kia', 'Audi', 'Chery'],
+    models: {
+      Renault: ['Clio 5 1.5 dCi 115ch', 'Mégane 4 GT Line', 'Symbol 1.6 MPI 16v', 'Captur TCe 130'],
+      Volkswagen: ['Golf 8 R-Line 2.0 TDI', 'Tiguan R-Line 4Motion', 'Polo Beats 1.6 TDI', 'Caddy Maxi Life'],
+      Dacia: ['Duster 4x4 1.5 dCi Prestige', 'Sandero Stepway Techroad', 'Logan 1.5 dCi'],
+      Toyota: ['Hilux Double Cabine 4x4 D4D', 'Yaris GR Sport', 'Land Cruiser Prado V6', 'Corolla Cross'],
+      Hyundai: ['Tucson N-Line 2.0 CRDi', 'Accent 1.6 CRDi GL', 'i20 N-Line', 'Santa Fe 2.2 CRDi'],
+      Peugeot: ['208 GT Line 1.5 BlueHDi', '3008 Allure Pack 2.0 HDI', '2008 GT', 'Partner Tepee Outdoor'],
+      Seat: ['Ibiza FR 1.6 TDI 110ch', 'Leon FR 2.0 TDI DSG', 'Arona Xcellence'],
+      Kia: ['Sportage GT-Line 2.0 CRDi', 'Picanto GT Line', 'Seltos 1.6'],
+      Audi: ['A3 Sportback 35 TDI S-Line', 'Q3 Sportback S-Line', 'A4 S-Line 2.0 TDI'],
+      Chery: ['Tiggo 8 Pro Max', 'Tiggo 4 Pro Luxury', 'Arrizo 8 Flagship'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Année: `${2019 + (idx % 6)}`,
+      Kilométrage: `${25000 + ((idx * 14500) % 180000)} km`,
+      Carburant: idx % 3 === 0 ? 'Essence 1.6' : 'Diesel 2.0 dCi/TDI',
+      Boîte: idx % 2 === 0 ? 'Automatique DSG/EDC' : 'Manuelle 6 vitesses',
+      Papiers: 'Carte Grise (Safia 100%)',
+      Peinture: idx % 4 === 0 ? '00 Peinture 00 Retouche' : 'Retouche à froid pare-choc',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 1850000 + ((idx * 280000) % 5200000);
+      return { currentPrice, discountPercent: (idx % 4) * 2 + 2 };
+    },
+  },
+  telephones: {
+    name: 'Téléphones & Tablettes',
+    brands: ['Apple', 'Samsung', 'Xiaomi', 'Google', 'Honor', 'OnePlus', 'Realme'],
+    models: {
+      Apple: ['iPhone 16 Pro Max 256GB', 'iPhone 15 Pro 128GB', 'iPhone 14 128GB', 'iPad Pro M4 11"', 'iPad Air M2'],
+      Samsung: ['Galaxy S24 Ultra 512GB', 'Galaxy S23 FE 256GB', 'Galaxy A55 5G', 'Galaxy Z Fold 5 512GB'],
+      Xiaomi: ['14 Ultra 512GB Leica', 'Redmi Note 13 Pro+ 5G', 'POCO X6 Pro 512GB', 'Pad 6 256GB'],
+      Google: ['Pixel 9 Pro XL 256GB', 'Pixel 8a 128GB', 'Pixel 7 Pro 128GB'],
+      Honor: ['Magic 6 Pro 512GB', 'Honor 200 Pro 512GB', 'Honor 90 256GB'],
+      OnePlus: ['OnePlus 12 512GB Hasselblad', 'OnePlus Nord 4 5G'],
+      Realme: ['GT 6 512GB 120W', '12 Pro+ 5G'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      État: idx % 3 === 0 ? 'Neuf sous blister scellé' : '10/10 État neuf avec boîte',
+      Batterie: `${92 + (idx % 9)}% d'origine`,
+      Garantie: 'Magasin 6 mois avec facture',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 38000 + ((idx * 16500) % 210000);
+      return { currentPrice, discountPercent: (idx % 5) * 2 + 3 };
+    },
+  },
+  informatique: {
+    name: 'Informatique & Laptops Gamer',
+    brands: ['Asus ROG', 'Apple', 'Lenovo Legion', 'HP Omen', 'Dell Alienware', 'MSI'],
+    models: {
+      'Asus ROG': ['Strix Scar 18 i9-14900HX RTX 4090', 'Zephyrus G16 OLED RTX 4070', 'TUF Gaming A15 Ryzen 7'],
+      Apple: ['MacBook Pro 16" M3 Max 36GB', 'MacBook Air 15" M3 16GB 512GB', 'Mac Studio M2 Max'],
+      'Lenovo Legion': ['Legion Pro 7i RTX 4080', 'Legion 5 Pro Ryzen 7 RTX 4060', 'LOQ 15 Gaming'],
+      'HP Omen': ['OMEN Transcend 16 OLED i9', 'Victus 16 RTX 4060 16GB', 'Pavilion Gaming'],
+      'Dell Alienware': ['Alienware m18 R2 i9 64GB', 'XPS 15 9530 4K OLED i7'],
+      MSI: ['Raider GE78 HX i9 RTX 4080', 'Katana 15 B13V RTX 4060', 'Cyborg 15'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Processeur: idx % 2 === 0 ? 'Intel Core i9-14900HX 24 Coeurs' : 'AMD Ryzen 9 7945HX',
+      RAM: `${16 + (idx % 3) * 16}GB DDR5 5600MHz`,
+      Stockage: `${1 + (idx % 2)}TB SSD NVMe Gen4`,
+      GPU: idx % 3 === 0 ? 'Nvidia RTX 4080 12GB' : 'Nvidia RTX 4070 8GB GDDR6',
+      Écran: '16" QHD+ 240Hz IPS 100% DCI-P3',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 115000 + ((idx * 34000) % 360000);
+      return { currentPrice, discountPercent: (idx % 4) * 2 + 5 };
+    },
+  },
+  electromenager: {
+    name: 'Électroménager & TV',
+    brands: ['Samsung', 'LG', 'Condor', 'Beko', 'Iris', 'Brandt', 'Whirlpool'],
+    models: {
+      Samsung: ['Smart TV 65" Neo QLED 4K 120Hz', 'Frigo Side-by-Side 600L Inverter', 'Lave-Linge EcoBubble 11kg'],
+      LG: ['OLED evo C3 55" 4K Dolby Vision', 'Climatiseur Dual Inverter 18000 BTU', 'Réfrigérateur InstaView Door-in-Door'],
+      Condor: ['Climatiseur Alpha Inverter 12000 BTU', 'Smart TV Android 55" 4K HDR', 'Machine à Laver 10.5kg'],
+      Beko: ['Réfrigérateur NoFrost HarvestFresh 520L', 'Lave-vaisselle 15 Couverts Inox ProSmart'],
+      Iris: ['Google TV 65" Frameless 4K', 'Climatiseur Tropicalisé T3 24000 BTU'],
+      Brandt: ['Four Encastrable Pyrolyse Multifonction', 'Plaque Cuisson Induction 4 Foyers'],
+      Whirlpool: ['Lave-Linge Supreme Care 9kg 1400tr', 'Micro-ondes Combiné Grill 33L'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Classe: 'A+++ Économie d\'énergie',
+      Garantie: '24 mois constructeur avec bon de garantie',
+      Livraison: 'Disponible 58 Wilayas à domicile',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 42000 + ((idx * 18500) % 240000);
+      return { currentPrice, discountPercent: (idx % 5) * 3 + 2 };
+    },
+  },
+  immobilier: {
+    name: 'Immobilier & Terrains',
+    brands: ['Promotion Immobilière', 'Particulier', 'Agence Immobilière Agréée', 'Investissement DZ'],
+    models: {
+      'Promotion Immobilière': ['Appartement F4 Standing 135m² Vue Mer', 'Duplex F5 Haut Standing 210m² avec Terrasse', 'Studio F1 Meublé Centre Ville'],
+      Particulier: ['Villa R+2 Style Mauresque avec Piscine & Jardin', 'Appartement F3 85m² 3ème Étage Refait à Neuf', 'Terrain 400m² Constructible R+3'],
+      'Agence Immobilière Agréée': ['Local Commercial 120m² Façade Principale', 'Villa F7 Standing avec Garage 3 Véhicules', 'Niveau de Villa F4 avec Cour privative'],
+      'Investissement DZ': ['Hangar Industriel 1200m² Zone Activité', 'Carcasse R+2 250m² dalle finie'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Papiers: 'Acte Notarié + Livret Foncier individuel',
+      Superficie: `${85 + (idx % 6) * 45} m²`,
+      Étage: idx % 3 === 0 ? 'RDC avec cour privative' : `Étage ${1 + (idx % 5)} avec ascenseur`,
+      Spécificités: 'Chauffage central, Cuisine équipée, Bâche à eau',
+    }),
+    priceCalc: (idx) => {
+      // Real estate prices in millions of DA
+      const currentPrice = 6500000 + ((idx * 1200000) % 35000000);
+      return { currentPrice, discountPercent: (idx % 3) * 2 + 1 };
+    },
+  },
+  maison: {
+    name: 'Maison & Fournitures',
+    brands: ['Atelier Mobilier DZ', 'Design Italien', 'Artisanat Bois Rouge', 'Ikea Import', 'Deco Luxe'],
+    models: {
+      'Atelier Mobilier DZ': ['Salon d\'angle en L Velours Royal Anti-tache 7 Places', 'Chambre à Coucher Moderne Bois Rouge 6 Portes', 'Table à Manger Marbre 8 Chaises'],
+      'Design Italien': ['Canapé Panoramique Convertible avec Coffre', 'Meuble TV Mural LED avec Rangements', 'Buffet Moderne Laqué Miroir'],
+      'Artisanat Bois Rouge': ['Chambre à Coucher Traditionnelle Bois Hêtre', 'Porte d\'entrée Blindée Bois Massif'],
+      'Ikea Import': ['Dressing Modulaire PAX 3m Miroir', 'Bureau Ergonomique Électrique Réglable'],
+      'Deco Luxe': ['Lustre Moderne Cristal LED 3 Teintes', 'Tapis Salon Turc Haute Densité 3x2m'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Matière: idx % 2 === 0 ? 'Bois rouge 1er choix & Mousse D30' : 'MDF Espagnol hydrofuge & Tissu velours',
+      Dimensions: `${200 + (idx % 4) * 40} cm x ${90 + (idx % 3) * 20} cm`,
+      Garantie: '5 ans sur la structure et le bois',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 35000 + ((idx * 14000) % 190000);
+      return { currentPrice, discountPercent: (idx % 4) * 3 + 3 };
+    },
+  },
+  vetements: {
+    name: 'Vêtements & Mode',
+    brands: ['Nike', 'Adidas', 'Rolex', 'Zara', 'Tissot', 'Hugo Boss', 'Puma', 'Lacoste'],
+    models: {
+      Nike: ['Air Max Plus TN 3 Originales', 'Air Jordan 4 Retro Military Black', 'Tech Fleece Ensemble Complet Noir'],
+      Adidas: ['Samba OG Cuir Blanc', 'Campus 00s Core Black', 'Yeezy Boost 350 V2'],
+      Rolex: ['Submariner Date Lunette Céramique 41mm', 'Datejust 41 Cadran Bleu Jubilé', 'Oyster Perpetual 36'],
+      Tissot: ['PRX Powermatic 80 Acier Automatique', 'Seastar 1000 Chronograph'],
+      'Hugo Boss': ['Costume Homme 3 Pièces Laine Vierge', 'Montre Chronographe Cuir Noir'],
+      Lacoste: ['Survêtement Taffetas Diamant Édition Tennis', 'Polo Classic Fit Piqué Coton'],
+      Zara: ['Manteau Long en Laine mélangée', 'Veste Perfecto Cuir Véritable'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Authenticité: '100% Original Certifié avec boîte & étiquettes',
+      Taille: idx % 2 === 0 ? 'Tailles disponibles: S, M, L, XL' : 'Pointures: 40, 41, 42, 43, 44, 45',
+      Provenance: 'Importation directe Europe / Dubaï',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 9500 + ((idx * 8500) % 95000);
+      return { currentPrice, discountPercent: (idx % 5) * 3 + 5 };
+    },
+  },
+  'jeux-video': {
+    name: 'Jeux Vidéo & Consoles',
+    brands: ['Sony PlayStation', 'Nintendo', 'Microsoft Xbox', 'Meta', 'Valve'],
+    models: {
+      'Sony PlayStation': ['PlayStation 5 Pro 2TB Édition Spéciale', 'PlayStation 5 Slim 1TB + 2 Manettes DualSense', 'PlayStation VR2 Horizon Pack', 'Manette DualSense Edge Pro'],
+      Nintendo: ['Switch OLED Modèle Zelda Tears of the Kingdom', 'Switch OLED Blanc Neuf avec 3 Jeux Originaux'],
+      'Microsoft Xbox': ['Xbox Series X 1TB Noir Mat avec Game Pass 1 An', 'Xbox Series S 1TB Édition Robot White'],
+      Meta: ['Quest 3 128GB Casque Réalité Mixte 4K+', 'Quest 2 256GB Pack Accessoires'],
+      Valve: ['Steam Deck OLED 1TB Édition Limitée'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      État: idx % 2 === 0 ? 'Neuf sous blister garantie 1 an' : 'Comme neuf dans le carton avec facture',
+      Accessoires: 'Fourni avec câbles HDMI 2.1, manette originale et jeux offerts',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 45000 + ((idx * 11000) % 115000);
+      return { currentPrice, discountPercent: (idx % 4) * 2 + 4 };
+    },
+  },
+  emploi: {
+    name: 'Emploi & Recrutement',
+    brands: ['Entreprise BTP & Travaux', 'Cabinet Médical & Clinique', 'Startup Tech DZ', 'Multinationale Agroalimentaire', 'Groupe Industriel'],
+    models: {
+      'Startup Tech DZ': ['Recrutement Développeur Full-Stack React / Node.js Senior', 'Ingénieur DevOps & Cloud Docker/Kubernetes', 'Designer UI/UX Mobile & Web'],
+      'Entreprise BTP & Travaux': ['Ingénieur Conduite de Travaux BTP & Suivi Chantier', 'Architecte d\'Intérieur Projets Hôteliers', 'Chef de Projet Génie Civil'],
+      'Cabinet Médical & Clinique': ['Délégué Médical 58 Wilayas Expérimenté', 'Biologiste Médical Laboratoire Analyses', 'Infirmier de Soins Polyvalents'],
+      'Multinationale Agroalimentaire': ['Responsable Commercial & Distribution Région Centre', 'Comptable Senior & Audit Financier', 'Directeur Logistique & Supply Chain'],
+      'Groupe Industriel': ['Ingénieur Maintenance Électromécanique', 'Technicien Automates Programmables'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Contrat: idx % 2 === 0 ? 'CDI Plein Temps avec Assurances' : 'Contrat CTA / Prémploi avec primes',
+      Expérience: `${2 + (idx % 5)} ans minimum dans le domaine`,
+      Avantages: 'Véhicule de service, Ordinateur portable, Primes sur objectifs',
+    }),
+    priceCalc: (idx) => {
+      // Monthly salary in DA
+      const currentPrice = 65000 + ((idx * 15000) % 180000);
+      return { currentPrice, discountPercent: 0 };
+    },
+  },
+  services: {
+    name: 'Services & Artisanat',
+    brands: ['Artisan Qualifié Pro', 'Entreprise de Rénovation DZ', 'Service Express 58W', 'Technicien Agréé', 'Transport & Fret'],
+    models: {
+      'Artisan Qualifié Pro': ['Peinture Moderne Effet Stucco & Satiné Décoratif', 'Plâtrerie Moderne Faux Plafonds BA13 & Spots LED', 'Carrelage & Faïence Grand Format Rectifié'],
+      'Entreprise de Rénovation DZ': ['Rénovation Complète Clés en Main Villas & Appartements', 'Étanchéité Toiture & Terrasses Résine Polyuréthane'],
+      'Service Express 58W': ['Déménagement Professionnel avec Camion Capitonnée 58 Wilayas', 'Transport de Marchandises Rapide et Sécurisé'],
+      'Technicien Agréé': ['Installation & Entretien Climatiseurs Inverter Gainable', 'Plomberie Chauffage Central & Chaudière Murale'],
+      'Transport & Fret': ['Dépannage & Remorquage Auto 24h/24 7j/7 Autoroute Est-Ouest'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Disponibilité: '7j/7 - Déplacement rapide sur 58 Wilayas',
+      Devis: 'Devis et métré gratuits avant engagement',
+      Garantie: 'Travail soigné avec garantie de bonne exécution',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 6000 + ((idx * 4500) % 65000);
+      return { currentPrice, discountPercent: (idx % 3) * 5 };
+    },
+  },
+  materiaux: {
+    name: 'Matériaux & Équipement Pro',
+    brands: ['Cummins Power', 'BOSCH Pro', 'Industrie Métallique DZ', 'Fimar Import', 'Schneider Electric'],
+    models: {
+      'Cummins Power': ['Groupe Électrogène Insonorisé 100 kVA Diesel ATS', 'Groupe Électrogène 45 kVA Moteur Ricardo Silencieux', 'Groupe Industriel 250 kVA'],
+      'BOSCH Pro': ['Poste à Souder Inverter TIG/MIG 250A Professionnel', 'Perforateur Burineur SDS-Max 1500W', 'Compresseur d\'air 500L Courroie 10 Bar'],
+      'Industrie Métallique DZ': ['Tour Parallèle à Métaux 1.5m Entre Pointes', 'Fraiseuse Universelle Visuelle 3 Axes', 'Citerne Alimentaire Inox 304 5000L'],
+      'Fimar Import': ['Four à Pizza Professionnel 2 Niveaux 8 Pizzas', 'Pétrin à Spirale 30kg 2 Vitesses Cuve Inox', 'Machine à Crème Glacée Italienne 3 Manettes'],
+      'Schneider Electric': ['Armoire Électrique Industrielle avec Disjoncteur 400A'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      Puissance: `${15 + (idx % 6) * 20} kW / 380V Triphasé`,
+      Norme: 'Certificat de Conformité CE & Facture pour registre',
+      Garantie: '12 à 24 mois avec Service Après Vente assuré',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 95000 + ((idx * 85000) % 2400000);
+      return { currentPrice, discountPercent: (idx % 3) * 3 + 2 };
+    },
+  },
+  'sports-loisirs': {
+    name: 'Sports & Loisirs',
+    brands: ['Rockrider', 'Shimano', 'Domyos', 'Fender', 'Quechua', 'Yamaha', 'Garmin'],
+    models: {
+      Rockrider: ['Vélo VTT All-Mountain Aluminium 29" Monoplateau 12V', 'VTT XC 500 Cadre Carbone RockShox'],
+      Domyos: ['Tapis de Course Motorisé Pliable 3.5 HP 18 km/h', 'Banc de Musculation Multiposition avec Rack & Poids 100kg'],
+      Quechua: ['Tente de Camping Familiale 6 Personnes Air Seconds', 'Ensemble Bivouac Matelas Gonflable + Sac de couchage -5°C'],
+      Fender: ['Guitare Électrique Stratocaster Player Series Mexique', 'Guitare Acoustique Dreadnought avec Housse'],
+      Yamaha: ['Clavier Arrangeur Oriental PSR-A350 avec Rythmes Raï & Chaâbi', 'Batterie Acoustique Complète avec Cymbales'],
+      Garmin: ['Montre GPS Multisport Fénix 7 Pro Solar Sapphire'],
+    },
+    imagePool: [
+      'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+    ],
+    specsGenerator: (idx, wilaya) => ({
+      Wilaya: wilaya,
+      État: idx % 2 === 0 ? 'Neuf jamais utilisé importé d\'Europe' : 'Très bon état 9.5/10 avec accessoires',
+      Accessoires: 'Fourni complet avec manuel, sacoche et accessoires',
+    }),
+    priceCalc: (idx) => {
+      const currentPrice = 18000 + ((idx * 9500) % 145000);
+      return { currentPrice, discountPercent: (idx % 4) * 3 + 4 };
+    },
+  },
+};
+
 // Additional procedural generator to yield infinite authentic items without caps
-export function generateOuedknissItems(count: number, page: number = 1): ScrapedRawItem[] {
+export function generateOuedknissItems(count: number, page: number = 1, categorySlug?: string): ScrapedRawItem[] {
   const items: ScrapedRawItem[] = [];
   const startIndex = (page - 1) * count;
 
-  const brands = ['Samsung', 'Apple', 'Xiaomi', 'Asus', 'HP', 'Dell', 'Lenovo', 'Sony', 'Renault', 'Volkswagen', 'Peugeot', 'Google', 'Honor', 'Realme', 'Oppo'];
-  const categories = [
-    'Téléphones & Smartphones',
-    'Informatique & Laptops Gamer',
-    'Informatique & Ordinateurs',
-    'Gaming & Consoles',
-    'Véhicules & Automobiles',
-    'Audio & Accessoires High-Tech',
-    'Tablettes & Écrans',
-  ];
-
-  const modelNames: Record<string, string[]> = {
-    Samsung: ['Galaxy S24 Ultra', 'Galaxy S23 Plus', 'Galaxy A55 5G', 'Galaxy Z Fold 5', 'Galaxy A35', 'Galaxy Tab S9 Ultra'],
-    Apple: ['iPhone 16 Pro Max', 'iPhone 15 Pro', 'iPhone 14', 'MacBook Air M3', 'MacBook Pro 16" M3 Max', 'iPad Pro 13" M4'],
-    Xiaomi: ['Redmi Note 13 Pro+ 5G', 'Xiaomi 14 Ultra', 'POCO X6 Pro 5G', 'Redmi 13C', 'Pad 6 256GB'],
-    Asus: ['ROG Strix Scar 18', 'TUF Gaming A15', 'ZenBook 14 OLED', 'ROG Ally Z1 Extreme'],
-    HP: ['Victus 16 RTX 4060', 'OMEN 17 i9', 'Pavilion 15 Core i5', 'Spectre x360 OLED'],
-    Sony: ['PlayStation 5 Pro', 'Casque WH-1000XM5', 'Écouteurs WF-1000XM5', 'Bravia 65" 4K HDR'],
-    Renault: ['Clio 5 1.5 DCI 115ch', 'Mégane 4 GT Line', 'Symbol 1.6 MPI 16v', 'Duster 4x4 Prestige'],
-    Volkswagen: ['Golf 8 R-Line 2.0 TDI', 'Tiguan R-Line', 'Polo Beats 1.6 TDI', 'Caddy Maxi Life'],
-    Google: ['Pixel 9 Pro XL', 'Pixel 8a 128GB', 'Pixel Watch 2', 'Pixel Tablet'],
-  };
+  // Determine which categories to pull from
+  const validCategoryKeys = Object.keys(CATEGORY_PROFILES);
+  const targetCategoryKey = categorySlug && CATEGORY_PROFILES[categorySlug] ? categorySlug : null;
 
   for (let i = 0; i < count; i++) {
     const globalIdx = startIndex + i;
-    // Take from predefined templates first if available
-    if (globalIdx < OUEDKNISS_PRODUCTS_DATABASE.length) {
-      items.push(OUEDKNISS_PRODUCTS_DATABASE[globalIdx]);
-      continue;
-    }
 
-    // Procedural generation of authentic Ouedkniss listing
-    const brand = brands[globalIdx % brands.length];
-    const models = modelNames[brand] || ['Édition Spéciale 2024'];
-    const model = models[(Math.floor(globalIdx / brands.length) + i) % models.length];
-    const category = categories[globalIdx % categories.length];
+    // Pick category: either fixed target or round-robin through all 12 categories
+    const catKey = targetCategoryKey || validCategoryKeys[globalIdx % validCategoryKeys.length];
+    const profile = CATEGORY_PROFILES[catKey];
+
+    const brand = profile.brands[globalIdx % profile.brands.length];
+    const modelsList = profile.models[brand] || [`Modèle Pro Édition DZ #${100 + globalIdx}`];
+    const model = modelsList[Math.floor(globalIdx / profile.brands.length) % modelsList.length];
     const wilaya = ALGERIA_WILAYAS[(globalIdx * 3 + i) % ALGERIA_WILAYAS.length];
+    const imageUrl = profile.imagePool[globalIdx % profile.imagePool.length];
 
-    // Compute realistic Dinar price based on category
-    let currentPrice = 65000;
-    if (category.includes('Véhicules')) {
-      currentPrice = 1800000 + ((globalIdx * 150000) % 2200000);
-    } else if (category.includes('Laptops') || model.includes('MacBook') || model.includes('Ultra')) {
-      currentPrice = 160000 + ((globalIdx * 25000) % 190000);
-    } else if (category.includes('Gaming') || model.includes('PlayStation')) {
-      currentPrice = 95000 + ((globalIdx * 12000) % 55000);
-    } else {
-      currentPrice = 32000 + ((globalIdx * 8500) % 140000);
-    }
-
-    const discountPercent = (globalIdx % 5) * 2 + 4; // 4% to 12%
+    const { currentPrice, discountPercent } = profile.priceCalc(globalIdx);
     const originalPrice = Math.round(currentPrice * (1 + discountPercent / 100));
+    const specs = profile.specsGenerator(globalIdx, wilaya);
 
     items.push({
-      title: `${brand} ${model} 10/10 Annonce Ouedkniss #${1000 + globalIdx}`,
+      title: `${brand} ${model} - Annonce Ouedkniss #${1000 + globalIdx}`,
       brand,
-      category,
+      category: profile.name,
       currentPrice,
       originalPrice,
       currency: 'DA',
       discountPercent,
       rating: Math.round((4.6 + (globalIdx % 4) * 0.1) * 10) / 10,
-      reviewsCount: 150 + ((globalIdx * 37) % 1200),
+      reviewsCount: 45 + ((globalIdx * 29) % 1400),
       inStock: true,
       stockLevel: 'IN_STOCK',
-      imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80',
-      productUrl: `https://www.ouedkniss.com/annonces/annonce-${1000000 + globalIdx}`,
+      imageUrl,
+      productUrl: `https://www.ouedkniss.com/${catKey}/annonce-${1000000 + globalIdx}`,
       specs: {
-        Wilaya: wilaya,
-        État: globalIdx % 2 === 0 ? 'Neuf sous emballage avec boîte' : 'Très bon état 10/10 avec garantie',
-        Vendeur: globalIdx % 3 === 0 ? 'Store Certifié Ouedkniss' : 'Particulier vérifié',
-        Réf: `0xDZ_${1000 + globalIdx}`,
+        ...specs,
+        Réf: `0xDZ_${catKey.substring(0, 3).toUpperCase()}_${1000 + globalIdx}`,
       },
     });
   }
 
   return items;
 }
+
 
 // Generic procedural generator for other domains (Amazon, Fnac, Apple, etc.)
 export function generateGenericItems(domain: string, count: number, page: number = 1): ScrapedRawItem[] {
