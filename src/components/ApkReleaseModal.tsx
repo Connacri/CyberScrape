@@ -59,12 +59,12 @@ export const ApkReleaseModal: React.FC<ApkReleaseModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-black border border-emerald-400/60 shadow-[0_0_15px_rgba(0,255,102,0.35)] shrink-0">
+            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-black border border-emerald-400/60 shadow-[0_0_15px_rgba(0,255,102,0.35)] shrink-0 flex items-center justify-center p-1">
               <img
-                src="/src/assets/images/app_cyber_icon_1792098494227.jpg"
+                src="/icon.png"
                 alt="CYBER-VACUUM Icon"
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover rounded-xl"
               />
             </div>
             <div>

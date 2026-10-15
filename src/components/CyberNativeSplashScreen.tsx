@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Terminal, Cpu, Zap, Volume2, VolumeX, X } from 'lucide-react';
 import { cyberAudio } from '../utils/cyberAudio';
+import { CyberVacuumLogo } from './CyberVacuumLogo';
 
 interface CyberNativeSplashScreenProps {
   isOpen: boolean;
@@ -110,17 +111,17 @@ export const CyberNativeSplashScreen: React.FC<CyberNativeSplashScreenProps> = (
       }`}
       style={{ backgroundColor: '#030712' }}
     >
-      {/* Immersive background matrix image - Full Screen Cyberpunk Vortex */}
+      {/* Immersive background matrix image - Full Screen Cyberpunk Vortex with User Logo */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img
-          src="/src/assets/images/cyber_splash_screen_1792103934786.jpg"
+          src="/src/assets/images/vacuum_splash_full_1792105007497.jpg"
           alt="Cyber Splash Screen Background"
           referrerPolicy="no-referrer"
-          className="w-full h-full object-cover object-center opacity-60 scale-105 animate-pulse-slow filter brightness-95 contrast-125"
+          className="w-full h-full object-cover object-center opacity-70 scale-105 animate-pulse-slow filter brightness-95 contrast-125"
         />
         {/* Dark radial vignette & gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-[#030712]/60 to-[#030712]/80" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,#030712_90%)]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-[#030712]/50 to-[#030712]/80" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_35%,#030712_92%)]" />
         {/* Cyber scanline texture */}
         <div className="absolute inset-0 cyber-scanlines opacity-40 pointer-events-none" />
       </div>
@@ -138,25 +139,20 @@ export const CyberNativeSplashScreen: React.FC<CyberNativeSplashScreenProps> = (
         </button>
       </div>
 
-      {/* Centerpiece: App Icon Emblem with Glowing Sci-Fi Rings */}
-      <div className="relative z-10 flex flex-col items-center px-4 max-w-md w-full text-center">
+      {/* Centerpiece: App Icon Emblem with Glowing Sci-Fi Rings and Exact Brand Logo */}
+      <div className="relative z-10 flex flex-col items-center px-4 max-w-lg w-full text-center">
         {/* Concentric rotating neon energy rings */}
         <div className="relative mb-6 flex items-center justify-center">
           {/* Outer Cyan Ring */}
-          <div className="absolute -inset-4 rounded-3xl border border-[#00f0ff]/30 animate-spin" style={{ animationDuration: '18s' }} />
+          <div className="absolute -inset-5 rounded-3xl border border-[#00f0ff]/30 animate-spin" style={{ animationDuration: '18s' }} />
           {/* Inner Emerald Pulse Ring */}
-          <div className="absolute -inset-2 rounded-2xl border-2 border-dashed border-[#00ff66]/50 animate-spin" style={{ animationDuration: '12s', animationDirection: 'reverse' }} />
+          <div className="absolute -inset-2.5 rounded-2xl border-2 border-dashed border-[#00ff66]/50 animate-spin" style={{ animationDuration: '12s', animationDirection: 'reverse' }} />
           {/* Glow backdrop */}
-          <div className="absolute inset-0 bg-[#00ff66]/20 blur-2xl rounded-full" />
+          <div className="absolute inset-0 bg-[#00ff66]/25 blur-3xl rounded-full" />
           
-          {/* Generated Clean Minimalist App Icon */}
-          <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-3xl overflow-hidden shadow-[0_0_45px_rgba(0,255,102,0.6),0_0_90px_rgba(0,240,255,0.35)] border-2 border-[#00ff66] bg-black">
-            <img
-              src="/src/assets/images/app_icon_clean_1792103934835.jpg"
-              alt="CYBER-VACUUM Clean Icon"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-            />
+          {/* Tile with Brand Logo */}
+          <div className="relative px-6 py-5 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(0,255,102,0.65),0_0_100px_rgba(0,240,255,0.35)] border-2 border-[#00ff66] bg-black/90 backdrop-blur-md flex items-center justify-center">
+            <CyberVacuumLogo size="custom" width={220} height={48} glow={true} />
             {/* Holographic light sheen sweep */}
             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
           </div>

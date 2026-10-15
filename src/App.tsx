@@ -42,6 +42,7 @@ import {
 } from './components/MasterSweepAlertBanner';
 import { ApkReleaseModal } from './components/ApkReleaseModal';
 import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
+import { CyberVacuumLogo } from './components/CyberVacuumLogo';
 import {
   executeScrapeRequest,
   executeSimulatePriceUpdate,
@@ -2058,34 +2059,34 @@ export default function App() {
       {/* Top Header Navigation Bar (Single Slim Row on All Screen Sizes) */}
       <header className="relative z-30 border-b border-emerald-500/30 bg-slate-950/95 backdrop-blur-md sticky top-0 shadow-lg h-14 sm:h-16 flex items-center">
         <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 flex items-center justify-between gap-3">
-          {/* Zone 1: Brand Wordmark with Official Cyber Icon (Single line, responsive text) */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Zone 1: Brand Wordmark with Official Cyber Vacuum Logo */}
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
               onClick={() => setShowSplashScreen(true)}
               title="Cliquer pour afficher l'écran de démarrage splash plein écran"
-              className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden bg-black border border-emerald-400/80 shadow-[0_0_14px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+              className="relative flex items-center justify-center h-8 sm:h-9 px-2.5 py-1 rounded-xl bg-black border border-emerald-400/80 shadow-[0_0_14px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
             >
-              <img
-                src="/src/assets/images/app_cyber_icon_1792098494227.jpg"
-                alt="CYBER-VACUUM Official Logo"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-              />
-              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 border border-black animate-ping" />
+              <CyberVacuumLogo size="custom" width={118} height={22} glow={true} />
+              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#00ff66] border border-black animate-ping" />
             </button>
 
             <button
               type="button"
               onClick={() => setShowSplashScreen(true)}
-              className="flex items-baseline gap-1.5 text-left cursor-pointer hover:opacity-90 transition-opacity"
+              className="hidden md:flex flex-col text-left cursor-pointer hover:opacity-90 transition-opacity"
               title="Cliquer pour revoir le Splash Écran Natif"
             >
-              <span className="text-sm sm:text-base font-black tracking-wider text-white font-mono whitespace-nowrap">
-                CYBER-VACUUM
-              </span>
-              <span className="text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 whitespace-nowrap">
-                MK-IV
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black tracking-widest text-white font-mono whitespace-nowrap">
+                  CYBER-VACUUM
+                </span>
+                <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/30 text-[#00ff66]">
+                  PRO
+                </span>
+              </div>
+              <span className="text-[9px] text-[#00ff66]/70 font-mono tracking-wider font-semibold">
+                AI MATRIX DATA ENGINE
               </span>
             </button>
           </div>

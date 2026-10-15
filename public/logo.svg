@@ -1,0 +1,16 @@
+<svg viewBox="0 0 640 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Glyph 1: 'u' (Green #00ff66) -->
+  <path d="M 10 15 L 32 15 L 32 68 A 18 18 0 0 0 68 68 L 68 15 L 90 15 L 90 68 A 40 40 0 0 1 10 68 Z" fill="#00ff66"/>
+  <!-- Glyph 2: 'n' (Green #00ff66) -->
+  <path d="M 100 95 L 122 95 L 122 42 A 18 18 0 0 1 158 42 L 158 95 L 180 95 L 180 42 A 40 40 0 0 0 100 42 Z" fill="#00ff66"/>
+  <!-- Glyph 3: 'c' (White #ffffff) -->
+  <path d="M 270 15 L 270 37 L 232 37 A 18 18 0 0 0 232 73 L 270 73 L 270 95 L 232 95 A 40 40 0 0 1 232 15 Z" fill="#ffffff"/>
+  <!-- Glyph 4: 'u' (White #ffffff) -->
+  <path d="M 280 15 L 302 15 L 302 68 A 18 18 0 0 0 338 68 L 338 15 L 360 15 L 360 68 A 40 40 0 0 1 280 68 Z" fill="#ffffff"/>
+  <!-- Glyph 5: 'u' (Green #00ff66) -->
+  <path d="M 370 15 L 392 15 L 392 68 A 18 18 0 0 0 428 68 L 428 15 L 450 15 L 450 68 A 40 40 0 0 1 370 68 Z" fill="#00ff66"/>
+  <!-- Glyph 6: 'n' (Green #00ff66) -->
+  <path d="M 460 95 L 482 95 L 482 42 A 18 18 0 0 1 518 42 L 518 95 L 540 95 L 540 42 A 40 40 0 0 0 460 42 Z" fill="#00ff66"/>
+  <!-- Glyph 7: 'n' (Green #00ff66) -->
+  <path d="M 550 95 L 572 95 L 572 42 A 18 18 0 0 1 608 42 L 608 95 L 630 95 L 630 42 A 40 40 0 0 0 550 42 Z" fill="#00ff66"/>
+</svg>
