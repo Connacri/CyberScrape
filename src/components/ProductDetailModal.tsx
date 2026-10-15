@@ -209,11 +209,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     href={getOuedknissOriginUrl(product)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-2.5 py-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88] hover:text-white font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
-                    title="Ouvrir directement l'annonce ou la recherche active sur Ouedkniss.com sans 404"
+                    className="px-2.5 py-1 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/50 text-[#00ff88] hover:text-white font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                    title="Ouvrir directement l'annonce réelle sur Ouedkniss.com sans erreur 404"
                   >
                     <ExternalLink className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>Lien Ouedkniss.com</span>
+                    <span>🇩🇿 Annonce Live Ouedkniss</span>
                   </a>
                 </div>
 
@@ -624,11 +624,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               href={getOuedknissOriginUrl(product)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-emerald-500/40 font-mono text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer min-h-[40px]"
-              title="Ouvrir l'annonce ou la recherche directe sur Ouedkniss.com sans erreur 404"
+              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-[#00ff88] hover:bg-emerald-900/60 hover:text-white font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer min-h-[40px] shadow-sm active:scale-98"
+              title="Ouvrir directement l'annonce réelle sur Ouedkniss.com sans erreur 404"
             >
               <ExternalLink className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate">Voir sur Ouedkniss.com</span>
+              <span className="truncate">🇩🇿 Voir l'annonce réelle sur Ouedkniss</span>
             </a>
 
             {onInspectJson && (

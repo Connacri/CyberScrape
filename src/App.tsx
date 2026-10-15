@@ -41,6 +41,7 @@ import {
   CategoryCompletionAlertData,
 } from './components/MasterSweepAlertBanner';
 import { ApkReleaseModal } from './components/ApkReleaseModal';
+import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
 import {
   executeScrapeRequest,
   executeSimulatePriceUpdate,
@@ -1132,6 +1133,7 @@ export default function App() {
   const [discoveredCategories, setDiscoveredCategories] = useState<string[]>([]);
   const [categoryCompletionAlert, setCategoryCompletionAlert] = useState<CategoryCompletionAlertData | null>(null);
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
+  const [showSplashScreen, setShowSplashScreen] = useState<boolean>(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const abortScrapingRef = useRef<boolean>(false);
@@ -2038,21 +2040,36 @@ export default function App() {
       {/* Top Header Navigation Bar (Single Slim Row on All Screen Sizes) */}
       <header className="relative z-30 border-b border-emerald-500/30 bg-slate-950/95 backdrop-blur-md sticky top-0 shadow-lg h-14 sm:h-16 flex items-center">
         <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 flex items-center justify-between gap-3">
-          {/* Zone 1: Brand Wordmark (Single line, responsive text) */}
+          {/* Zone 1: Brand Wordmark with Official Cyber Icon (Single line, responsive text) */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <div className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-black border border-emerald-400/80 text-[#00ff66] shadow-[0_0_12px_rgba(0,255,102,0.35)] shrink-0">
-              <Zap className="w-4 h-4 text-emerald-400" />
+            <button
+              type="button"
+              onClick={() => setShowSplashScreen(true)}
+              title="Cliquer pour afficher l'écran de démarrage splash plein écran"
+              className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden bg-black border border-emerald-400/80 shadow-[0_0_14px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+            >
+              <img
+                src="/src/assets/images/app_cyber_icon_1792098494227.jpg"
+                alt="CYBER-VACUUM Official Logo"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+              />
               <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 border border-black animate-ping" />
-            </div>
+            </button>
 
-            <div className="flex items-baseline gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowSplashScreen(true)}
+              className="flex items-baseline gap-1.5 text-left cursor-pointer hover:opacity-90 transition-opacity"
+              title="Cliquer pour revoir le Splash Écran Natif"
+            >
               <span className="text-sm sm:text-base font-black tracking-wider text-white font-mono whitespace-nowrap">
                 CYBER-VACUUM
               </span>
               <span className="text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 whitespace-nowrap">
                 MK-IV
               </span>
-            </div>
+            </button>
           </div>
 
           {/* Zone 2: Desktop Navigation Switcher Tabs (Hidden on mobile/tablet, shown on lg+) */}
@@ -2155,6 +2172,17 @@ export default function App() {
               >
                 <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
                 <span>APK Mobile</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSplashScreen(true)}
+                className="h-9 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold"
+                title="Afficher l'écran de démarrage splash plein écran"
+                aria-label="Afficher Splash Screen"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden xl:inline">Splash Natif</span>
               </button>
             </div>
 
@@ -2285,6 +2313,23 @@ export default function App() {
                   </div>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-300">
                     Android
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSplashScreen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/40 flex items-center justify-between font-bold cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                    <span>Lancer le Splash Natif</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/40 text-cyan-300">
+                    Plein écran
                   </span>
                 </button>
 
@@ -3115,6 +3160,13 @@ export default function App() {
           </button>
         </div>
       </nav>
+
+      {/* Fullscreen Native Cyber Splash Screen */}
+      <CyberNativeSplashScreen
+        isOpen={showSplashScreen}
+        onComplete={() => setShowSplashScreen(false)}
+        soundEnabled={!isAudioMuted}
+      />
     </div>
   );
 }

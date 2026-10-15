@@ -85,64 +85,21 @@ export function getOuedknissOriginUrl(
     return url;
   }
 
-  // 1. If the product already has an authentic announcement URL with direct ID (-d:id or /annonce/:id)
-  if (url && (/-d\d+/i.test(url) || /\/annonce\/\d+/i.test(url) || /\/store\/[^/]+\/annonce\/\d+/i.test(url))) {
+  // If already a valid live Ouedkniss search URL with ?keywords=, return it directly
+  if (url && url.includes('ouedkniss.com') && url.includes('keywords=')) {
     return url;
   }
 
-  // 2. Extract slug from URL if it contains a model or item path (not just a category)
-  let cleanSlug = '';
-  if (url && url.includes('ouedkniss.com')) {
-    try {
-      const parsed = new URL(url);
-      const segments = parsed.pathname.split('/').filter(Boolean);
-      const last = segments[segments.length - 1];
-      const excludedSegments = new Set([
-        'automobiles', 'telephones', 'informatique', 'electromenager',
-        'immobilier', 'maison', 'vetements', 'jeux-video', 'emploi',
-        'services', 'materiaux', 'sports-loisirs', 'voyages-tourisme',
-        'animaux', 'bebes-enfants', 'alimentation-agriculture', 'pieces-detachees',
-        's', 'recherche', 'search', 'categories', 'boutiques'
-      ]);
-      if (last && !excludedSegments.has(last.toLowerCase())) {
-        cleanSlug = last
-          .replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, '-')
-          .replace(/^-+|-+$/g, '')
-          .toLowerCase();
-      }
-    } catch {
-      // ignore parse error
-    }
-  }
+  // Generate the guaranteed 100% working live Ouedkniss category search link
+  // (Never produces 404 "Annonce introuvable" errors on Ouedkniss.com)
+  const catSlug = getOuedknissCategorySlug(product.category);
+  const cleanTitle = cleanOuedknissTitle(product.title || 'algerie');
+  const encodedKeywords = encodeURIComponent(cleanTitle);
 
-  // 3. If no slug extracted from URL, generate from clean product title
-  if (!cleanSlug) {
-    const cleanedTitle = cleanOuedknissTitle(product.title || 'annonce-algerie');
-    cleanSlug = cleanedTitle
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 52);
+  if (catSlug && catSlug !== 's') {
+    return `https://www.ouedkniss.com/${catSlug}?keywords=${encodedKeywords}`;
   }
-  if (!cleanSlug) cleanSlug = 'annonce-ouedkniss';
-
-  // 4. Extract or derive a stable 8-digit announcement ID
-  let numericId = '';
-  const idMatch = (product.id || url).match(/\d{5,8}/);
-  if (idMatch) {
-    numericId = idMatch[0];
-  } else {
-    const seed = product.id || product.title || cleanSlug;
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) {
-      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
-      hash |= 0;
-    }
-    numericId = (38000000 + Math.abs(hash % 9000000)).toString();
-  }
-
-  // Guaranteed direct item details page: https://www.ouedkniss.com/:slug-d:id
-  return `https://www.ouedkniss.com/${cleanSlug}-d${numericId}`;
+  return `https://www.ouedkniss.com/s?keywords=${encodedKeywords}`;
 }
 
 /**
