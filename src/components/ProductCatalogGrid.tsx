@@ -34,7 +34,7 @@ import {
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
 import { ProductDetailModal } from './ProductDetailModal';
-import { PriceRangeFilter } from './PriceRangeFilter';
+import { PriceRangeFilter, CatalogSortOption } from './PriceRangeFilter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ensureProductDetails,
@@ -83,9 +83,9 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedWilaya, setSelectedWilaya] = useState<string>('all');
   const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<
-    'recent' | 'wilaya_asc' | 'wilaya_desc' | 'category_asc' | 'category_desc' | 'price_asc' | 'price_desc' | 'discount'
-  >('recent');
+  const [sortBy, setSortBy] = useState<CatalogSortOption>('recent');
+  const [onlyDiscounted, setOnlyDiscounted] = useState<boolean>(false);
+  const [minDiscountPercent, setMinDiscountPercent] = useState<number>(0);
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'grouped' | 'table'>('grid');
   const [groupCriteria, setGroupCriteria] = useState<'category' | 'wilaya'>('category');
   const [inspectingProduct, setInspectingProduct] = useState<ScrapedProduct | null>(null);
@@ -205,28 +205,68 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         const matchesCurrency = selectedCurrency === 'all' || p.currency === selectedCurrency;
         const matchesMinPrice = minPrice === '' || p.currentPrice >= Number(minPrice);
         const matchesMaxPrice = maxPrice === '' || p.currentPrice <= Number(maxPrice);
+        const matchesDiscount =
+          !onlyDiscounted || (p.discountPercent !== undefined && p.discountPercent > 0 && p.discountPercent >= minDiscountPercent);
 
-        return matchesTitle && matchesSearch && matchesCategory && matchesWilaya && matchesCurrency && matchesMinPrice && matchesMaxPrice;
+        return (
+          matchesTitle &&
+          matchesSearch &&
+          matchesCategory &&
+          matchesWilaya &&
+          matchesCurrency &&
+          matchesMinPrice &&
+          matchesMaxPrice &&
+          matchesDiscount
+        );
       })
       .sort((a, b) => {
+        // 1. Tri par date de mise à jour
+        if (sortBy === 'updated_desc') {
+          const dateA = new Date(a.lastUpdated || a.scrapedAt).getTime();
+          const dateB = new Date(b.lastUpdated || b.scrapedAt).getTime();
+          return dateB - dateA;
+        }
+        if (sortBy === 'updated_asc') {
+          const dateA = new Date(a.lastUpdated || a.scrapedAt).getTime();
+          const dateB = new Date(b.lastUpdated || b.scrapedAt).getTime();
+          return dateA - dateB;
+        }
+
+        // 2. Tri par réduction %
+        if (sortBy === 'discount' || sortBy === 'discount_desc') {
+          return (b.discountPercent || 0) - (a.discountPercent || 0);
+        }
+        if (sortBy === 'discount_asc') {
+          return (a.discountPercent || 0) - (b.discountPercent || 0);
+        }
+
+        // 3. Tris par Wilaya
         if (sortBy === 'wilaya_asc') {
           return extractWilaya(a).localeCompare(extractWilaya(b), 'fr');
         }
         if (sortBy === 'wilaya_desc') {
           return extractWilaya(b).localeCompare(extractWilaya(a), 'fr');
         }
+
+        // 4. Tris par Catégorie
         if (sortBy === 'category_asc') {
           return (a.category || '').localeCompare(b.category || '', 'fr');
         }
         if (sortBy === 'category_desc') {
           return (b.category || '').localeCompare(a.category || '', 'fr');
         }
+
+        // 5. Tris par Prix
         if (sortBy === 'price_asc') return a.currentPrice - b.currentPrice;
         if (sortBy === 'price_desc') return b.currentPrice - a.currentPrice;
-        if (sortBy === 'discount') return (b.discountPercent || 0) - (a.discountPercent || 0);
+
+        // 6. Tri par date d'aspiration
+        if (sortBy === 'oldest') {
+          return new Date(a.scrapedAt).getTime() - new Date(b.scrapedAt).getTime();
+        }
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [products, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice]);
+  }, [products, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, onlyDiscounted, minDiscountPercent]);
 
   // Grouped products for "Vue Groupée" (either by Category or by Wilaya)
   const groupedProducts = useMemo(() => {
@@ -463,230 +503,249 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       </div>
 
       {/* ============================================================== */}
-      {/* 2. SEARCH, SORT & VIEW MODE CONTROLLER BAR */}
+      {/* 2. SEARCH, SORT & VIEW MODE CONTROLLER BAR                     */}
       {/* ============================================================== */}
-      <div className="p-4 rounded-xl bg-slate-950/80 border border-emerald-500/30 backdrop-blur-md flex flex-wrap items-center justify-between gap-3">
-        {/* DEDICATED REAL-TIME TITLE FILTER INPUT */}
-        <div className="relative flex-1 min-w-[240px]">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
-            <Tag className="w-3.5 h-3.5 text-emerald-400" />
+      <div className="p-3 sm:p-4 rounded-2xl bg-slate-950/85 border border-emerald-500/30 backdrop-blur-md space-y-3">
+        {/* Row 1: Search Inputs Stack (Responsive: 1-col on mobile, 2-col on sm+) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+          {/* Direct Title Filter */}
+          <div className="relative">
+            <Tag className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="⚡ Filtrer par titre (Golf 8, S24, Clio 4...)"
+              value={titleFilter}
+              onChange={(e) => setTitleFilter(e.target.value)}
+              className="w-full bg-slate-900/90 border border-emerald-500/40 rounded-xl pl-9 pr-8 py-2 text-xs font-mono text-[#00ff88] placeholder-slate-500 focus:outline-none focus:border-emerald-300 focus:ring-1 focus:ring-emerald-400/30 transition-all font-semibold min-h-[38px]"
+            />
+            {titleFilter && (
+              <button
+                type="button"
+                onClick={() => setTitleFilter('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded cursor-pointer"
+                title="Effacer le filtre"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          <input
-            type="text"
-            placeholder="⚡ Filtrer par titre en direct (ex: Golf 8, iPhone 16, Clio 4...)"
-            value={titleFilter}
-            onChange={(e) => setTitleFilter(e.target.value)}
-            className="w-full bg-slate-900 border border-emerald-500/40 rounded-lg pl-9 pr-8 py-2 text-xs font-mono text-[#00ff88] placeholder-slate-500 focus:outline-none focus:border-emerald-300 focus:ring-1 focus:ring-emerald-400/30 transition-all font-semibold"
-          />
-          {titleFilter && (
-            <button
-              onClick={() => setTitleFilter('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
-              title="Effacer le filtre de titre"
+
+          {/* Broad Search */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Recherche générale : wilaya, specs, vendeur..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-8 pr-7 py-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors min-h-[38px]"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded cursor-pointer"
+                title="Effacer la recherche"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Select Filters (Wilaya, Devise, Tri) - Clean Responsive 3-Column Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1 border-t border-slate-800/80">
+          {/* Wilaya Filter */}
+          <div className="relative flex items-center font-mono text-xs w-full">
+            <MapPin className="w-3.5 h-3.5 text-emerald-400 absolute left-3 pointer-events-none shrink-0" />
+            <select
+              value={selectedWilaya}
+              onChange={(e) => setSelectedWilaya(e.target.value)}
+              aria-label="Filtrer par Wilaya"
+              className="w-full bg-slate-900 border border-emerald-500/30 rounded-xl pl-8 pr-3 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer min-h-[40px]"
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+              <option value="all">📍 69 Wilayas (Toutes)</option>
+              {ALGERIA_69_WILAYAS.map((w) => {
+                const matched = wilayaStats.find((s) => s.name.toLowerCase().includes(w.name.toLowerCase()));
+                const count = matched?.count || 0;
+                return (
+                  <option key={w.codeStr} value={w.name}>
+                    {w.codeStr} - {w.name} {count > 0 ? `(${count})` : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
 
-        {/* Global Search input with wilaya & specs detection */}
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Recherche générale : wilaya, specs, vendeur..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-900/90 border border-slate-800 rounded-lg pl-8 pr-7 py-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
-              title="Effacer la recherche"
+          {/* Currency Filter */}
+          <div className="relative flex items-center font-mono text-xs w-full">
+            <select
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value)}
+              aria-label="Filtrer par devise"
+              className="w-full bg-slate-900 border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 min-h-[40px] cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+              <option value="all">💰 Devise: Toutes ({products.length})</option>
+              <option value="DA">🇩🇿 En Dinars (DA)</option>
+              <option value="€">🇪🇺 En Euros (€)</option>
+            </select>
+          </div>
 
-        {/* Wilaya Filter Selector (69 Wilayas d'Algérie) */}
-        <div className="flex items-center gap-1.5 font-mono text-xs">
-          <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <select
-            value={selectedWilaya}
-            onChange={(e) => setSelectedWilaya(e.target.value)}
-            aria-label="Filtrer par Wilaya"
-            className="bg-slate-900 border border-emerald-500/30 rounded-lg px-2.5 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer max-w-[200px]"
-          >
-            <option value="all">📍 69 Wilayas d'Algérie (Toutes)</option>
-            {ALGERIA_69_WILAYAS.map((w) => {
-              const matched = wilayaStats.find((s) => s.name.toLowerCase().includes(w.name.toLowerCase()));
-              const count = matched?.count || 0;
-              return (
-                <option key={w.codeStr} value={w.name}>
-                  {w.codeStr} - {w.name} {count > 0 ? `(${count})` : ''}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-
-        {/* Currency filter selector */}
-        <div className="flex items-center gap-1.5 font-mono text-xs">
-          <select
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value)}
-            aria-label="Filtrer par devise"
-            className="bg-slate-900 border border-emerald-500/30 rounded-lg px-2.5 py-2 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400"
-          >
-            <option value="all">Toutes Devises ({products.length})</option>
-            <option value="DA">🇩🇿 En Dinars (DA) uniquement</option>
-            <option value="€">🇪🇺 En Euros (€) uniquement</option>
-          </select>
-        </div>
-
-        {/* Sort by: Includes Wilaya (A-Z, Z-A) and Category (A-Z, Z-A) */}
-        <div className="flex items-center gap-1.5 font-mono text-xs">
-          <ArrowUpDown className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            aria-label="Trier les produits"
-            className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-400 cursor-pointer"
-          >
-            <option value="recent">Tri : Plus Récents</option>
-            <option value="wilaya_asc">Tri : Wilaya (A → Z)</option>
-            <option value="wilaya_desc">Tri : Wilaya (Z → A)</option>
-            <option value="category_asc">Tri : Catégorie (A → Z)</option>
-            <option value="category_desc">Tri : Catégorie (Z → A)</option>
-            <option value="price_asc">Tri : Prix Croissant</option>
-            <option value="price_desc">Tri : Prix Décroissant</option>
-            <option value="discount">Tri : Meilleur Rabais %</option>
-          </select>
-        </div>
-
-        {/* View Mode Toggle: Grid vs List vs Grouped (Category or Wilaya) vs Table */}
-        <div className="flex items-center rounded-lg bg-black/60 p-0.5 border border-slate-800 font-mono text-xs">
-          <button
-            type="button"
-            onClick={() => setViewMode('grid')}
-            className={`px-3 py-1.5 rounded flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'grid'
-                ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_10px_rgba(0,255,102,0.2)]'
-                : 'text-slate-400 hover:text-white'
-            }`}
-            title="Vue Grille Infinie Lazy"
-          >
-            <LayoutGrid className="w-3.5 h-3.5" /> Grille
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className={`px-3 py-1.5 rounded flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'list'
-                ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_10px_rgba(0,255,102,0.2)]'
-                : 'text-slate-400 hover:text-white'
-            }`}
-            title="Vue Liste Ergonomique et Compacte"
-          >
-            <List className="w-3.5 h-3.5" /> Liste
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setViewMode('grouped');
-              setGroupCriteria('category');
-            }}
-            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
-              viewMode === 'grouped' && groupCriteria === 'category'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 font-bold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-            title="Vue Groupée par Dossiers de Catégories"
-          >
-            <Layers className="w-3.5 h-3.5" /> Par Catégorie
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setViewMode('grouped');
-              setGroupCriteria('wilaya');
-            }}
-            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
-              viewMode === 'grouped' && groupCriteria === 'wilaya'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-400/50 font-bold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-            title="Vue Groupée par Wilayas d'Algérie"
-          >
-            <MapPin className="w-3.5 h-3.5" /> Par Wilaya
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('table')}
-            className={`px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
-              viewMode === 'table'
-                ? 'bg-purple-500/20 text-purple-300 border border-purple-400/50 font-bold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-            title="Table Haute Densité"
-          >
-            <List className="w-3.5 h-3.5" /> Table
-          </button>
-        </div>
-
-        {/* Action Buttons: Purge, Vider, Export, Sync */}
-        <div className="flex items-center gap-2 font-mono text-xs">
-          {hasEuros && onRemoveCurrency && (
-            <button
-              onClick={() => onRemoveCurrency('€')}
-              className="px-2 py-2 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-300 hover:bg-rose-900/60 font-mono text-xs flex items-center gap-1 transition-all"
-              title="Supprimer les anciens articles de démo en Euros"
+          {/* Sort Select with All Advanced Sorts */}
+          <div className="relative flex items-center font-mono text-xs w-full sm:col-span-2 lg:col-span-1">
+            <ArrowUpDown className="w-3.5 h-3.5 text-cyan-400 absolute left-3 pointer-events-none shrink-0" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as CatalogSortOption)}
+              aria-label="Trier les produits"
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-400 cursor-pointer min-h-[40px]"
             >
-              Purger €
-            </button>
-          )}
+              <option value="recent">⚡ Aspiration: Plus récents</option>
+              <option value="oldest">⚡ Aspiration: Plus anciens</option>
+              <option value="updated_desc">📅 Date MàJ: Plus récentes d'abord</option>
+              <option value="updated_asc">📅 Date MàJ: Plus anciennes d'abord</option>
+              <option value="discount">🔥 Réduction %: Plus forte remise</option>
+              <option value="discount_asc">🔥 Réduction %: Plus faible remise</option>
+              <option value="price_asc">💰 Prix: Moins cher d'abord</option>
+              <option value="price_desc">💰 Prix: Plus cher d'abord</option>
+              <option value="wilaya_asc">📍 Wilaya: Alphabétique (A → Z)</option>
+              <option value="wilaya_desc">📍 Wilaya: Inverse (Z → A)</option>
+              <option value="category_asc">🏷️ Catégorie: (A → Z)</option>
+              <option value="category_desc">🏷️ Catégorie: (Z → A)</option>
+            </select>
+          </div>
+        </div>
 
-          {onClearAllProducts && (
+        {/* Row 3: View Mode Segmented Controls & Action Buttons (Mobile-first Wrap) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-800/80">
+          {/* View Mode Toggle: Compact icons on mobile, labels on desktop */}
+          <div className="grid grid-cols-4 sm:flex items-center rounded-xl bg-black/60 p-0.5 border border-slate-800 font-mono text-xs w-full sm:w-auto">
             <button
-              onClick={onClearAllProducts}
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`p-2 sm:px-3 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[38px] ${
+                viewMode === 'grid'
+                  ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_10px_rgba(0,255,102,0.2)]'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Vue Grille"
+            >
+              <LayoutGrid className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">Grille</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-2 sm:px-3 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[38px] ${
+                viewMode === 'list'
+                  ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_10px_rgba(0,255,102,0.2)]'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Vue Liste"
+            >
+              <List className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">Liste</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('grouped');
+                setGroupCriteria('category');
+              }}
+              className={`p-2 sm:px-3 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[38px] ${
+                viewMode === 'grouped' && groupCriteria === 'category'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Vue Groupée par Catégorie"
+            >
+              <Layers className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">Catégories</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('grouped');
+                setGroupCriteria('wilaya');
+              }}
+              className={`p-2 sm:px-3 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[38px] ${
+                viewMode === 'grouped' && groupCriteria === 'wilaya'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-400/50 font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Vue Groupée par Wilaya"
+            >
+              <MapPin className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">Wilayas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`hidden sm:flex p-2 sm:px-3 sm:py-1.5 rounded-lg items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[38px] ${
+                viewMode === 'table'
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-400/50 font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Vue Table Haute Densité"
+            >
+              <List className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">Table</span>
+            </button>
+          </div>
+
+          {/* Action Buttons: Export & Sync (Clean wrap on mobile) */}
+          <div className="flex items-center justify-between sm:justify-end gap-1.5 font-mono text-xs w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => handleExportCsv(filteredProducts)}
               disabled={products.length === 0}
-              className="px-2.5 py-2 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-rose-200 flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
-              title="Vider tous les articles déjà aspirés"
+              className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+              title="Exporter les résultats en CSV"
             >
-              <Trash2 className="w-3.5 h-3.5" /> Vider tout
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>CSV</span>
             </button>
-          )}
 
-          <button
-            onClick={() => handleExportCsv(filteredProducts)}
-            disabled={products.length === 0}
-            className="px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" /> CSV
-          </button>
+            <button
+              type="button"
+              onClick={handleExportJson}
+              disabled={products.length === 0}
+              className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+              title="Exporter les résultats en JSON"
+            >
+              <Code className="w-3.5 h-3.5 text-emerald-400" />
+              <span>JSON</span>
+            </button>
 
-          <button
-            onClick={handleExportJson}
-            disabled={products.length === 0}
-            className="px-2 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
-          >
-            <Code className="w-3.5 h-3.5" /> JSON
-          </button>
+            <button
+              type="button"
+              onClick={onBulkSyncSupabase}
+              disabled={products.length === 0}
+              className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-500/30 flex items-center justify-center gap-1.5 font-bold transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+              title="Synchroniser le catalogue complet sur Supabase"
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Sync DB</span>
+            </button>
 
-          <button
-            onClick={onBulkSyncSupabase}
-            disabled={products.length === 0}
-            className="px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-500/30 flex items-center gap-1.5 font-bold transition-all disabled:opacity-40 cursor-pointer"
-          >
-            <Database className="w-3.5 h-3.5" /> Sync Supabase
-          </button>
+            {onClearAllProducts && (
+              <button
+                type="button"
+                onClick={onClearAllProducts}
+                disabled={products.length === 0}
+                className="w-10 h-10 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-rose-200 transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center shrink-0 min-h-[38px]"
+                title="Vider tous les articles déjà aspirés"
+                aria-label="Vider les articles"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ============================================================== */}
-      {/* 2.5 PRICE RANGE & BUDGET FILTER CONTROLLER */}
+      {/* 2.5 PRICE RANGE, DISCOUNT & BUDGET FILTER CONTROLLER           */}
       {/* ============================================================== */}
       <PriceRangeFilter
         minPrice={minPrice}
@@ -701,6 +760,10 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         sortBy={sortBy}
         onSortByChange={setSortBy}
         onResetPriceFilter={handleResetPriceFilter}
+        onlyDiscounted={onlyDiscounted}
+        onToggleOnlyDiscounted={() => setOnlyDiscounted(!onlyDiscounted)}
+        minDiscountPercent={minDiscountPercent}
+        onChangeMinDiscountPercent={setMinDiscountPercent}
       />
 
       {/* ============================================================== */}

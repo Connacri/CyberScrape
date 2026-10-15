@@ -69,6 +69,9 @@ import {
   Bell,
   BellRing,
   Download,
+  Menu,
+  X,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 // Preset E-Commerce Target URLs
@@ -1118,6 +1121,7 @@ export default function App() {
   const [discoveredCategories, setDiscoveredCategories] = useState<string[]>([]);
   const [categoryCompletionAlert, setCategoryCompletionAlert] = useState<CategoryCompletionAlertData | null>(null);
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const abortScrapingRef = useRef<boolean>(false);
   const lotPageRef = useRef<Record<string, number>>({});
@@ -1956,11 +1960,11 @@ export default function App() {
       {/* Cyber Screen Scanline Overlay */}
       <div className="fixed inset-0 cyber-scanlines pointer-events-none z-10 opacity-30" />
 
-      {/* Top Header HUD Navigation Bar (Strict 1-row, 3-zone Top Bar Contract, 15% mobile sticky cap) */}
-      <header className="relative z-20 border-b border-emerald-500/30 bg-slate-950/90 backdrop-blur-md sticky top-0 shadow-lg">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4">
-          {/* Zone 1: Brand Wordmark (Single text element with glowing accent) */}
-          <div className="flex items-center gap-2.5 shrink-0">
+      {/* Top Header Navigation Bar (Single Slim Row on All Screen Sizes) */}
+      <header className="relative z-30 border-b border-emerald-500/30 bg-slate-950/95 backdrop-blur-md sticky top-0 shadow-lg h-14 sm:h-16 flex items-center">
+        <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 flex items-center justify-between gap-3">
+          {/* Zone 1: Brand Wordmark (Single line, responsive text) */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <div className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-black border border-emerald-400/80 text-[#00ff66] shadow-[0_0_12px_rgba(0,255,102,0.35)] shrink-0">
               <Zap className="w-4 h-4 text-emerald-400" />
               <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 border border-black animate-ping" />
@@ -1970,17 +1974,18 @@ export default function App() {
               <span className="text-sm sm:text-base font-black tracking-wider text-white font-mono whitespace-nowrap">
                 CYBER-VACUUM
               </span>
-              <span className="text-xs font-mono font-bold text-emerald-400 whitespace-nowrap">
+              <span className="text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 whitespace-nowrap">
                 MK-IV
               </span>
             </div>
           </div>
 
-          {/* Zone 2: Navigation Switcher Tabs (Single-line, horizontally scrollable on mobile) */}
-          <nav className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs overflow-x-auto scrollbar-none max-w-full">
+          {/* Zone 2: Desktop Navigation Switcher Tabs (Hidden on mobile/tablet, shown on lg+) */}
+          <nav className="hidden lg:flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs">
             <button
+              type="button"
               onClick={() => setActiveTab('vacuum')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'vacuum'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -1991,8 +1996,9 @@ export default function App() {
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('catalog')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'catalog'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -2004,8 +2010,9 @@ export default function App() {
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('temu')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'temu'
                   ? 'bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white shadow-[0_0_12px_rgba(251,82,0,0.4)]'
                   : 'text-orange-400 hover:text-orange-200 hover:bg-orange-950/30'
@@ -2019,8 +2026,9 @@ export default function App() {
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('trends')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'trends'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -2031,61 +2039,65 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Zone 3: Primary Action Cluster (Touch-friendly minimum 40px buttons) */}
+          {/* Zone 3: Action Controls Cluster */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Quick Clear All Button */}
-            <button
-              onClick={handleClearAllProducts}
-              disabled={products.length === 0}
-              className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-white transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center shrink-0"
-              title="Vider tous les articles aspirés (remise à zéro)"
-              aria-label="Vider tous les articles"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {/* Desktop Full Action Buttons */}
+            <div className="hidden lg:flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleClearAllProducts}
+                disabled={products.length === 0}
+                className="w-9 h-9 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-white transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center shrink-0"
+                title="Vider tous les articles aspirés (remise à zéro)"
+                aria-label="Vider tous les articles"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
 
-            {/* Supabase Status Button */}
-            <button
-              onClick={() => setIsSupabaseModalOpen(true)}
-              className={`h-9 sm:h-8 px-2.5 rounded-xl border text-xs flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
-                supabaseConfig.url && supabaseConfig.anonKey
-                  ? 'bg-emerald-950/60 border-emerald-400/50 text-[#00ff88] hover:bg-emerald-900/40'
-                  : 'bg-slate-900 border-slate-800 text-amber-400 hover:border-amber-400/50'
-              }`}
-              title="Configurer la base de données Supabase"
-              aria-label="Configurer Supabase"
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span className="hidden md:inline font-mono">
-                {supabaseConfig.url && supabaseConfig.anonKey ? 'Supabase' : 'Lier DB'}
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsSupabaseModalOpen(true)}
+                className={`h-9 px-3 rounded-xl border text-xs flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+                  supabaseConfig.url && supabaseConfig.anonKey
+                    ? 'bg-emerald-950/60 border-emerald-400/50 text-[#00ff88] hover:bg-emerald-900/40'
+                    : 'bg-slate-900 border-slate-800 text-amber-400 hover:border-amber-400/50'
+                }`}
+                title="Configurer la base de données Supabase"
+                aria-label="Configurer Supabase"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span className="font-mono">
+                  {supabaseConfig.url && supabaseConfig.anonKey ? 'Supabase' : 'Lier DB'}
+                </span>
+              </button>
 
-            {/* APK Android / Releases Button */}
-            <button
-              onClick={() => setIsApkModalOpen(true)}
-              className="h-9 sm:h-8 px-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
-              title="Télécharger l'APK Android (Signé via GitHub Actions Releases)"
-              aria-label="Télécharger APK Android"
-            >
-              <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden lg:inline font-mono font-bold">APK Mobile</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsApkModalOpen(true)}
+                className="h-9 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold"
+                title="Télécharger l'APK Android (Signé)"
+                aria-label="Télécharger APK Android"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                <span>APK Mobile</span>
+              </button>
+            </div>
 
-            {/* Browser Background Notification Bell */}
+            {/* Quick Utility Toggles (Audio, Rain, Bell) - Touch sized */}
             <button
+              type="button"
               onClick={handleRequestNotificationPermission}
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer ${
+              className={`w-9 h-9 sm:w-9 sm:h-9 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer min-h-[38px] min-w-[38px] ${
                 notificationPermission === 'granted'
                   ? 'bg-emerald-950/40 border-emerald-500/40 text-[#00ff88]'
                   : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
               }`}
               title={
                 notificationPermission === 'granted'
-                  ? 'Notifications navigateur actives (alerte fin de catégorie active en arrière-plan)'
-                  : 'Activer les notifications navigateur (alertes sans surveiller l\'écran)'
+                  ? 'Notifications actives (alerte fin de catégorie)'
+                  : 'Activer les notifications navigateur'
               }
-              aria-label="Notifications de fin de catégorie"
+              aria-label="Notifications"
             >
               {notificationPermission === 'granted' ? (
                 <BellRing className="w-4 h-4 text-[#00ff88]" />
@@ -2094,24 +2106,24 @@ export default function App() {
               )}
             </button>
 
-            {/* Matrix Rain Intensity Toggle */}
             <button
+              type="button"
               onClick={() => {
                 const modes: ('subtle' | 'normal' | 'turbo' | 'off')[] = ['subtle', 'normal', 'turbo', 'off'];
                 const next = modes[(modes.indexOf(rainIntensity) + 1) % modes.length];
                 setRainIntensity(next);
               }}
-              className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center shrink-0 cursor-pointer"
+              className="w-9 h-9 sm:w-9 sm:h-9 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center shrink-0 cursor-pointer min-h-[38px] min-w-[38px]"
               title={`Pluie Matrix: ${rainIntensity.toUpperCase()}`}
               aria-label="Changer intensité pluie Matrix"
             >
               <Layers className="w-4 h-4 text-emerald-400" />
             </button>
 
-            {/* Audio SFX Toggle */}
             <button
+              type="button"
               onClick={handleToggleAudio}
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer ${
+              className={`w-9 h-9 sm:w-9 sm:h-9 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer min-h-[38px] min-w-[38px] ${
                 isAudioMuted
                   ? 'bg-slate-900 border-slate-800 text-slate-500'
                   : 'bg-emerald-950/40 border-emerald-500/40 text-[#00ff88]'
@@ -2121,12 +2133,174 @@ export default function App() {
             >
               {isAudioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
+
+            {/* Mobile / Tablet Settings Drawer Button (Opens slide-over modal) */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 hover:text-white hover:border-emerald-500/50 flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-95"
+              title="Centre de contrôle et réglages"
+              aria-label="Menu options et réglages"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+            </button>
           </div>
         </div>
       </header>
 
+      {/* Mobile Slide-Over Settings & Control Center Drawer */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end lg:hidden animate-fadeIn">
+          {/* Backdrop with tap-to-close */}
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Drawer Sheet */}
+          <div className="relative w-full max-w-xs sm:max-w-sm bg-slate-950 border-l border-emerald-500/30 p-5 shadow-2xl flex flex-col justify-between overflow-y-auto z-10 space-y-6">
+            <div className="space-y-5">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+                  <h3 className="font-mono text-sm font-bold text-white tracking-wide uppercase">
+                    Centre de Contrôle
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                  aria-label="Fermer le menu"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* System Cache Info */}
+              <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1.5 font-mono text-xs">
+                <div className="text-[11px] text-slate-400">Articles en mémoire :</div>
+                <div className="text-lg font-black text-[#00ff66] flex items-center justify-between">
+                  <span>{products.length.toLocaleString()} articles</span>
+                  <span className="text-[11px] font-normal text-slate-400">IndexedDB</span>
+                </div>
+                <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-800/80 flex items-center justify-between">
+                  <span>Supabase :</span>
+                  <span className={supabaseConfig.url ? 'text-cyan-400 font-bold' : 'text-amber-400'}>
+                    {supabaseConfig.url ? 'Connecté' : 'Non configuré'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons List (Touch targets >= 44px) */}
+              <div className="space-y-2 font-mono text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsApkModalOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-900/40 flex items-center justify-between font-bold cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Smartphone className="w-4 h-4 text-emerald-400" />
+                    <span>Télécharger l'APK Mobile</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-300">
+                    Android
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSupabaseModalOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 hover:text-white hover:border-cyan-500/40 flex items-center justify-between font-semibold cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Database className="w-4 h-4 text-cyan-400" />
+                    <span>{supabaseConfig.url ? 'Gérer Supabase' : 'Lier Supabase DB'}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">Cloud Sync</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const modes: ('subtle' | 'normal' | 'turbo' | 'off')[] = ['subtle', 'normal', 'turbo', 'off'];
+                    const next = modes[(modes.indexOf(rainIntensity) + 1) % modes.length];
+                    setRainIntensity(next);
+                  }}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-between cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Layers className="w-4 h-4 text-emerald-400" />
+                    <span>Pluie Matrix</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-black/60 border border-slate-800 text-emerald-400 font-bold uppercase">
+                    {rainIntensity}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleAudio}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-between cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {isAudioMuted ? <VolumeX className="w-4 h-4 text-slate-500" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+                    <span>Sons Cyber HUD</span>
+                  </div>
+                  <span className={`text-[10px] font-bold ${isAudioMuted ? 'text-slate-500' : 'text-emerald-400'}`}>
+                    {isAudioMuted ? 'MUET' : 'ACTIF'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRequestNotificationPermission}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-between cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Bell className="w-4 h-4 text-amber-400" />
+                    <span>Notifications de Fin</span>
+                  </div>
+                  <span className={`text-[10px] font-bold ${notificationPermission === 'granted' ? 'text-emerald-400' : 'text-slate-500'}`}>
+                    {notificationPermission === 'granted' ? 'AUTORISÉES' : 'DEMANDER'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleClearAllProducts();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  disabled={products.length === 0}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 hover:bg-rose-900/60 hover:text-white flex items-center justify-between disabled:opacity-40 cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Trash2 className="w-4 h-4 text-rose-400" />
+                    <span>Vider tout le catalogue</span>
+                  </div>
+                  <span className="text-[10px] text-rose-400/80">Reset</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-900 text-center text-[10px] font-mono text-slate-400">
+              CYBER-VACUUM // Mobile Engine
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Body */}
-      <main className="relative z-20 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="relative z-20 flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5 sm:space-y-6 pb-28 lg:pb-8">
         {/* ============================================================== */}
         {/* 0. OUEDKNISS CATEGORY HUB & MATRIX BALAYAGE GLOBAL             */}
         {/* ============================================================== */}
@@ -2157,12 +2331,12 @@ export default function App() {
         {/* ============================================================== */}
         {/* CENTRAL QUANTUM URL INPUT & VACUUM INGESTION CONTROLLER */}
         {/* ============================================================== */}
-        <section className="relative overflow-hidden rounded-2xl bg-slate-950/90 border border-emerald-500/40 p-4 sm:p-6 backdrop-blur-xl shadow-[0_0_30px_rgba(0,255,102,0.12)]">
+        <section className="relative overflow-hidden rounded-2xl bg-slate-950/90 border border-emerald-500/40 p-3.5 sm:p-6 backdrop-blur-xl shadow-[0_0_30px_rgba(0,255,102,0.12)]">
           {/* Neon corner brackets */}
-          <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#00ff66]" />
-          <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#00ff66]" />
-          <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#00ff66]" />
-          <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#00ff66]" />
+          <div className="absolute top-0 left-0 w-3 sm:w-4 h-3 sm:h-4 border-t-2 border-l-2 border-[#00ff66]" />
+          <div className="absolute top-0 right-0 w-3 sm:w-4 h-3 sm:h-4 border-t-2 border-r-2 border-[#00ff66]" />
+          <div className="absolute bottom-0 left-0 w-3 sm:w-4 h-3 sm:h-4 border-b-2 border-l-2 border-[#00ff66]" />
+          <div className="absolute bottom-0 right-0 w-3 sm:w-4 h-3 sm:h-4 border-b-2 border-r-2 border-[#00ff66]" />
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-3">
             <div className="flex items-center gap-2 shrink-0">
@@ -2173,7 +2347,7 @@ export default function App() {
             </div>
 
             {/* Presets with horizontal touch scrolling on mobile */}
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono overflow-x-auto scrollbar-none max-w-full py-0.5">
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800 pb-1 max-w-full">
               <span className="shrink-0 text-slate-400 hidden sm:inline">PRÉSETS :</span>
               <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
                 {PRESET_URLS.map((preset) => (
@@ -2183,7 +2357,7 @@ export default function App() {
                       setTargetUrl(preset.url);
                       cyberAudio.playChirp(900, 0.03);
                     }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono border transition-all whitespace-nowrap shrink-0 cursor-pointer min-h-[30px] ${
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-mono border transition-all whitespace-nowrap shrink-0 cursor-pointer min-h-[32px] ${
                       targetUrl === preset.url
                         ? 'bg-emerald-500/20 text-[#00ff88] border-emerald-400 font-bold'
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -2196,25 +2370,25 @@ export default function App() {
             </div>
           </div>
 
-          {/* Engine Mode & Scraping Volume Selector */}
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4 p-2.5 sm:p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-            <div className="flex flex-wrap items-center gap-2">
+          {/* Engine Mode & Scraping Volume Selector (Fully Responsive Grid/Flex) */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 p-2.5 sm:p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
               <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">MOTEUR :</span>
-              <div className="flex flex-wrap sm:flex-nowrap rounded-lg bg-black/60 p-0.5 border border-slate-800 gap-0.5">
+              <div className="grid grid-cols-2 sm:flex rounded-lg bg-black/60 p-0.5 border border-slate-800 gap-0.5 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => {
                     setEngineMode('direct');
                     cyberAudio.playChirp(800, 0.04);
                   }}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer min-h-[34px] ${
+                  className={`px-2.5 sm:px-3 py-2 rounded-md text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[36px] ${
                     engineMode === 'direct'
                       ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400 shadow-[0_0_10px_rgba(0,255,102,0.3)]'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Zap className="w-3.5 h-3.5 shrink-0" />
-                  <span>DIRECT SANS IA (Illimité)</span>
+                  <span className="truncate">DIRECT (Illimité)</span>
                 </button>
                 <button
                   type="button"
@@ -2222,22 +2396,22 @@ export default function App() {
                     setEngineMode('ai');
                     cyberAudio.playChirp(1000, 0.04);
                   }}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer min-h-[34px] ${
+                  className={`px-2.5 sm:px-3 py-2 rounded-md text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[36px] ${
                     engineMode === 'ai'
                       ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Cpu className="w-3.5 h-3.5 shrink-0" />
-                  <span>HYBRIDE IA (Gemini 3.8)</span>
+                  <span className="truncate">HYBRIDE IA (Gemini)</span>
                 </button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono">
+            <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2 text-xs font-mono w-full lg:w-auto">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-slate-400 whitespace-nowrap">VOLUME :</span>
-                <div className="flex flex-wrap gap-1">
+                <span className="text-slate-400 text-[11px] whitespace-nowrap">VOLUME :</span>
+                <div className="flex items-center gap-1 flex-wrap">
                   {[
                     { label: '24', val: 24 },
                     { label: '50', val: 50 },
@@ -2250,7 +2424,7 @@ export default function App() {
                       type="button"
                       key={item.label}
                       onClick={() => setScrapeVolume(item.val)}
-                      className={`px-2 py-1 rounded text-xs font-bold transition-all cursor-pointer min-h-[32px] ${
+                      className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[34px] ${
                         scrapeVolume === item.val
                           ? 'bg-[#00ff66] text-black shadow-[0_0_10px_rgba(0,255,102,0.4)]'
                           : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
@@ -2262,40 +2436,42 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Vider les produits déjà aspirés */}
-              <button
-                type="button"
-                onClick={handleClearAllProducts}
-                disabled={products.length === 0}
-                className="px-2.5 py-1.5 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-300 hover:bg-rose-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[32px]"
-                title="Vider tous les articles déjà aspirés"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Vider ({products.length})</span>
-              </button>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Vider les produits déjà aspirés */}
+                <button
+                  type="button"
+                  onClick={handleClearAllProducts}
+                  disabled={products.length === 0}
+                  className="px-2.5 py-1.5 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-300 hover:bg-rose-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[34px]"
+                  title="Vider tous les articles déjà aspirés"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Vider ({products.length})</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={handleTriggerPriceUpdate}
-                disabled={products.length === 0 || isUpdatingPrices}
-                className="px-2.5 py-1.5 rounded-lg bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[32px]"
-                title="Simuler des fluctuations de prix pour tester la détection de changements à la ré-aspiration"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Tester Prix</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={handleTriggerPriceUpdate}
+                  disabled={products.length === 0 || isUpdatingPrices}
+                  className="px-2.5 py-1.5 rounded-lg bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[34px]"
+                  title="Simuler des fluctuations de prix pour tester la détection de changements à la ré-aspiration"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Tester Prix</span>
+                </button>
 
-              <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer p-1.5 rounded-lg bg-black/40 border border-slate-800">
-                <input
-                  type="checkbox"
-                  checked={replaceCatalog}
-                  onChange={(e) => setReplaceCatalog(e.target.checked)}
-                  className="rounded accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
-                />
-                <span className={replaceCatalog ? 'text-amber-400 font-bold' : 'text-emerald-400 font-medium'}>
-                  {replaceCatalog ? 'Écraser base' : 'Fusion intelligente'}
-                </span>
-              </label>
+                <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer px-2 py-1.5 rounded-lg bg-black/40 border border-slate-800 min-h-[34px]">
+                  <input
+                    type="checkbox"
+                    checked={replaceCatalog}
+                    onChange={(e) => setReplaceCatalog(e.target.checked)}
+                    className="rounded accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <span className={replaceCatalog ? 'text-amber-400 font-bold' : 'text-emerald-400 font-medium'}>
+                    {replaceCatalog ? 'Écraser base' : 'Fusion intelligente'}
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -2305,7 +2481,7 @@ export default function App() {
               e.preventDefault();
               handleStartScrape();
             }}
-            className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch"
+            className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch"
           >
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-emerald-400">
@@ -2317,7 +2493,7 @@ export default function App() {
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
                 placeholder="Entrez l'URL du site e-commerce (ex: https://www.ouedkniss.com/telephones)"
-                className="w-full bg-slate-900/90 border-2 border-emerald-500/40 rounded-xl pl-10 pr-4 py-3 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#00ff66] focus:shadow-[0_0_15px_rgba(0,255,102,0.3)] transition-all min-h-[46px]"
+                className="w-full bg-slate-900/90 border-2 border-emerald-500/40 rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#00ff66] focus:shadow-[0_0_15px_rgba(0,255,102,0.3)] transition-all min-h-[48px]"
               />
             </div>
 
@@ -2325,7 +2501,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleStopScrape}
-                className="relative px-5 py-3 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black font-mono text-sm tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center justify-center gap-2 cursor-pointer flex-shrink-0 animate-pulse min-h-[46px]"
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black font-mono text-xs sm:text-sm tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center justify-center gap-2 cursor-pointer shrink-0 animate-pulse min-h-[48px]"
               >
                 <StopCircle className="w-4 h-4" />
                 <span>ARRÊTER L'ASPIRATION</span>
@@ -2334,7 +2510,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={job.status === 'scanning'}
-                className="relative px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-black font-mono text-sm tracking-wider uppercase transition-all transform active:scale-95 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex-shrink-0 min-h-[46px]"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-black font-mono text-xs sm:text-sm tracking-wider uppercase transition-all transform active:scale-95 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0 min-h-[48px]"
               >
                 <Zap className="w-4 h-4" />
                 <span>
@@ -2489,7 +2665,7 @@ export default function App() {
       )}
 
       {/* Cyberpunk Footer */}
-      <footer className="relative z-20 border-t border-slate-900 bg-slate-950/90 py-4 mt-8 font-mono text-xs text-slate-500">
+      <footer className="relative z-20 border-t border-slate-900 bg-slate-950/90 py-4 mt-8 font-mono text-xs text-slate-500 mb-16 lg:mb-0">
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-[#00ff66]">CYBER-VACUUM MK-IV</span>
@@ -2528,6 +2704,104 @@ export default function App() {
         isOpen={isApkModalOpen}
         onClose={() => setIsApkModalOpen(false)}
       />
+
+      {/* Mobile Bottom Navigation App Bar (Thumb-Friendly Native Responsive Experience) */}
+      <nav
+        aria-label="Navigation principale mobile"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-emerald-500/30 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] pb-[env(safe-area-inset-bottom,0px)]"
+      >
+        <div className="grid grid-cols-4 h-16 max-w-lg mx-auto px-1">
+          {/* Tab 1: Vortex & IA */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('vacuum');
+              cyberAudio.playChirp(800, 0.03);
+            }}
+            className={`flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative min-h-[48px] ${
+              activeTab === 'vacuum'
+                ? 'text-[#00ff88]'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {activeTab === 'vacuum' && (
+              <span className="absolute top-0 inset-x-2 h-0.5 bg-gradient-to-r from-emerald-500 to-[#00ff88] rounded-full shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
+            )}
+            <Cpu className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-mono font-bold tracking-tight">Vortex</span>
+          </button>
+
+          {/* Tab 2: Catalogue */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('catalog');
+              cyberAudio.playChirp(850, 0.03);
+            }}
+            className={`flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative min-h-[48px] ${
+              activeTab === 'catalog'
+                ? 'text-[#00ff88]'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {activeTab === 'catalog' && (
+              <span className="absolute top-0 inset-x-2 h-0.5 bg-gradient-to-r from-emerald-500 to-[#00ff88] rounded-full shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
+            )}
+            <div className="relative">
+              <ShoppingBag className="w-5 h-5 shrink-0" />
+              {products.length > 0 && (
+                <span className="absolute -top-1.5 -right-3 px-1 py-0.2 rounded-full bg-emerald-500 text-slate-950 font-mono text-[9px] font-black leading-tight border border-black shadow">
+                  {products.length > 999 ? `${Math.round(products.length / 1000)}k` : products.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-mono font-bold tracking-tight">Catalogue</span>
+          </button>
+
+          {/* Tab 3: TEMU-DZ */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('temu');
+              cyberAudio.playChirp(900, 0.03);
+            }}
+            className={`flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative min-h-[48px] ${
+              activeTab === 'temu'
+                ? 'text-orange-400'
+                : 'text-slate-400 hover:text-orange-200'
+            }`}
+          >
+            {activeTab === 'temu' && (
+              <span className="absolute top-0 inset-x-2 h-0.5 bg-gradient-to-r from-[#fb5200] to-[#ff7300] rounded-full shadow-[0_0_8px_rgba(251,82,0,0.8)]" />
+            )}
+            <div className="relative">
+              <Zap className="w-5 h-5 fill-current shrink-0" />
+              <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-yellow-400 animate-ping" />
+            </div>
+            <span className="text-[10px] font-mono font-bold tracking-tight">TEMU-DZ</span>
+          </button>
+
+          {/* Tab 4: Tendances */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('trends');
+              cyberAudio.playChirp(950, 0.03);
+            }}
+            className={`flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative min-h-[48px] ${
+              activeTab === 'trends'
+                ? 'text-cyan-400'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {activeTab === 'trends' && (
+              <span className="absolute top-0 inset-x-2 h-0.5 bg-gradient-to-r from-cyan-500 to-cyan-300 rounded-full shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
+            )}
+            <LineChart className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-mono font-bold tracking-tight">Tendances</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

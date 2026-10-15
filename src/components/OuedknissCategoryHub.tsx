@@ -147,53 +147,55 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
           </p>
         </div>
 
-        {/* Action Controls: Depth Preset Pills & Primary Action Button */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-          {/* Collapse/Expand Toggle Button */}
-          <button
-            type="button"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
-            title={isCollapsed ? 'Afficher toutes les 17 catégories' : 'Réduire les catégories'}
-          >
-            <span>{isCollapsed ? 'Déplier' : 'Réduire'}</span>
-            <span className="text-[10px] text-emerald-400 font-bold">({OUEDKNISS_CATEGORIES.length})</span>
-          </button>
+        {/* Action Controls: Depth Preset Pills & Primary Action Button (Responsive Wrap) */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full lg:w-auto">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 max-w-full">
+            {/* Collapse/Expand Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 min-h-[40px]"
+              title={isCollapsed ? 'Afficher toutes les 17 catégories' : 'Réduire les catégories'}
+            >
+              <span>{isCollapsed ? 'Déplier' : 'Réduire'}</span>
+              <span className="text-[10px] text-emerald-400 font-bold">({OUEDKNISS_CATEGORIES.length})</span>
+            </button>
 
-          {onChangeSweepPagesPerCategory && !isCollapsed && (
-            <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800/90 p-1 rounded-xl shadow-inner">
-              <span className="text-[10px] font-mono text-slate-400 uppercase px-1.5 hidden sm:inline">
-                Profondeur :
-              </span>
-              <div className="flex items-center gap-1">
-                {DEPTH_PRESETS.map((dp) => {
-                  const isSelected = sweepPagesPerCategory === dp.val;
-                  return (
-                    <button
-                      key={dp.val}
-                      type="button"
-                      disabled={isScrapingActive}
-                      onClick={() => onChangeSweepPagesPerCategory(dp.val)}
-                      className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isSelected
-                          ? 'bg-gradient-to-r from-emerald-500 to-[#00ff88] text-slate-950 shadow-[0_0_12px_rgba(0,255,102,0.4)]'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                      }`}
-                      title={`${dp.label} - ${dp.count}`}
-                    >
-                      {dp.label}
-                    </button>
-                  );
-                })}
+            {onChangeSweepPagesPerCategory && !isCollapsed && (
+              <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800/90 p-1 rounded-xl shadow-inner shrink-0">
+                <span className="text-[10px] font-mono text-slate-400 uppercase px-1.5 hidden md:inline">
+                  Profondeur :
+                </span>
+                <div className="flex items-center gap-1">
+                  {DEPTH_PRESETS.map((dp) => {
+                    const isSelected = sweepPagesPerCategory === dp.val;
+                    return (
+                      <button
+                        key={dp.val}
+                        type="button"
+                        disabled={isScrapingActive}
+                        onClick={() => onChangeSweepPagesPerCategory(dp.val)}
+                        className={`px-2 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[36px] ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-emerald-500 to-[#00ff88] text-slate-950 shadow-[0_0_12px_rgba(0,255,102,0.4)]'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                        }`}
+                        title={`${dp.label} - ${dp.count}`}
+                      >
+                        {dp.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Primary Action Button (Stateful: Idle vs Scraping Active) */}
           {isScrapingActive ? (
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-400/60 text-amber-300 font-mono text-xs font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse">
-                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-amber-500/15 border border-amber-400/60 text-amber-300 font-mono text-xs font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse min-h-[44px]">
+                <Sparkles className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
                 <span>
                   ASPIRATION ({activeSweepCategoryIndex !== undefined ? activeSweepCategoryIndex + 1 : 1}/{OUEDKNISS_CATEGORIES.length})
                 </span>
@@ -208,11 +210,11 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
                 <button
                   type="button"
                   onClick={onStopSweep}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-mono text-xs font-black flex items-center gap-1.5 shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all cursor-pointer animate-bounce"
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-mono text-xs font-black flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all cursor-pointer min-h-[44px]"
                   title="Arrêter immédiatement le balayage des catégories"
                 >
-                  <StopCircle className="w-4 h-4 fill-white/20" />
-                  <span>STOPPER</span>
+                  <StopCircle className="w-4 h-4 fill-white/20 shrink-0" />
+                  <span>STOP</span>
                 </button>
               )}
             </div>
@@ -220,11 +222,11 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
             <button
               type="button"
               onClick={onStartAllCategoriesSweep}
-              className="relative group overflow-hidden px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-mono text-xs font-black text-slate-950 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.45)] hover:shadow-[0_0_35px_rgba(0,255,102,0.7)] hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#00ff66] via-emerald-400 to-cyan-300 border border-emerald-300"
+              className="w-full sm:w-auto relative group overflow-hidden px-4 sm:px-5 py-2.5 rounded-xl font-mono text-xs font-black text-slate-950 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.45)] hover:shadow-[0_0_35px_rgba(0,255,102,0.7)] hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#00ff66] via-emerald-400 to-cyan-300 border border-emerald-300 min-h-[44px]"
             >
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
-              <Zap className="w-4 h-4 fill-black text-black group-hover:rotate-12 transition-transform" />
-              <span className="tracking-wide">
+              <Zap className="w-4 h-4 fill-black text-black group-hover:rotate-12 transition-transform shrink-0" />
+              <span className="tracking-wide whitespace-nowrap">
                 BALAYER LES 17 CATÉGORIES
               </span>
               <span className="px-1.5 py-0.5 rounded bg-black/85 text-[#00ff88] text-[10px] font-bold border border-emerald-400/50 hidden sm:inline">

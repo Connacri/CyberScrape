@@ -209,15 +209,15 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
           </div>
           <div className="text-[11px] text-slate-400 mt-2 font-mono flex items-center justify-between">
             <span>Intervalle:</span>
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               {[1, 5, 15].map((m) => (
                 <button
                   key={m}
                   onClick={() => onChangeInterval(m)}
-                  className={`px-1.5 py-0.5 text-[10px] rounded ${
+                  className={`px-2.5 py-1 text-xs rounded-lg font-bold min-h-[30px] cursor-pointer transition-colors ${
                     autoUpdate.intervalMinutes === m
-                      ? 'bg-amber-400 text-black font-bold'
-                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                      ? 'bg-amber-400 text-black shadow'
+                      : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
                   }`}
                 >
                   {m}m
@@ -229,13 +229,13 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
       </div>
 
       {/* Main Trends Visualizer Card */}
-      <div className="p-4 lg:p-6 rounded-xl bg-slate-950/80 border border-emerald-500/30 backdrop-blur-md shadow-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-emerald-500/20">
+      <div className="p-4 lg:p-6 rounded-2xl bg-slate-950/80 border border-emerald-500/30 backdrop-blur-md shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-emerald-500/20">
           <div>
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-400" />
-              <h3 className="font-mono text-base font-bold text-white tracking-wide uppercase">
-                Analyse & Courbes des Tendances de Prix en Direct
+              <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0" />
+              <h3 className="font-mono text-sm sm:text-base font-bold text-white tracking-wide uppercase">
+                Analyse & Courbes des Tendances de Prix
               </h3>
             </div>
             <p className="text-xs text-slate-400 font-mono mt-0.5">
@@ -244,14 +244,14 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
           </div>
 
           {/* Controls: Product selector, Time range, Manual Refresh */}
-          <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-xs w-full sm:w-auto">
             {/* Product selection */}
             {products.length > 0 && (
               <select
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
                 aria-label="Sélectionner un produit pour analyser ses prix"
-                className="bg-slate-900 border border-emerald-500/30 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 focus:outline-none focus:border-emerald-400 max-w-[220px] truncate"
+                className="w-full sm:w-auto bg-slate-900 border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-emerald-300 focus:outline-none focus:border-emerald-400 max-w-full sm:max-w-[240px] truncate min-h-[36px] cursor-pointer font-bold"
               >
                 {products.map((p) => (
                   <option key={p.id} value={p.id} className="bg-slate-950 text-slate-200">
@@ -262,12 +262,12 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
             )}
 
             {/* Time range buttons */}
-            <div className="flex rounded-lg bg-slate-900 border border-slate-800 p-0.5">
+            <div className="flex rounded-xl bg-slate-900 border border-slate-800 p-0.5">
               {(['24h', '7d', '30d', 'all'] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-2 py-1 rounded text-xs font-mono uppercase transition-colors ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-mono uppercase transition-colors cursor-pointer min-h-[34px] ${
                     timeRange === range
                       ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 font-bold'
                       : 'text-slate-400 hover:text-slate-200'

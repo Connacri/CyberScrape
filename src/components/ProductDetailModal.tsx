@@ -373,7 +373,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* 3. TABS: DESCRIPTION / SPÉCIFICATIONS / SÉCURITÉ               */}
           {/* ============================================================== */}
           <div className="border-t border-slate-800 pt-6">
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800 touch-pan-x">
               <button
                 onClick={() => setActiveTab('details')}
                 className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer shrink-0 ${

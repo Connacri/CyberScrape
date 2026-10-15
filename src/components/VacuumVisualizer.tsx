@@ -301,7 +301,7 @@ const VacuumVisualizerComponent: React.FC<VacuumVisualizerProps> = ({
         </div>
 
         {/* Realtime stats badge with Counter Animation */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {/* Unlimited vs Targeted Mode Indicator Badge */}
           {isUnlimitedMode ? (
             <div className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-950/80 to-cyan-950/80 border border-emerald-400/50 text-right shadow-[0_0_12px_rgba(0,255,102,0.25)]">
