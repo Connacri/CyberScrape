@@ -911,7 +911,7 @@ export function generateOuedknissItems(count: number, page: number = 1, category
       inStock: true,
       stockLevel: 'IN_STOCK',
       imageUrl,
-      productUrl: `https://www.ouedkniss.com/recherche?keywords=${encodeURIComponent(cleanSearchKeywords)}`,
+      productUrl: `https://www.ouedkniss.com/${catKey}?keywords=${encodeURIComponent(cleanSearchKeywords)}`,
       specs: {
         ...specs,
         Réf: `0xDZ_${catKey.substring(0, 3).toUpperCase()}_${1000 + globalIdx}`,

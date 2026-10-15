@@ -1,6 +1,7 @@
 /**
  * Ouedkniss Live URL Generator & Origin Deep-Link Resolver
  * Prevents 404 "Page introuvable" errors when opening scraped products on Ouedkniss.com
+ * Powered by verified Vue Router mappings (/s?keywords= and /:category?keywords=)
  */
 
 import { ScrapedProduct } from '../types';
@@ -15,48 +16,109 @@ export function cleanOuedknissTitle(title: string): string {
     .replace(/-?\s*Annonce\s*Ouedkniss\s*#?\d+/gi, '')
     .replace(/#\d+/g, '')
     .replace(/\[.*?\]/g, '')
-    .replace(/Réf:.*$/gi, '')
+    .replace(/Réf:\s*[^\s]+/gi, '')
     .replace(/00\s*Peinture/gi, '')
     .replace(/Sans\s*Rayures/gi, '')
     .replace(/Sous\s*Blister/gi, '')
     .replace(/Jamais\s*activé/gi, '')
-    .replace(/Neuf\s*sous\s*carton/gi, 'Neuf')
+    .replace(/Neuf\s*sous\s*(carton|emballage|blister)/gi, '')
+    .replace(/Peinture\s*d\s*origine/gi, '')
+    .replace(/Boîte\s*Scellée/gi, '')
+    .replace(/Batterie\s*\d+%/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-  // If title is excessively long, extract the core 5-7 keywords for highest query accuracy
-  const words = cleaned.split(' ');
-  if (words.length > 7) {
-    cleaned = words.slice(0, 6).join(' ');
+  // Extract the core 3 to 6 keywords (Brand + Model + Core spec) for highest search accuracy on Ouedkniss
+  const words = cleaned.split(' ').filter(Boolean);
+  if (words.length > 6) {
+    cleaned = words.slice(0, 5).join(' ');
   }
-  return cleaned;
+  return cleaned || title;
+}
+
+/**
+ * Maps category name or slug to official Ouedkniss category router slug
+ */
+export function getOuedknissCategorySlug(categoryName?: string): string {
+  if (!categoryName) return 's';
+  const norm = categoryName.toLowerCase();
+
+  if (norm.includes('auto') || norm.includes('véhicule') || norm.includes('voiture')) return 'automobiles';
+  if (norm.includes('pièce') || norm.includes('accessoire') || norm.includes('pneu')) return 'pieces-detachees';
+  if (norm.includes('téléphone') || norm.includes('smartphone') || norm.includes('tablette')) return 'telephones';
+  if (norm.includes('informatique') || norm.includes('ordinateur') || norm.includes('laptop') || norm.includes('pc')) return 'informatique';
+  if (norm.includes('électroménager') || norm.includes('electromenager') || norm.includes('tv') || norm.includes('climatiseur')) return 'electromenager';
+  if (norm.includes('immobilier') || norm.includes('appartement') || norm.includes('villa') || norm.includes('terrain')) return 'immobilier';
+  if (norm.includes('maison') || norm.includes('meuble') || norm.includes('salon')) return 'maison';
+  if (norm.includes('vêtement') || norm.includes('mode') || norm.includes('montre') || norm.includes('chaussure')) return 'vetements';
+  if (norm.includes('jeu') || norm.includes('gaming') || norm.includes('playstation') || norm.includes('console')) return 'jeux-video';
+  if (norm.includes('emploi') || norm.includes('recrutement') || norm.includes('job')) return 'emploi';
+  if (norm.includes('service') || norm.includes('travaux') || norm.includes('déménagement')) return 'services';
+  if (norm.includes('matériau') || norm.includes('equipement') || norm.includes('outillage')) return 'materiaux';
+  if (norm.includes('sport') || norm.includes('loisir') || norm.includes('fitness') || norm.includes('vélo')) return 'sports-loisirs';
+  if (norm.includes('voyage') || norm.includes('tourisme') || norm.includes('omra') || norm.includes('hôtel')) return 'voyages-tourisme';
+  if (norm.includes('animal') || norm.includes('animaux') || norm.includes('chien') || norm.includes('chat')) return 'animaux';
+  if (norm.includes('bébé') || norm.includes('bebe') || norm.includes('enfant')) return 'bebes-enfants';
+  if (norm.includes('aliment') || norm.includes('agri') || norm.includes('datte') || norm.includes('huile')) return 'alimentation-agriculture';
+
+  return 's';
 }
 
 /**
  * Returns a guaranteed working live URL on Ouedkniss.com for any product.
- * If the product comes from Ouedkniss, it uses the official live search query
- * `https://www.ouedkniss.com/recherche?keywords=...` which always succeeds and
- * presents the authentic active listings without 404 errors.
+ * Avoids broken procedural /category/slug paths that trigger 404 errors,
+ * routing instead through official Ouedkniss search paths:
+ * `https://www.ouedkniss.com/${categorySlug}?keywords=${keywords}`
+ * or `https://www.ouedkniss.com/s?keywords=${keywords}`.
  */
-export function getOuedknissOriginUrl(product: Pick<ScrapedProduct, 'title' | 'productUrl' | 'sourceDomain' | 'category'>): string {
+export function getOuedknissOriginUrl(
+  product: Pick<ScrapedProduct, 'title' | 'productUrl' | 'sourceDomain' | 'category'>
+): string {
+  const url = product.productUrl || '';
+  const domain = product.sourceDomain || '';
   const isOuedkniss =
-    !product.productUrl ||
-    (product.sourceDomain && product.sourceDomain.includes('ouedkniss')) ||
-    (product.productUrl && product.productUrl.includes('ouedkniss')) ||
-    !product.productUrl.startsWith('http');
+    !url ||
+    domain.includes('ouedkniss') ||
+    url.includes('ouedkniss') ||
+    !url.startsWith('http');
 
-  if (!isOuedkniss) {
-    return product.productUrl || 'https://www.ouedkniss.com';
+  // If not Ouedkniss (e.g. Amazon, Apple, Nike, Fnac), return original target url
+  if (!isOuedkniss && url.startsWith('http')) {
+    return url;
   }
 
-  // If the productUrl already points to an authentic numeric announcement (/annonce/123456) or live search, verify
-  if (product.productUrl && (product.productUrl.includes('/recherche?keywords=') || product.productUrl.includes('/annonces?keywords='))) {
-    return product.productUrl;
+  // If the product already has an authentic announcement URL with real numeric ID (e.g. /:slug-d123456 or /annonce/123456)
+  if (url && (/-d\d+/i.test(url) || /\/annonce\/\d+/i.test(url))) {
+    return url;
   }
 
+  // If the product URL already has an official search query format (/s?keywords= or /:category?keywords=)
+  if (url && (url.includes('/s?keywords=') || (url.includes('?keywords=') && !url.includes('/recherche?')))) {
+    return url;
+  }
+
+  // Compute clean keywords and official category slug
   const cleanTitle = cleanOuedknissTitle(product.title);
   const keywords = encodeURIComponent(cleanTitle || 'annonces algerie');
-  return `https://www.ouedkniss.com/recherche?keywords=${keywords}`;
+  const catSlug = getOuedknissCategorySlug(product.category);
+
+  if (catSlug && catSlug !== 's') {
+    return `https://www.ouedkniss.com/${catSlug}?keywords=${keywords}`;
+  }
+
+  return `https://www.ouedkniss.com/s?keywords=${keywords}`;
+}
+
+/**
+ * Returns direct official search URL on Ouedkniss with custom keywords
+ */
+export function getOuedknissSearchUrl(keywords: string, categoryName?: string): string {
+  const catSlug = getOuedknissCategorySlug(categoryName);
+  const encoded = encodeURIComponent(cleanOuedknissTitle(keywords));
+  if (catSlug && catSlug !== 's') {
+    return `https://www.ouedkniss.com/${catSlug}?keywords=${encoded}`;
+  }
+  return `https://www.ouedkniss.com/s?keywords=${encoded}`;
 }
 
 /**
@@ -64,6 +126,6 @@ export function getOuedknissOriginUrl(product: Pick<ScrapedProduct, 'title' | 'p
  */
 export function getOuedknissStoreUrl(storeName?: string): string {
   if (!storeName) return 'https://www.ouedkniss.com/boutiques';
-  const slug = storeName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  return `https://www.ouedkniss.com/recherche?keywords=${encodeURIComponent(storeName)}`;
+  const clean = cleanOuedknissTitle(storeName);
+  return `https://www.ouedkniss.com/s?keywords=${encodeURIComponent(clean)}`;
 }

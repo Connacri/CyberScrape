@@ -18,6 +18,7 @@ import {
   generateAnnouncementDescription,
   generateGalleryImages,
 } from './src/utils/sellerGenerator.ts';
+import { getOuedknissOriginUrl } from './src/utils/ouedknissUrls.ts';
 
 dotenv.config();
 
@@ -372,7 +373,9 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
         stockLevel: (item.stockLevel as 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK') || 'IN_STOCK',
         imageUrl: item.imageUrl || `https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80`,
         images: productImages,
-        productUrl: item.productUrl || url,
+        productUrl: isOuedkniss
+          ? getOuedknissOriginUrl({ title: item.title, productUrl: item.productUrl, sourceDomain: domain, category: item.category })
+          : (item.productUrl || url),
         sourceDomain: domain,
         scrapedAt: nowIso,
         lastUpdated: nowIso,

@@ -1,4 +1,5 @@
 import { ScrapedProduct, SellerInfo } from '../types';
+import { getOuedknissOriginUrl } from './ouedknissUrls';
 
 // Algerian first names and store brandings
 const SELLER_NAMES = [
@@ -64,10 +65,35 @@ const MEMBER_SINCE = [
  * Generates an authentic Algerian phone number based on index/seed
  * Mobilis (06), Djezzy (07), or Ooredoo (05)
  */
-export function generateAlgerianPhone(seed: number): { formatted: string; clean: string; whatsapp: string } {
-  // Mobile prefixes in Algeria: 05 (Ooredoo), 06 (Mobilis), 07 (Djezzy)
-  const prefixes = ['0550', '0555', '0560', '0661', '0670', '0665', '0770', '0775', '0790'];
-  const prefix = prefixes[Math.abs(seed) % prefixes.length];
+export function generateAlgerianPhone(seed: number): {
+  formatted: string;
+  clean: string;
+  whatsapp: string;
+  international: string;
+  operator: 'Mobilis' | 'Djezzy' | 'Ooredoo';
+} {
+  // Real active mobile prefixes in Algeria:
+  // Ooredoo: 0550, 0555, 0560, 0540, 0551
+  // Mobilis: 0661, 0670, 0665, 0658, 0662
+  // Djezzy:  0770, 0775, 0790, 0792, 0771
+  const prefixPool: { prefix: string; operator: 'Mobilis' | 'Djezzy' | 'Ooredoo' }[] = [
+    { prefix: '0550', operator: 'Ooredoo' },
+    { prefix: '0555', operator: 'Ooredoo' },
+    { prefix: '0560', operator: 'Ooredoo' },
+    { prefix: '0540', operator: 'Ooredoo' },
+    { prefix: '0661', operator: 'Mobilis' },
+    { prefix: '0670', operator: 'Mobilis' },
+    { prefix: '0665', operator: 'Mobilis' },
+    { prefix: '0658', operator: 'Mobilis' },
+    { prefix: '0770', operator: 'Djezzy' },
+    { prefix: '0775', operator: 'Djezzy' },
+    { prefix: '0790', operator: 'Djezzy' },
+    { prefix: '0792', operator: 'Djezzy' },
+  ];
+
+  const chosen = prefixPool[Math.abs(seed) % prefixPool.length];
+  const prefix = chosen.prefix;
+  const operator = chosen.operator;
 
   // 6 digits: XX XX XX
   const d1 = (10 + (Math.abs(seed * 7 + 13) % 90)).toString().padStart(2, '0');
@@ -76,10 +102,11 @@ export function generateAlgerianPhone(seed: number): { formatted: string; clean:
 
   const formatted = `${prefix} ${d1} ${d2} ${d3}`;
   const clean = `${prefix}${d1}${d2}${d3}`;
+  const international = `+213 ${prefix.substring(1)} ${d1} ${d2} ${d3}`;
   // International WhatsApp format (+213 without leading 0)
   const whatsapp = `213${prefix.substring(1)}${d1}${d2}${d3}`;
 
-  return { formatted, clean, whatsapp };
+  return { formatted, clean, whatsapp, international, operator };
 }
 
 /**
@@ -107,16 +134,54 @@ export function generateSellerForProduct(
   const seed = hashString(productId);
   const phoneData = generateAlgerianPhone(seed);
 
-  // Determine seller type
-  let type: 'Particulier' | 'Boutique / Store Certifié' | 'Agence Immobilière' | 'Showroom Auto' =
-    SELLER_TYPES[seed % SELLER_TYPES.length];
-  if (category.toLowerCase().includes('immo')) {
+  // Determine category-coherent seller type and name pool
+  const catLower = category.toLowerCase();
+  let type: 'Particulier' | 'Boutique / Store Certifié' | 'Agence Immobilière' | 'Showroom Auto';
+  let namePool = SELLER_NAMES;
+
+  if (catLower.includes('immo')) {
     type = seed % 2 === 0 ? 'Agence Immobilière' : 'Particulier';
-  } else if (category.toLowerCase().includes('véhicule') || category.toLowerCase().includes('auto')) {
+    namePool = [
+      'Immo Prestige Centre',
+      'Agence Immobilière El Mordjane',
+      'Cabinet Foncier Alger',
+      'Kouba Immobilier Pro',
+      'Mohamed Benali (Particulier)',
+      'Immo Constantine Atlas',
+    ];
+  } else if (catLower.includes('véhicule') || catLower.includes('auto') || catLower.includes('voiture')) {
     type = seed % 2 === 0 ? 'Showroom Auto' : 'Particulier';
+    namePool = [
+      'Yacine Auto DZ',
+      'Showroom El Bahdja Motors',
+      'Auto Prestige Alger',
+      'Sétif Occasion Véhicules',
+      'Karim Benahmed (Particulier)',
+      'Oran Auto Express',
+    ];
+  } else if (
+    catLower.includes('téléphone') ||
+    catLower.includes('smartphone') ||
+    catLower.includes('informatique') ||
+    catLower.includes('tech') ||
+    catLower.includes('tablette')
+  ) {
+    type = seed % 3 === 0 ? 'Particulier' : 'Boutique / Store Certifié';
+    namePool = [
+      'Karim Mobile Tech',
+      'Boutique Tech Pro Alger',
+      'Sofiane Phone DZ',
+      'Hichem Informatique Kouba',
+      'Boutique Bab Ezzouar Tech',
+      'Amine Ouedkniss Store',
+      'Store Annaba Digital',
+      'Samir Électronique Sétif',
+    ];
+  } else {
+    type = seed % 2 === 0 ? 'Particulier' : 'Boutique / Store Certifié';
   }
 
-  const name = SELLER_NAMES[seed % SELLER_NAMES.length];
+  const name = namePool[seed % namePool.length];
   const avatarUrl = AVATAR_POOL[seed % AVATAR_POOL.length];
   const responseTime = RESPONSE_TIMES[seed % RESPONSE_TIMES.length];
   const memberSince = MEMBER_SINCE[seed % MEMBER_SINCE.length];
@@ -139,6 +204,7 @@ export function generateSellerForProduct(
     verified: true,
     avatarUrl,
     storeName: type !== 'Particulier' ? `${name} Algérie Marketplace` : undefined,
+    operator: phoneData.operator,
   };
 }
 
@@ -209,9 +275,11 @@ export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
 
   const publishedDate = product.publishedDate || (seed % 2 === 0 ? `Aujourd'hui à ${10 + (seed % 12)}:${(seed % 50).toString().padStart(2, '0')}` : `Hier à ${14 + (seed % 8)}:30`);
   const priceType = product.priceType || (product.discountPercent > 0 ? 'Négociable' : 'Fixe');
+  const verifiedLiveUrl = getOuedknissOriginUrl(product);
 
   return {
     ...product,
+    productUrl: verifiedLiveUrl,
     seller,
     description,
     images,
@@ -235,8 +303,14 @@ export function buildWhatsAppLink(seller: SellerInfo, product: ScrapedProduct): 
  * Builds direct Tel URI for 1-click calling
  */
 export function buildTelLink(seller: SellerInfo): string {
-  // Use clean local or international format
-  return `tel:${seller.phoneClean}`;
+  const clean = seller.phoneClean.replace(/[^0-9]/g, '');
+  if (clean.startsWith('0')) {
+    return `tel:+213${clean.substring(1)}`;
+  }
+  if (clean.startsWith('213')) {
+    return `tel:+${clean}`;
+  }
+  return `tel:${clean}`;
 }
 
 /**

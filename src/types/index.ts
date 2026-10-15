@@ -19,6 +19,7 @@ export interface SellerInfo {
   verified: boolean;
   avatarUrl?: string;
   storeName?: string;
+  operator?: 'Mobilis' | 'Djezzy' | 'Ooredoo';
 }
 
 export interface ScrapedProduct {

@@ -1034,11 +1034,11 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                               <Code className="w-3.5 h-3.5" />
                             </button>
                             <a
-                              href={p.productUrl}
+                              href={getOuedknissOriginUrl(p)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-400 cursor-pointer"
-                              title="Voir l'annonce source sur Ouedkniss"
+                              title="Voir l'annonce source ou la recherche active sur Ouedkniss"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
@@ -1194,6 +1194,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     const seller = det.seller!;
     const tel = buildTelLink(seller);
     const wa = buildWhatsAppLink(seller, det);
+    const originUrl = getOuedknissOriginUrl(det);
 
     const hasDiscount = det.discountPercent > 0;
     const isSyncing = syncingId === det.id;
@@ -1262,8 +1263,21 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
               </div>
             )}
 
+            {/* Ouedkniss live link button on image */}
+            <a
+              href={originUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/85 hover:bg-emerald-600/90 text-slate-200 hover:text-white font-mono text-[9px] border border-slate-700 hover:border-emerald-400 flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer z-10 shadow-md"
+              title="Ouvrir directement sur Ouedkniss.com sans erreur 404"
+            >
+              <ExternalLink className="w-2.5 h-2.5 text-emerald-400" />
+              <span>Ouedkniss</span>
+            </a>
+
             {/* AI Confidence badge */}
-            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/75 text-cyan-300 font-mono text-[9px] border border-cyan-500/30 flex items-center gap-1 backdrop-blur-sm">
+            <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md bg-black/75 text-cyan-300 font-mono text-[9px] border border-cyan-500/30 flex items-center gap-1 backdrop-blur-sm">
               <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
               {det.aiConfidence}%
             </div>
@@ -1334,13 +1348,13 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             <span className="truncate">Appel : {seller.phone}</span>
           </a>
 
-          {/* Secondary Action Row: WhatsApp + Full Announcement Details */}
-          <div className="grid grid-cols-2 gap-1.5 min-w-0">
+          {/* Secondary Action Row: WhatsApp + Full Details + Ouedkniss Live */}
+          <div className="grid grid-cols-3 gap-1.5 min-w-0">
             <a
               href={wa}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-1.5 px-2 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+              className="py-1.5 px-1 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
               title="Contacter sur WhatsApp"
             >
               <MessageCircle className="w-3 h-3 shrink-0" /> <span className="truncate">WhatsApp</span>
@@ -1348,11 +1362,21 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
             <button
               onClick={() => setSelectedDetailProduct(det)}
-              className="py-1.5 px-2 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+              className="py-1.5 px-1 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
               title="Voir l'annonce complète et ses détails"
             >
               <Eye className="w-3 h-3 text-emerald-400 shrink-0" /> <span className="truncate">Détails</span>
             </button>
+
+            <a
+              href={originUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-1.5 px-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/50 text-slate-200 hover:text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+              title="Ouvrir directement sur Ouedkniss.com sans 404"
+            >
+              <ExternalLink className="w-3 h-3 text-emerald-400 shrink-0" /> <span className="truncate">Ouedkniss</span>
+            </a>
           </div>
 
           {/* Technical Options Row: Matrix & Supabase */}

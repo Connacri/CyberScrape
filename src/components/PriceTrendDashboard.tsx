@@ -265,6 +265,7 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
                 </button>
               ))}
             </div>
+          </div>
         </div>
       </div>
 
@@ -377,14 +378,6 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
               {activeProduct.discountPercent > 0 && (
                 <div className="text-right min-w-0">
                   <span className="block text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">PRIX INITIAL</span>
-                  <span className="text-xs sm:text-sm line-through text-slate-500 truncate block">
-                    {formatExactCurrency(activeProduct.originalPrice, activeProduct.currency)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
                   <span className="text-xs sm:text-sm line-through text-slate-500 truncate block">
                     {formatExactCurrency(activeProduct.originalPrice, activeProduct.currency)}
                   </span>
