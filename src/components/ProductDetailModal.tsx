@@ -24,7 +24,11 @@ import {
   Flame,
   ChevronRight,
   Code,
+  TrendingDown,
+  TrendingUp,
+  LineChart,
 } from 'lucide-react';
+import { ProductPriceHistoryChart } from './ProductPriceHistoryChart';
 import {
   ensureProductDetails,
   buildWhatsAppLink,
@@ -55,7 +59,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'seller' | 'specs' | 'json'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'priceHistory' | 'seller' | 'specs' | 'json'>('details');
 
   const images = product.images && product.images.length > 0 ? product.images : [product.imageUrl];
   const activeImage = images[activeImageIndex] || product.imageUrl;
@@ -234,6 +238,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       {product.inStock ? '✓ Disponible immédiatement' : 'Rupture'}
                     </span>
                   </div>
+
+                  {/* Recharts Price History Quick Link */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('priceHistory')}
+                    className="w-full pt-2.5 mt-1 border-t border-emerald-500/20 flex items-center justify-between text-xs font-mono text-emerald-300 hover:text-white transition-colors cursor-pointer group"
+                    title="Afficher le graphique temporel Recharts de l'évolution du prix"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <LineChart className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <span>Historique des prix ({product.priceHistory?.length || 14} relevés)</span>
+                    </span>
+                    <span className="text-[11px] text-emerald-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform font-bold">
+                      Voir courbe Recharts <ChevronRight className="w-3.5 h-3.5" />
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -353,32 +373,44 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* 3. TABS: DESCRIPTION / SPÉCIFICATIONS / SÉCURITÉ               */}
           {/* ============================================================== */}
           <div className="border-t border-slate-800 pt-6">
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('details')}
-                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer shrink-0 ${
                   activeTab === 'details'
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-slate-900'
                 }`}
               >
-                📝 Description Complète
+                📝 Description
+              </button>
+
+              <button
+                onClick={() => setActiveTab('priceHistory')}
+                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                  activeTab === 'priceHistory'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                }`}
+              >
+                <LineChart className="w-3.5 h-3.5 text-emerald-400" />
+                <span>📈 Historique des Prix ({product.priceHistory?.length || 14})</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('specs')}
-                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer shrink-0 ${
                   activeTab === 'specs'
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-slate-900'
                 }`}
               >
-                ⚙️ Fiche Technique & Spécifications ({Object.keys(product.specs || {}).length})
+                ⚙️ Fiche Technique ({Object.keys(product.specs || {}).length})
               </button>
 
               <button
                 onClick={() => setActiveTab('seller')}
-                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer shrink-0 ${
                   activeTab === 'seller'
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -389,7 +421,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('json')}
-                className={`hidden sm:inline-block px-3 py-2 rounded-xl font-mono text-xs transition-all cursor-pointer ${
+                className={`hidden sm:inline-block px-3 py-2 rounded-xl font-mono text-xs transition-all cursor-pointer shrink-0 ${
                   activeTab === 'json'
                     ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
                     : 'text-slate-500 hover:text-slate-300'
@@ -407,6 +439,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   {product.description}
                 </div>
 
+                {/* Inline Recharts Price History Chart in Details */}
+                <div className="pt-2">
+                  <ProductPriceHistoryChart product={product} height={220} />
+                </div>
+
                 {/* Safety advice banner */}
                 <div className="p-4 rounded-2xl bg-amber-950/20 border border-amber-500/30 flex items-start gap-3 text-xs text-amber-200">
                   <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
@@ -420,6 +457,50 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* TAB 2: FULL PRICE HISTORY WITH RECHARTS */}
+            {activeTab === 'priceHistory' && (
+              <div className="pt-4 space-y-4">
+                <ProductPriceHistoryChart product={product} height={280} />
+
+                {/* Recorded Price Points Table */}
+                {product.priceHistory && product.priceHistory.length > 0 && (
+                  <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-mono text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                        Journal des Relevés Temporels Ouedkniss
+                      </h5>
+                      <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+                        {product.priceHistory.length} points synchronisés
+                      </span>
+                    </div>
+
+                    <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-800 divide-y divide-slate-800/80 font-mono text-xs">
+                      {[...product.priceHistory].reverse().map((pt, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2.5 bg-slate-950/60 hover:bg-slate-900/80 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#00ff66]" />
+                            <span className="text-slate-300 font-medium">{pt.date}</span>
+                            {pt.note && (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px]">
+                                {pt.note}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-bold text-[#00ff66]">
+                            {new Intl.NumberFormat('fr-DZ').format(pt.price)} {product.currency}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
