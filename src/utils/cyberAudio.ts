@@ -853,6 +853,10 @@ class CyberAudioSynth {
   public speakSupabaseSynced(count: number) {
     this.speakFrenchFemale(`Synchronisation Cloud Supabase validée pour ${count} produits.`);
   }
+
+  public speakSortApplied(label: string) {
+    this.speakFrenchFemale(`Tri ${label} appliqué.`);
+  }
 }
 
 export const cyberAudio = new CyberAudioSynth();

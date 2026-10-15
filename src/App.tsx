@@ -2059,33 +2059,52 @@ export default function App() {
       {/* Top Header Navigation Bar (Single Slim Row on All Screen Sizes) */}
       <header className="relative z-30 border-b border-emerald-500/30 bg-slate-950/95 backdrop-blur-md sticky top-0 shadow-lg h-14 sm:h-16 flex items-center">
         <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 flex items-center justify-between gap-3">
-          {/* Zone 1: Brand Wordmark with Official Cyber Vacuum Logo */}
+          {/* Zone 1: App Icon + Brand Wordmark + Splash Trigger */}
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={() => setShowSplashScreen(true)}
-              title="Cliquer pour afficher l'écran de démarrage splash plein écran"
-              className="relative flex items-center justify-center h-8 sm:h-9 px-2.5 py-1 rounded-xl bg-black border border-emerald-400/80 shadow-[0_0_14px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+              onClick={() => {
+                setShowSplashScreen(true);
+                cyberAudio.playScanSweep();
+              }}
+              title="Cliquer pour afficher l'écran splash plein écran et l'icône"
+              className="relative flex items-center gap-2 h-9 sm:h-10 pl-1.5 pr-2.5 py-1 rounded-2xl bg-black border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
             >
-              <CyberVacuumLogo size="custom" width={118} height={22} glow={true} />
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#00ff66] border border-black animate-ping" />
+              {/* Clean App Icon Squircle */}
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden border border-emerald-400/80 shadow-[0_0_10px_rgba(0,255,102,0.6)] shrink-0 bg-slate-900 flex items-center justify-center">
+                <img
+                  src="/app-icon.png"
+                  alt="CYBER-VACUUM Icon"
+                  className="w-full h-full object-cover rounded-lg group-hover:scale-110 transition-transform duration-300"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/icon.png';
+                  }}
+                />
+              </div>
+
+              {/* Exact Brand Wordmark */}
+              <CyberVacuumLogo size="custom" width={116} height={20} glow={true} />
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00ff66] border-2 border-black animate-ping" />
             </button>
 
             <button
               type="button"
-              onClick={() => setShowSplashScreen(true)}
+              onClick={() => {
+                setShowSplashScreen(true);
+                cyberAudio.playScanSweep();
+              }}
               className="hidden md:flex flex-col text-left cursor-pointer hover:opacity-90 transition-opacity"
-              title="Cliquer pour revoir le Splash Écran Natif"
+              title="Cliquer pour revoir le Splash Écran Plein Écran"
             >
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-black tracking-widest text-white font-mono whitespace-nowrap">
                   CYBER-VACUUM
                 </span>
-                <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/30 text-[#00ff66]">
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[#00ff66]">
                   PRO
                 </span>
               </div>
-              <span className="text-[9px] text-[#00ff66]/70 font-mono tracking-wider font-semibold">
+              <span className="text-[9px] text-[#00ff66]/80 font-mono tracking-wider font-semibold">
                 AI MATRIX DATA ENGINE
               </span>
             </button>

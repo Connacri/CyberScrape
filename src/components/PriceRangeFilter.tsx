@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cyberAudio } from '../utils/cyberAudio';
 
 export type CatalogSortOption =
   | 'recent'
@@ -70,6 +72,14 @@ export const PriceRangeFilter: React.FC<PriceRangeFilterProps> = ({
   const isFilterActive = minPrice !== '' || maxPrice !== '' || onlyDiscounted;
   const isDinar = selectedCurrency === 'DA' || selectedCurrency === 'all';
 
+  const handleSortChange = (newSort: CatalogSortOption, vocalLabel?: string) => {
+    cyberAudio.playClick();
+    onSortByChange(newSort);
+    if (vocalLabel) {
+      cyberAudio.speakSortApplied(vocalLabel);
+    }
+  };
+
   // Budget Presets tailored to market
   const presets: { label: string; min: number | ''; max: number | ''; desc?: string }[] = isDinar
     ? [
@@ -89,6 +99,7 @@ export const PriceRangeFilter: React.FC<PriceRangeFilterProps> = ({
       ];
 
   const handlePresetClick = (presetMin: number | '', presetMax: number | '') => {
+    cyberAudio.playClick();
     onMinPriceChange(presetMin);
     onMaxPriceChange(presetMax);
   };
@@ -108,7 +119,7 @@ export const PriceRangeFilter: React.FC<PriceRangeFilterProps> = ({
                   FILTRES AVANCÉS // PRIX & TRIS
                 </span>
                 {isFilterActive && (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-[10px] text-[#00ff88] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-[10px] text-[#00ff88] font-bold animate-pulse">
                     {filteredCount}/{totalProductsCount}
                   </span>
                 )}
@@ -132,65 +143,106 @@ export const PriceRangeFilter: React.FC<PriceRangeFilterProps> = ({
           </button>
         </div>
 
-        {/* Quick Sorting Cluster (Responsive wrap) */}
+        {/* Quick Sorting Cluster (Responsive wrap with Framer Motion springs) */}
         <div className="flex flex-wrap items-center gap-1.5">
           {/* Quick Sort: Date de mise à jour */}
-          <button
+          <motion.button
             type="button"
-            onClick={() => onSortByChange(sortBy === 'updated_desc' ? 'updated_asc' : 'updated_desc')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+            onClick={() => {
+              const next = sortBy === 'updated_desc' ? 'updated_asc' : 'updated_desc';
+              handleSortChange(next, next === 'updated_desc' ? 'date récente' : 'date ancienne');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold flex items-center gap-1 transition-all cursor-pointer relative ${
               sortBy === 'updated_desc' || sortBy === 'updated_asc'
-                ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
-                : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-emerald-500/25 text-[#00ff88] border border-emerald-400 shadow-[0_0_12px_rgba(0,255,102,0.25)] font-bold'
+                : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
             }`}
-            title="Trier par date de mise à jour la plus récente"
+            title="Trier par date de mise à jour la plus récente ou la plus ancienne"
           >
             <Clock className="w-3 h-3 text-emerald-400" />
-            <span>MàJ {sortBy === 'updated_asc' ? '↑ Ancien' : '↓ Récent'}</span>
-          </button>
+            <span>MàJ</span>
+            <motion.span
+              animate={{ rotate: sortBy === 'updated_asc' ? 180 : 0 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+              className="inline-block text-[10px]"
+            >
+              {sortBy === 'updated_asc' ? '↑ Ancien' : '↓ Récent'}
+            </motion.span>
+          </motion.button>
 
           {/* Quick Sort: Réduction % */}
-          <button
+          <motion.button
             type="button"
-            onClick={() => onSortByChange(sortBy === 'discount_desc' || sortBy === 'discount' ? 'discount_asc' : 'discount_desc')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+            onClick={() => {
+              const next = sortBy === 'discount_desc' || sortBy === 'discount' ? 'discount_asc' : 'discount_desc';
+              handleSortChange(next, next === 'discount_desc' ? 'forte remise' : 'faible remise');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold flex items-center gap-1 transition-all cursor-pointer relative ${
               sortBy === 'discount' || sortBy === 'discount_desc' || sortBy === 'discount_asc'
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.3)]'
-                : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-rose-500/25 text-rose-300 border border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.3)] font-bold'
+                : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
             }`}
             title="Trier par pourcentage de réduction"
           >
             <Flame className="w-3 h-3 text-rose-400" />
-            <span>Remise {sortBy === 'discount_asc' ? '↗ Min' : '↘ Max'}</span>
-          </button>
+            <span>Remise</span>
+            <motion.span
+              animate={{ rotate: sortBy === 'discount_asc' ? 180 : 0 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+              className="inline-block text-[10px]"
+            >
+              {sortBy === 'discount_asc' ? '↗ Min' : '↘ Max'}
+            </motion.span>
+          </motion.button>
 
           {/* Quick Sort: Prix Croissant / Décroissant */}
-          <button
+          <motion.button
             type="button"
-            onClick={() => onSortByChange(sortBy === 'price_asc' ? 'price_desc' : 'price_asc')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+            onClick={() => {
+              const next = sortBy === 'price_asc' ? 'price_desc' : 'price_asc';
+              handleSortChange(next, next === 'price_asc' ? 'prix croissant' : 'prix décroissant');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold flex items-center gap-1.5 transition-all cursor-pointer relative ${
               sortBy === 'price_asc' || sortBy === 'price_desc'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
-                : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400 shadow-[0_0_12px_rgba(0,240,255,0.3)] font-bold'
+                : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
             }`}
             title="Trier par prix croissant ou décroissant"
           >
             {sortBy === 'price_desc' ? (
-              <ArrowDownWideNarrow className="w-3 h-3 text-cyan-400" />
+              <ArrowDownWideNarrow className="w-3.5 h-3.5 text-cyan-400" />
             ) : (
-              <ArrowUpNarrowWide className="w-3 h-3 text-cyan-400" />
+              <ArrowUpNarrowWide className="w-3.5 h-3.5 text-cyan-400" />
             )}
-            <span>Prix {sortBy === 'price_desc' ? '↘ Cher' : '↗ Eco'}</span>
-          </button>
+            <span>Prix</span>
+            <span className="text-[10px] font-bold">
+              {sortBy === 'price_desc' ? '↘ Cher' : '↗ Eco'}
+            </span>
+          </motion.button>
 
           {/* Promotions Only Toggle */}
           {onToggleOnlyDiscounted && (
-            <button
+            <motion.button
               type="button"
-              onClick={onToggleOnlyDiscounted}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+              onClick={() => {
+                cyberAudio.playClick();
+                onToggleOnlyDiscounted();
+              }}
               className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                 onlyDiscounted
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                  ? 'bg-amber-500/25 text-amber-300 border border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)] font-bold'
                   : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
               }`}
               title="Afficher uniquement les articles ayant une réduction de prix"
@@ -198,20 +250,25 @@ export const PriceRangeFilter: React.FC<PriceRangeFilterProps> = ({
               <Flame className="w-3 h-3 text-amber-400" />
               <span>Promos %</span>
               {onlyDiscounted && <Check className="w-3 h-3 text-amber-400" />}
-            </button>
+            </motion.button>
           )}
 
           {/* Reset button */}
           {isFilterActive && (
-            <button
+            <motion.button
               type="button"
-              onClick={onResetPriceFilter}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                cyberAudio.playClick();
+                onResetPriceFilter();
+              }}
               className="px-2 py-1 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-300 hover:bg-rose-900/60 hover:text-white flex items-center gap-1 transition-all cursor-pointer text-xs"
               title="Réinitialiser tous les filtres"
             >
               <RotateCcw className="w-3 h-3" />
               <span className="hidden sm:inline">Effacer</span>
-            </button>
+            </motion.button>
           )}
         </div>
       </div>
