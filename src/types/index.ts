@@ -101,3 +101,14 @@ export interface AutoUpdateConfig {
   lastRun?: string;
   nextRun?: string;
 }
+
+export interface ScrapingQueueItem {
+  id: string;
+  url: string;
+  title: string;
+  category?: string;
+  status: 'queued' | 'active' | 'completed' | 'error';
+  itemsExtracted?: number;
+  addedAt: string;
+  error?: string;
+}
