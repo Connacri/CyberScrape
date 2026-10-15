@@ -1,5 +1,6 @@
-import { ScrapedProduct, SellerInfo } from '../types';
-import { getOuedknissOriginUrl } from './ouedknissUrls';
+import type { ScrapedProduct, SellerInfo } from '../types/index.ts';
+import { getOuedknissOriginUrl } from './ouedknissUrls.ts';
+import { getRandom69Wilaya } from '../data/algeriaWilayas.ts';
 
 // Algerian first names and store brandings
 const SELLER_NAMES = [
@@ -124,8 +125,6 @@ function hashString(str: string): number {
 /**
  * Generates rich seller information for any product
  */
-import { getRandom69Wilaya } from '../data/algeriaWilayas';
-
 export function generateSellerForProduct(
   productId: string,
   category: string = 'Général',

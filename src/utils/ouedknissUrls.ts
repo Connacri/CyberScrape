@@ -4,7 +4,7 @@
  * Powered by verified Vue Router mappings (/s?keywords= and /:category?keywords=)
  */
 
-import { ScrapedProduct } from '../types';
+import type { ScrapedProduct } from '../types/index.ts';
 
 /**
  * Cleans titles from internal procedurally generated prefixes, hashes, or overly verbose specs

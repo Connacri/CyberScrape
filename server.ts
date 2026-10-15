@@ -7,7 +7,7 @@ import {
   generateOuedknissItems,
   generateGenericItems,
   extractProductsFromHtml,
-  ScrapedRawItem,
+  type ScrapedRawItem,
 } from './src/server/catalogEngine.ts';
 import {
   OUEDKNISS_CATEGORIES,
@@ -33,7 +33,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Server-side Gemini initialization
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY || '',
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
@@ -251,9 +251,15 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
         },
       };
 
-      for (const model of candidateModels) {
-        try {
-          console.log(`[CYBER-VACUUM] Ingestion via model: ${model}...`);
+      if (!process.env.GEMINI_API_KEY) {
+        console.log('[CYBER-VACUUM] GEMINI_API_KEY is not set. Using Direct DOM engine.');
+        isFallbackMode = true;
+        fallbackNotice = "Clé GEMINI_API_KEY non configurée dans l'environnement. Bascule transparente sur le Moteur Direct DOM MK-IV.";
+        usedModel = 'DIRECT_DOM_ENGINE_MK4 (Failover auto)';
+      } else {
+        for (const model of candidateModels) {
+          try {
+            console.log(`[CYBER-VACUUM] Ingestion via model: ${model}...`);
           const geminiResponse = await ai.models.generateContent({
             model,
             contents: aiPrompt,
@@ -275,10 +281,11 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
         }
       }
 
-      if (rawItems.length === 0) {
-        isFallbackMode = true;
-        fallbackNotice = "IA Gemini temporairement indisponible (503). Bascule transparente sur le Moteur Direct DOM MK-IV.";
-        usedModel = 'DIRECT_DOM_ENGINE_MK4 (Failover auto)';
+        if (rawItems.length === 0) {
+          isFallbackMode = true;
+          fallbackNotice = "IA Gemini temporairement indisponible (503). Bascule transparente sur le Moteur Direct DOM MK-IV.";
+          usedModel = 'DIRECT_DOM_ENGINE_MK4 (Failover auto)';
+        }
       }
     }
 
