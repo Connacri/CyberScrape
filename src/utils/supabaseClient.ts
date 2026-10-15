@@ -210,6 +210,21 @@ export function clearStoredProducts() {
   }).catch(() => {});
 }
 
+/**
+ * Removes a single product from IndexedDB local storage immediately
+ */
+export async function deleteProductFromIndexedDB(id: string): Promise<void> {
+  const db = await openIndexedDb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    store.delete(id);
+  } catch (err) {
+    console.warn('[LocalDB] Delete error:', err);
+  }
+}
+
 let activeClient: SupabaseClient | null = null;
 let currentClientKey = '';
 

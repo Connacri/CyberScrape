@@ -42,6 +42,7 @@ import {
   buildWhatsAppLink,
 } from '../utils/sellerGenerator';
 import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
+import { cyberAudio } from '../utils/cyberAudio';
 
 interface ProductCatalogGridProps {
   products: ScrapedProduct[];
@@ -51,6 +52,7 @@ interface ProductCatalogGridProps {
   onOpenSupabaseModal: () => void;
   onRemoveCurrency?: (currency: string) => void;
   onClearAllProducts?: () => void;
+  onDeleteProduct?: (id: string) => void;
   discoveredCategories?: string[];
 }
 

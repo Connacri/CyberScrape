@@ -11,7 +11,9 @@
     --matrix-font: 'JetBrains Mono', 'Chakra Petch', monospace;
   }
 
-  body {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
     background-color: #030712;
     background-image: 
       radial-gradient(ellipse at 50% 0%, rgba(0, 255, 102, 0.08) 0%, transparent 60%),
@@ -21,6 +23,13 @@
     background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
     font-family: 'JetBrains Mono', 'Chakra Petch', monospace;
     min-height: 100vh;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Prevent text and elements from overflowing their parent containers on all screen sizes */
+  p, h1, h2, h3, h4, h5, h6, span, a, button, div, pre {
+    overflow-wrap: anywhere;
   }
 }
 
