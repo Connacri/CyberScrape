@@ -67,6 +67,16 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
     return () => clearInterval(timer);
   }, []);
 
+  // Memoized category counts map (O(N) single pass instead of O(N * 17))
+  const categoryCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (let i = 0; i < products.length; i++) {
+      const c = products[i].category;
+      if (c) map.set(c, (map.get(c) || 0) + 1);
+    }
+    return map;
+  }, [products]);
+
   // Filter & sort
   const filteredProducts = useMemo(() => {
     const query = titleSearch.trim().toLowerCase();
@@ -289,7 +299,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
         </button>
 
         {OUEDKNISS_CATEGORIES.map((cat) => {
-          const count = products.filter((p) => p.category === cat.name).length;
+          const count = categoryCounts.get(cat.name) || 0;
           const isSelected = selectedCategory === cat.name;
 
           return (

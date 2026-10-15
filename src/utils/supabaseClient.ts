@@ -109,33 +109,74 @@ export function getStoredProducts(): ScrapedProduct[] {
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let latestProductsRef: ScrapedProduct[] | null = null;
 
+let isFlushingDb = false;
+let pendingDbWriteQueue: ScrapedProduct[] | null = null;
+
 function flushProductsSync(products: ScrapedProduct[]) {
   if (typeof window === 'undefined') return;
 
-  // 1. Save lightweight preview slice (max 40 items) to LocalStorage for fast boot
+  // 1. Lightweight preview slice (max 20 items) and total count in LocalStorage
   try {
-    const previewSlice = products.slice(0, 40);
-    const serialized = JSON.stringify(previewSlice);
-    localStorage.setItem(STORAGE_KEY_PRODUCTS, serialized);
+    const previewSlice = products.slice(0, 20);
+    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(previewSlice));
     localStorage.setItem('cyber_vacuum_total_count', String(products.length));
   } catch {
-    // Quota reached or private mode; IndexedDB holds the authoritative database
+    // ignore
   }
 
-  // 2. Save asynchronously to IndexedDB in a single bulk transaction
+  // 2. Asynchronous non-blocking chunked writes to IndexedDB
+  pendingDbWriteQueue = products;
+  if (isFlushingDb) return;
+  isFlushingDb = true;
+
   openIndexedDb().then((db) => {
-    if (!db) return;
+    if (!db) {
+      isFlushingDb = false;
+      return;
+    }
+
+    const itemsToWrite = pendingDbWriteQueue || products;
+    pendingDbWriteQueue = null;
+
     try {
       const tx = db.transaction(IDB_STORE, 'readwrite');
       const store = tx.objectStore(IDB_STORE);
-      // Batch write items
-      for (let i = 0; i < products.length; i++) {
-        store.put(products[i]);
+      
+      let idx = 0;
+      const CHUNK = 100;
+
+      function writeNextChunk() {
+        if (!store || idx >= itemsToWrite.length) {
+          isFlushingDb = false;
+          if (pendingDbWriteQueue) {
+            flushProductsSync(pendingDbWriteQueue);
+          }
+          return;
+        }
+
+        const limit = Math.min(idx + CHUNK, itemsToWrite.length);
+        for (; idx < limit; idx++) {
+          store.put(itemsToWrite[idx]);
+        }
+
+        if (idx < itemsToWrite.length) {
+          if (typeof requestIdleCallback !== 'undefined') {
+            requestIdleCallback(writeNextChunk, { timeout: 100 });
+          } else {
+            setTimeout(writeNextChunk, 16);
+          }
+        } else {
+          isFlushingDb = false;
+        }
       }
+
+      writeNextChunk();
     } catch {
-      // Ignore background write errors
+      isFlushingDb = false;
     }
-  }).catch(() => {});
+  }).catch(() => {
+    isFlushingDb = false;
+  });
 }
 
 // Hook page unload to flush any pending write immediately

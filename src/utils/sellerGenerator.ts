@@ -265,8 +265,15 @@ export function generateGalleryImages(primaryImage: string, seed: number): strin
  * Ensures any product has complete seller and announcement details
  */
 export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
+  if (product.seller) {
+    if (!product.productUrl || (product.sourceDomain.includes('ouedkniss') && !product.productUrl.includes('keywords='))) {
+      product.productUrl = getOuedknissOriginUrl(product);
+    }
+    return product;
+  }
+
   const seed = hashString(product.id || product.title);
-  const seller = product.seller || generateSellerForProduct(product.id, product.category, product.specs?.Wilaya);
+  const seller = generateSellerForProduct(product.id, product.category, product.specs?.Wilaya);
   const description = product.description || generateAnnouncementDescription(product, seller);
   const images = product.images && product.images.length > 0
     ? product.images
@@ -276,16 +283,15 @@ export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
   const priceType = product.priceType || (product.discountPercent > 0 ? 'Négociable' : 'Fixe');
   const verifiedLiveUrl = getOuedknissOriginUrl(product);
 
-  return {
-    ...product,
-    productUrl: verifiedLiveUrl,
-    seller,
-    description,
-    images,
-    publishedDate,
-    priceType,
-    deliveryAvailable: product.deliveryAvailable ?? true,
-  };
+  product.seller = seller;
+  product.description = description;
+  product.images = images;
+  product.publishedDate = publishedDate;
+  product.priceType = priceType;
+  product.deliveryAvailable = product.deliveryAvailable ?? true;
+  product.productUrl = verifiedLiveUrl;
+
+  return product;
 }
 
 /**
