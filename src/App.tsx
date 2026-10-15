@@ -1154,7 +1154,7 @@ export default function App() {
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
 
-  // Products State with full persistence strategy from IndexedDB & LocalStorage (Zero fake items on startup!)
+  // Products State with full persistence strategy from IndexedDB & LocalStorage
   const [products, setProducts] = useState<ScrapedProduct[]>(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -1170,7 +1170,11 @@ export default function App() {
       console.warn('Failed to parse products from localStorage on initial load:', err);
     }
     const cached = getStoredProducts();
-    return cached; // Zero fake demo list: starts pure and empty until user scrapes!
+    if (cached && cached.length > 0) {
+      return cached;
+    }
+    // Si premier lancement après installation APK, charger le seed officiel Ouedkniss
+    return INITIAL_DEMO_PRODUCTS;
   });
 
   // Hydrate full real dataset from IndexedDB on startup
@@ -1178,6 +1182,9 @@ export default function App() {
     loadStoredProductsFromIndexedDB().then((stored) => {
       if (stored && stored.length > 0) {
         setProducts(stored);
+      } else {
+        // Premier lancement APK : persister le catalogue initial dans IndexedDB locale
+        saveStoredProducts(INITIAL_DEMO_PRODUCTS, true);
       }
     });
   }, []);

@@ -263,23 +263,43 @@ export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultR
   };
 }
 
-// Detection of static hosting environments like GitHub Pages (where no Node.js backend exists)
+// Detection of static hosting environments like Android APK or GitHub Pages (where no Node.js backend exists)
 let isServerAvailable: boolean | null = null;
 
 export function checkIsStaticHost(): boolean {
   if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
-  return host.includes('github.io') || window.location.protocol === 'file:';
+  const host = (window.location.hostname || '').toLowerCase();
+  const protocol = (window.location.protocol || '').toLowerCase();
+
+  // 1. Android APK WebView (WebViewAssetLoader: appassets.androidplatform.net, file://, custom schemes)
+  const isAndroidOrApp =
+    host.includes('androidplatform.net') ||
+    protocol === 'file:' ||
+    protocol === 'content:' ||
+    protocol === 'capacitor:' ||
+    protocol === 'ionic:' ||
+    ((host === 'localhost' || host === '127.0.0.1' || !host) &&
+      typeof navigator !== 'undefined' &&
+      /android|mobile|wv/i.test(navigator.userAgent));
+
+  // 2. Static hostings without a custom Node.js server
+  const isStaticHosting =
+    host.includes('github.io') ||
+    host.includes('surge.sh') ||
+    host.includes('firebaseapp.com') ||
+    host.includes('web.app');
+
+  return isAndroidOrApp || isStaticHosting;
 }
 
 /**
  * Universal Scrape Dispatcher:
- * 1. If running on GitHub Pages (static host) or server is known to be offline,
+ * 1. If running inside the Android APK (appassets.androidplatform.net), GitHub Pages, or serverless host,
  *    executes the browser-based engine instantly (0 ms latency, 0 failed network requests).
- * 2. Otherwise attempts server endpoint `/api/scrape`, with seamless failover to client-side.
+ * 2. Otherwise attempts server endpoint `/api/scrape` with rapid 4s failover to client-side.
  */
 export async function executeScrapeRequest(params: ScrapeRequestParams): Promise<ScrapeResultResponse> {
-  // If static environment or known serverless host, run browser engine directly
+  // If static environment, Android APK, or known serverless host, run browser engine directly
   if (checkIsStaticHost() || isServerAvailable === false) {
     return runClientSideScraper(params);
   }
@@ -288,7 +308,8 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+    // Fast 4s timeout so APK / mobile connections fail over instantly without hanging
+    const timeout = setTimeout(() => controller.abort(), 4000);
 
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -310,9 +331,12 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
         }));
         return data;
       }
+    } else {
+      isServerAvailable = false;
     }
   } catch (err) {
-    console.warn('[CYBER-VACUUM] Server endpoint failed, falling back to client-side engine:', err);
+    console.warn('[CYBER-VACUUM] Server endpoint failed, falling back permanently to client-side engine:', err);
+    isServerAvailable = false;
   }
 
   // Transparent, instant client-side execution if server call failed or returned empty
@@ -332,7 +356,7 @@ export async function executeSimulatePriceUpdate(products: ScrapedProduct[]): Pr
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 3500);
 
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -349,9 +373,12 @@ export async function executeSimulatePriceUpdate(products: ScrapedProduct[]): Pr
       if (data && Array.isArray(data.products)) {
         return data.products;
       }
+    } else {
+      isServerAvailable = false;
     }
   } catch (err) {
     console.warn('[CYBER-VACUUM] Server price simulation unavailable, running client simulation:', err);
+    isServerAvailable = false;
   }
 
   return simulateClientPriceFluctuations(products);

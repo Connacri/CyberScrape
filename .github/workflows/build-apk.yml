@@ -322,6 +322,31 @@ jobs:
                       }
 
                       @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                          Uri uri = request.getUrl();
+                          String scheme = uri.getScheme();
+                          if (scheme != null && (scheme.equals("tel") || scheme.equals("sms") || scheme.equals("mailto") || scheme.equals("whatsapp"))) {
+                              try {
+                                  android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, uri);
+                                  startActivity(intent);
+                                  return true;
+                              } catch (Exception ignored) {
+                                  return true;
+                              }
+                          }
+                          if (uri.getHost() != null && !uri.getHost().equals("appassets.androidplatform.net")) {
+                              try {
+                                  android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, uri);
+                                  startActivity(intent);
+                                  return true;
+                              } catch (Exception ignored) {
+                                  return false;
+                              }
+                          }
+                          return false;
+                      }
+
+                      @Override
                       public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                           android.util.Log.e("CyberVacuum", "WebView error: " + description + " at " + failingUrl);
                       }
