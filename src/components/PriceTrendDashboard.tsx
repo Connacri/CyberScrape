@@ -110,7 +110,7 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
 
   const activeCurrency = activeProduct?.currency || 'DA';
   const isLargeCurrency = activeCurrency.toUpperCase() === 'DA' || maxPrice > 9999;
-  const paddingLeft = isLargeCurrency ? 64 : 44;
+  const paddingLeft = isLargeCurrency ? 72 : 44;
   const paddingRight = 24;
   const paddingTop = 22;
   const paddingBottom = 32;
@@ -171,38 +171,42 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 min-w-0">
         {/* Metric 1: Total Aspirated */}
-        <div className="p-3.5 sm:p-4 rounded-xl bg-slate-950/80 border border-emerald-500/30 backdrop-blur-md relative overflow-hidden group hover:border-emerald-400 transition-all min-w-0">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
-            <span className="uppercase tracking-wider font-semibold truncate">Catalogue</span>
-            <Package className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-950/85 border border-emerald-500/30 backdrop-blur-md relative overflow-hidden group hover:border-emerald-400 transition-all min-w-0 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-mono mb-1 gap-1">
+              <span className="uppercase tracking-wider font-semibold truncate">Catalogue</span>
+              <Package className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            </div>
+            <div className="text-lg sm:text-2xl font-black font-mono text-[#00ff66] truncate mt-0.5">
+              {metrics.totalProducts.toLocaleString('fr-FR')}
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-black font-mono text-[#00ff66] truncate mt-0.5">
-            {metrics.totalProducts.toLocaleString('fr-FR')}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 font-mono truncate">
+          <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 flex items-center gap-1 font-mono truncate">
             <span className="text-emerald-400 font-semibold truncate">{metrics.inStockCount} en stock</span>
-            <span className="shrink-0">({metrics.inStockRate.toFixed(0)}%)</span>
+            <span className="shrink-0 text-slate-500">({metrics.inStockRate.toFixed(0)}%)</span>
           </div>
         </div>
 
         {/* Metric 2: Price Average */}
-        <div className="p-3.5 sm:p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30 backdrop-blur-md relative overflow-hidden group hover:border-cyan-400 transition-all min-w-0">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
-            <span className="uppercase tracking-wider font-semibold truncate">Prix Moyen</span>
-            <DollarSign className="w-4 h-4 text-cyan-400 shrink-0" />
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-950/85 border border-cyan-500/30 backdrop-blur-md relative overflow-hidden group hover:border-cyan-400 transition-all min-w-0 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-mono mb-1 gap-1">
+              <span className="uppercase tracking-wider font-semibold truncate">Prix Moyen</span>
+              <DollarSign className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            </div>
+            <div
+              className="text-base sm:text-xl lg:text-2xl font-black font-mono text-cyan-300 truncate mt-0.5"
+              title={formatExactCurrency(metrics.avgPrice, activeCurrency)}
+            >
+              {formatCompactCurrency(metrics.avgPrice, activeCurrency)}
+            </div>
           </div>
           <div
-            className="text-lg sm:text-xl lg:text-2xl font-black font-mono text-cyan-300 truncate mt-0.5"
-            title={formatExactCurrency(metrics.avgPrice, activeCurrency)}
-          >
-            {formatCompactCurrency(metrics.avgPrice, activeCurrency)}
-          </div>
-          <div
-            className="text-[11px] text-slate-400 mt-1 font-mono truncate"
+            className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 font-mono truncate"
             title={`Total: ${formatExactCurrency(metrics.totalValuation, activeCurrency)}`}
           >
             Total: <span className="text-slate-300 font-bold">{formatCompactCurrency(metrics.totalValuation, activeCurrency)}</span>
@@ -210,44 +214,48 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
         </div>
 
         {/* Metric 3: Best Price Drop */}
-        <div className="p-3.5 sm:p-4 rounded-xl bg-slate-950/80 border border-rose-500/30 backdrop-blur-md relative overflow-hidden group hover:border-rose-400 transition-all min-w-0">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
-            <span className="uppercase tracking-wider font-semibold truncate">Rabais Max</span>
-            <TrendingDown className="w-4 h-4 text-rose-400 shrink-0" />
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-950/85 border border-rose-500/30 backdrop-blur-md relative overflow-hidden group hover:border-rose-400 transition-all min-w-0 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-mono mb-1 gap-1">
+              <span className="uppercase tracking-wider font-semibold truncate">Rabais Max</span>
+              <TrendingDown className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            </div>
+            <div className="text-lg sm:text-2xl lg:text-3xl font-black font-mono text-rose-400 truncate mt-0.5">
+              -{metrics.maxDiscount}%
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-black font-mono text-rose-400 truncate mt-0.5">
-            -{metrics.maxDiscount}%
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1 font-mono truncate">
+          <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 font-mono truncate">
             {metrics.priceDropsCount} avec baisse
           </div>
         </div>
 
         {/* Metric 4: Auto-Update Engine Status */}
-        <div className="p-3.5 sm:p-4 rounded-xl bg-slate-950/80 border border-amber-500/30 backdrop-blur-md relative overflow-hidden group hover:border-amber-400 transition-all min-w-0">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
-            <span className="uppercase tracking-wider font-semibold truncate">MàJ Auto</span>
-            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+        <div className="p-3 sm:p-4 rounded-xl bg-slate-950/85 border border-amber-500/30 backdrop-blur-md relative overflow-hidden group hover:border-amber-400 transition-all min-w-0 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-mono mb-1 gap-1">
+              <span className="uppercase tracking-wider font-semibold truncate">MàJ Auto</span>
+              <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <span
+                className={`text-[10px] sm:text-xs font-bold font-mono px-2 py-0.5 rounded truncate ${
+                  autoUpdate.enabled
+                    ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700'
+                }`}
+              >
+                {autoUpdate.enabled ? `ACTIVE (${autoUpdate.intervalMinutes}m)` : 'DÉSACTIVÉ'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-            <span
-              className={`text-[11px] sm:text-xs font-bold font-mono px-2 py-0.5 rounded truncate ${
-                autoUpdate.enabled
-                  ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40'
-                  : 'bg-slate-800 text-slate-400 border border-slate-700'
-              }`}
-            >
-              {autoUpdate.enabled ? `ACTIVE (${autoUpdate.intervalMinutes}m)` : 'DÉSACTIVÉ'}
-            </span>
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1.5 font-mono flex flex-wrap items-center justify-between gap-1 min-w-0">
+          <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 font-mono flex items-center justify-between gap-1 min-w-0">
             <span className="shrink-0">Freq:</span>
             <div className="flex gap-1 shrink-0">
               {[1, 5, 15].map((m) => (
                 <button
                   key={m}
                   onClick={() => onChangeInterval(m)}
-                  className={`px-2 py-0.5 text-[11px] rounded font-bold cursor-pointer transition-colors ${
+                  className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] rounded font-bold cursor-pointer transition-colors ${
                     autoUpdate.intervalMinutes === m
                       ? 'bg-amber-400 text-black shadow'
                       : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
@@ -257,34 +265,33 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
                 </button>
               ))}
             </div>
-          </div>
         </div>
       </div>
 
       {/* Main Trends Visualizer Card */}
-      <div className="p-4 lg:p-6 rounded-2xl bg-slate-950/80 border border-emerald-500/30 backdrop-blur-md shadow-2xl min-w-0 overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-emerald-500/20 min-w-0">
+      <div className="p-3.5 sm:p-5 lg:p-6 rounded-2xl bg-slate-950/85 border border-emerald-500/30 backdrop-blur-md shadow-2xl min-w-0 overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3.5 sm:pb-4 border-b border-emerald-500/20 min-w-0">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0" />
-              <h3 className="font-mono text-sm sm:text-base font-bold text-white tracking-wide uppercase truncate">
+              <h3 className="font-mono text-xs sm:text-sm md:text-base font-bold text-white tracking-wide uppercase break-words">
                 Analyse & Courbes des Tendances de Prix
               </h3>
             </div>
-            <p className="text-xs text-slate-400 font-mono mt-0.5 truncate">
+            <p className="text-[11px] sm:text-xs text-slate-400 font-mono mt-0.5 break-words">
               Historique temporel, détection des baisses flash et prédictions algorithmiques
             </p>
           </div>
 
           {/* Controls: Product selector, Time range, Manual Refresh */}
-          <div className="flex flex-wrap items-center gap-2 font-mono text-xs w-full md:w-auto shrink-0">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-xs w-full lg:w-auto shrink-0 min-w-0">
             {/* Product selection */}
             {products.length > 0 && (
               <select
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
                 aria-label="Sélectionner un produit pour analyser ses prix"
-                className="w-full sm:w-auto bg-slate-900 border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-emerald-300 focus:outline-none focus:border-emerald-400 max-w-full sm:max-w-[220px] truncate min-h-[36px] cursor-pointer font-bold"
+                className="w-full sm:w-auto bg-slate-900 border border-emerald-500/30 rounded-xl px-2.5 sm:px-3 py-2 text-xs text-emerald-300 focus:outline-none focus:border-emerald-400 max-w-full sm:max-w-[210px] truncate min-h-[36px] cursor-pointer font-bold"
               >
                 {products.map((p) => (
                   <option key={p.id} value={p.id} className="bg-slate-950 text-slate-200">
@@ -295,12 +302,12 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
             )}
 
             {/* Time range buttons */}
-            <div className="flex rounded-xl bg-slate-900 border border-slate-800 p-0.5">
+            <div className="flex rounded-xl bg-slate-900 border border-slate-800 p-0.5 shrink-0">
               {(['24h', '7d', '30d', 'all'] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-mono uppercase transition-colors cursor-pointer min-h-[34px] ${
+                  className={`px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-mono uppercase transition-colors cursor-pointer min-h-[34px] ${
                     timeRange === range
                       ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 font-bold'
                       : 'text-slate-400 hover:text-slate-200'
@@ -314,7 +321,7 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
             {/* Auto-update toggle & trigger */}
             <button
               onClick={onToggleAutoUpdate}
-              className={`px-2.5 py-1.5 rounded-lg border font-mono text-xs flex items-center gap-1.5 transition-all ${
+              className={`px-2.5 py-1.5 rounded-lg border font-mono text-xs flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                 autoUpdate.enabled
                   ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                   : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'
@@ -327,7 +334,7 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
             <button
               onClick={onTriggerUpdate}
               disabled={isUpdating || products.length === 0}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 disabled:opacity-40 whitespace-nowrap cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 disabled:opacity-40 whitespace-nowrap cursor-pointer shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isUpdating ? 'animate-spin' : ''}`} />
               <span>Actualiser</span>
@@ -338,11 +345,11 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
         {/* Selected Product Banner */}
         {activeProduct && (
           <div className="mt-4 p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs min-w-0 overflow-hidden">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
               <img
                 src={activeProduct.imageUrl}
                 alt={activeProduct.title}
-                className="w-11 h-11 object-cover rounded-lg bg-slate-800 border border-slate-700 flex-shrink-0"
+                className="w-11 h-11 object-cover rounded-lg bg-slate-800 border border-slate-700 shrink-0"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src =
                     'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=60';
@@ -352,24 +359,32 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
                 <h4 className="font-bold text-slate-100 truncate block text-xs sm:text-sm" title={activeProduct.title}>
                   {activeProduct.title}
                 </h4>
-                <div className="flex items-center gap-2 text-[11px] text-slate-400 truncate mt-0.5">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] sm:text-[11px] text-slate-400 truncate mt-0.5">
                   <span className="text-cyan-400 font-semibold truncate max-w-[140px] sm:max-w-[200px]">{activeProduct.category}</span>
                   <span className="shrink-0">•</span>
-                  <span className="truncate shrink-0">Source: {activeProduct.sourceDomain}</span>
+                  <span className="truncate">Source: {activeProduct.sourceDomain}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
-              <div className="text-left sm:text-right">
-                <span className="block text-[10px] text-slate-400 uppercase font-semibold">PRIX ACTUEL</span>
-                <span className="text-base sm:text-lg font-black text-[#00ff66] truncate block">
+            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800 min-w-0">
+              <div className="text-left sm:text-right min-w-0">
+                <span className="block text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">PRIX ACTUEL</span>
+                <span className="text-sm sm:text-base lg:text-lg font-black text-[#00ff66] truncate block">
                   {formatExactCurrency(activeProduct.currentPrice, activeProduct.currency)}
                 </span>
               </div>
               {activeProduct.discountPercent > 0 && (
-                <div className="text-right">
-                  <span className="block text-[10px] text-slate-400 uppercase font-semibold">PRIX INITIAL</span>
+                <div className="text-right min-w-0">
+                  <span className="block text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">PRIX INITIAL</span>
+                  <span className="text-xs sm:text-sm line-through text-slate-500 truncate block">
+                    {formatExactCurrency(activeProduct.originalPrice, activeProduct.currency)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
                   <span className="text-xs sm:text-sm line-through text-slate-500 truncate block">
                     {formatExactCurrency(activeProduct.originalPrice, activeProduct.currency)}
                   </span>

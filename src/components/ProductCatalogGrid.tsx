@@ -928,12 +928,12 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                       <motion.tr
                         key={p.id}
                         layout="position"
-                        initial={{ opacity: 0, y: 16 }}
+                        initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, transition: { duration: 0.15 } }}
                         transition={{
-                          duration: 0.28,
-                          ease: 'easeOut',
+                          duration: 0.35,
+                          ease: [0.16, 1, 0.3, 1],
                           delay: Math.min((index % 12) * 0.025, 0.25),
                         }}
                         className="hover:bg-slate-900/40 transition-colors cursor-pointer group"
@@ -1199,20 +1199,26 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     const isSyncing = syncingId === det.id;
     const wilaya = seller.wilaya || det.specs?.Wilaya;
 
+    // Stagger delay based on position for a progressive wave fade-in
+    const staggerDelay = Math.min((index % 12) * 0.045, 0.45);
+
     return (
       <motion.div
         key={det.id}
         layout="position"
-        initial={{ opacity: 0, y: 24, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
+        initial={{ opacity: 0, y: 26, scale: 0.95, filter: 'blur(3px)' }}
+        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+        exit={{ opacity: 0, scale: 0.94, filter: 'blur(2px)', transition: { duration: 0.18 } }}
         transition={{
-          duration: 0.38,
-          ease: [0.22, 1, 0.36, 1],
-          delay: Math.min((index % 8) * 0.035, 0.25),
+          duration: 0.45,
+          ease: [0.16, 1, 0.3, 1],
+          delay: staggerDelay,
         }}
         onClick={() => setSelectedDetailProduct(det)}
-        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3.5 transition-colors duration-300 flex flex-col justify-between hover:shadow-[0_0_25px_rgba(0,255,102,0.18)] overflow-hidden cursor-pointer will-change-transform"
+        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3.5 transition-colors duration-300 flex flex-col justify-between hover:shadow-[0_0_25px_rgba(0,255,102,0.18)] overflow-hidden cursor-pointer will-change-transform animate-card-fade-in"
+        style={{
+          animationDelay: `${staggerDelay}s`,
+        }}
       >
         {/* Cyber corner accents */}
         <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-emerald-500/30 group-hover:border-emerald-400 transition-colors" />
@@ -1388,17 +1394,25 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     const hasDiscount = det.discountPercent > 0;
     const isSyncing = syncingId === det.id;
     const wilaya = seller.wilaya || det.specs?.Wilaya;
+    const staggerDelay = Math.min((index % 12) * 0.035, 0.35);
 
     return (
       <motion.div
         key={det.id}
         layout="position"
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96 }}
-        transition={{ duration: 0.3, delay: Math.min((index % 10) * 0.025, 0.2) }}
+        initial={{ opacity: 0, y: 18, scale: 0.97, filter: 'blur(2px)' }}
+        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+        exit={{ opacity: 0, scale: 0.95, filter: 'blur(2px)', transition: { duration: 0.18 } }}
+        transition={{
+          duration: 0.4,
+          ease: [0.16, 1, 0.3, 1],
+          delay: staggerDelay,
+        }}
         onClick={() => setSelectedDetailProduct(det)}
-        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3 sm:p-4 transition-colors duration-300 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 hover:shadow-[0_0_20px_rgba(0,255,102,0.15)] cursor-pointer"
+        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3 sm:p-4 transition-colors duration-300 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 hover:shadow-[0_0_20px_rgba(0,255,102,0.15)] cursor-pointer will-change-transform animate-card-fade-in"
+        style={{
+          animationDelay: `${staggerDelay}s`,
+        }}
       >
         <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
           {/* Square Image Thumbnail */}
