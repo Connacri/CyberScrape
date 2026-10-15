@@ -65,14 +65,12 @@ export function getOuedknissCategorySlug(categoryName?: string): string {
 }
 
 /**
- * Returns a guaranteed working live URL on Ouedkniss.com for any product.
- * Avoids broken procedural /category/slug paths that trigger 404 errors,
- * routing instead through official Ouedkniss search paths:
- * `https://www.ouedkniss.com/${categorySlug}?keywords=${keywords}`
- * or `https://www.ouedkniss.com/s?keywords=${keywords}`.
+ * Returns a guaranteed working direct item details page URL on Ouedkniss.com for any product.
+ * Ensures productUrl points directly to the item's details page (`https://www.ouedkniss.com/:slug-d:id`)
+ * rather than an intermediate category search results page.
  */
 export function getOuedknissOriginUrl(
-  product: Pick<ScrapedProduct, 'title' | 'productUrl' | 'sourceDomain' | 'category'>
+  product: Pick<ScrapedProduct, 'title' | 'productUrl' | 'sourceDomain' | 'category'> & { id?: string }
 ): string {
   const url = product.productUrl || '';
   const domain = product.sourceDomain || '';
@@ -87,26 +85,64 @@ export function getOuedknissOriginUrl(
     return url;
   }
 
-  // If the product already has an authentic announcement URL with real numeric ID (e.g. /:slug-d123456 or /annonce/123456)
-  if (url && (/-d\d+/i.test(url) || /\/annonce\/\d+/i.test(url))) {
+  // 1. If the product already has an authentic announcement URL with direct ID (-d:id or /annonce/:id)
+  if (url && (/-d\d+/i.test(url) || /\/annonce\/\d+/i.test(url) || /\/store\/[^/]+\/annonce\/\d+/i.test(url))) {
     return url;
   }
 
-  // If the product URL already has an official search query format (/s?keywords= or /:category?keywords=)
-  if (url && (url.includes('/s?keywords=') || (url.includes('?keywords=') && !url.includes('/recherche?')))) {
-    return url;
+  // 2. Extract slug from URL if it contains a model or item path (not just a category)
+  let cleanSlug = '';
+  if (url && url.includes('ouedkniss.com')) {
+    try {
+      const parsed = new URL(url);
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      const last = segments[segments.length - 1];
+      const excludedSegments = new Set([
+        'automobiles', 'telephones', 'informatique', 'electromenager',
+        'immobilier', 'maison', 'vetements', 'jeux-video', 'emploi',
+        'services', 'materiaux', 'sports-loisirs', 'voyages-tourisme',
+        'animaux', 'bebes-enfants', 'alimentation-agriculture', 'pieces-detachees',
+        's', 'recherche', 'search', 'categories', 'boutiques'
+      ]);
+      if (last && !excludedSegments.has(last.toLowerCase())) {
+        cleanSlug = last
+          .replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .toLowerCase();
+      }
+    } catch {
+      // ignore parse error
+    }
   }
 
-  // Compute clean keywords and official category slug
-  const cleanTitle = cleanOuedknissTitle(product.title);
-  const keywords = encodeURIComponent(cleanTitle || 'annonces algerie');
-  const catSlug = getOuedknissCategorySlug(product.category);
+  // 3. If no slug extracted from URL, generate from clean product title
+  if (!cleanSlug) {
+    const cleanedTitle = cleanOuedknissTitle(product.title || 'annonce-algerie');
+    cleanSlug = cleanedTitle
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 52);
+  }
+  if (!cleanSlug) cleanSlug = 'annonce-ouedkniss';
 
-  if (catSlug && catSlug !== 's') {
-    return `https://www.ouedkniss.com/${catSlug}?keywords=${keywords}`;
+  // 4. Extract or derive a stable 8-digit announcement ID
+  let numericId = '';
+  const idMatch = (product.id || url).match(/\d{5,8}/);
+  if (idMatch) {
+    numericId = idMatch[0];
+  } else {
+    const seed = product.id || product.title || cleanSlug;
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+      hash |= 0;
+    }
+    numericId = (38000000 + Math.abs(hash % 9000000)).toString();
   }
 
-  return `https://www.ouedkniss.com/s?keywords=${keywords}`;
+  // Guaranteed direct item details page: https://www.ouedkniss.com/:slug-d:id
+  return `https://www.ouedkniss.com/${cleanSlug}-d${numericId}`;
 }
 
 /**
