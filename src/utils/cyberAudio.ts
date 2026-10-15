@@ -1,19 +1,38 @@
 /**
- * Cybernetic Sci-Fi Sound Synthesizer via Web Audio API.
- * High-definition procedural audio engine - futuristic sci-fi sound design.
+ * CYBER-VACUUM // Procedural Sci-Fi Synthesizer via Web Audio API.
+ * High-definition procedural audio engine - pure futuristic sci-fi sound design.
+ * Features: FM synthesis, resonant filter sweeps, quantum vacuum vortices,
+ * holographic tactile clicks, and crystal arpeggios.
  */
 class CyberAudioSynth {
   private ctx: AudioContext | null = null;
+  private masterCompressor: DynamicsCompressorNode | null = null;
+  private masterGain: GainNode | null = null;
   public isMuted: boolean = false;
   private lastItemSoundTime: number = 0;
 
   private initContext(): AudioContext | null {
-    if (!this.ctx && typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return null;
+
+    if (!this.ctx) {
       const AudioCtx =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
+        // Master dynamics compressor to give that cinematic, punchy, sci-fi punch
+        this.masterCompressor = this.ctx.createDynamicsCompressor();
+        this.masterCompressor.threshold.setValueAtTime(-18, this.ctx.currentTime);
+        this.masterCompressor.knee.setValueAtTime(12, this.ctx.currentTime);
+        this.masterCompressor.ratio.setValueAtTime(6, this.ctx.currentTime);
+        this.masterCompressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+        this.masterCompressor.release.setValueAtTime(0.15, this.ctx.currentTime);
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+
+        this.masterCompressor.connect(this.masterGain);
+        this.masterGain.connect(this.ctx.destination);
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
@@ -22,78 +41,237 @@ class CyberAudioSynth {
     return this.ctx;
   }
 
+  private getDestination(): AudioNode | null {
+    if (!this.ctx) return null;
+    return this.masterCompressor || this.ctx.destination;
+  }
+
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     if (!this.isMuted) {
       this.initContext();
-      this.playChirp(880, 0.05);
+      this.playHoloTap();
     }
     return this.isMuted;
   }
 
-  // Futuristic Quantum Vortex Suction (Sub-bass rumble + resonant hypersonic sweep)
+  /**
+   * Generates a brief burst of filtered white noise for plasma / air rush effects
+   */
+  private createNoiseBuffer(ctx: AudioContext, duration: number): AudioBuffer {
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    let lastOut = 0.0;
+    for (let i = 0; i < bufferSize; i++) {
+      // Brown/Pink filtered noise curve for warmer, deeper sci-fi air sound
+      const white = Math.random() * 2 - 1;
+      lastOut = (lastOut + 0.02 * white) / 1.02;
+      data[i] = lastOut * 3.5;
+    }
+    return buffer;
+  }
+
+  /**
+   * 1. Futuristic Quantum Vortex Suction
+   * Combines sweeping plasma noise, descending sub-harmonic gravity drop,
+   * and hypersonic resonant laser sweep.
+   */
   public playVacuumSuck() {
     if (this.isMuted) return;
     const ctx = this.initContext();
-    if (!ctx) return;
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
 
     try {
       const now = ctx.currentTime;
 
-      // 1. Hypersonic descending saw
-      const osc = ctx.createOscillator();
-      const filter = ctx.createBiquadFilter();
-      const gain = ctx.createGain();
+      // Layer A: Sweeping plasma wind / vortex air rush
+      const noiseBuffer = this.createNoiseBuffer(ctx, 0.45);
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(680, now);
-      osc.frequency.exponentialRampToValueAtTime(45, now + 0.42);
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.setValueAtTime(2400, now);
+      noiseFilter.frequency.exponentialRampToValueAtTime(140, now + 0.42);
+      noiseFilter.Q.setValueAtTime(6.0, now);
 
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1800, now);
-      filter.frequency.exponentialRampToValueAtTime(120, now + 0.42);
-      filter.Q.setValueAtTime(4.5, now);
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.01, now);
+      noiseGain.gain.linearRampToValueAtTime(0.28, now + 0.08);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      noiseSource.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(dest);
+      noiseSource.start(now);
+      noiseSource.stop(now + 0.46);
 
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
+      // Layer B: Hypersonic descending sci-fi warp saw
+      const saw = ctx.createOscillator();
+      const sawFilter = ctx.createBiquadFilter();
+      const sawGain = ctx.createGain();
 
-      osc.start(now);
-      osc.stop(now + 0.46);
+      saw.type = 'sawtooth';
+      saw.frequency.setValueAtTime(880, now);
+      saw.frequency.exponentialRampToValueAtTime(65, now + 0.42);
 
-      // 2. Sub-bass warp pulse
+      sawFilter.type = 'lowpass';
+      sawFilter.frequency.setValueAtTime(2800, now);
+      sawFilter.frequency.exponentialRampToValueAtTime(180, now + 0.42);
+      sawFilter.Q.setValueAtTime(5.0, now);
+
+      sawGain.gain.setValueAtTime(0.18, now);
+      sawGain.gain.exponentialRampToValueAtTime(0.001, now + 0.44);
+
+      saw.connect(sawFilter);
+      sawFilter.connect(sawGain);
+      sawGain.connect(dest);
+
+      saw.start(now);
+      saw.stop(now + 0.45);
+
+      // Layer C: Sub-bass 55Hz -> 28Hz gravity well drop
       const sub = ctx.createOscillator();
       const subGain = ctx.createGain();
       sub.type = 'sine';
-      sub.frequency.setValueAtTime(130, now);
-      sub.frequency.exponentialRampToValueAtTime(32, now + 0.45);
+      sub.frequency.setValueAtTime(75, now);
+      sub.frequency.exponentialRampToValueAtTime(28, now + 0.45);
 
-      subGain.gain.setValueAtTime(0.3, now);
-      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      subGain.gain.setValueAtTime(0.35, now);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
 
       sub.connect(subGain);
-      subGain.connect(ctx.destination);
+      subGain.connect(dest);
 
       sub.start(now);
-      sub.stop(now + 0.46);
+      sub.stop(now + 0.47);
     } catch {
-      // Ignore audio glitches
+      // Audio fallback
     }
   }
 
-  // Product Aspirated Chime: Futuristic holographic quantum chime with dual detuning
+  /**
+   * 2. Product Aspirated: Futuristic Holographic Quantum Chime
+   * Crisp, ultra-clean sci-fi capture sound with crystal harmonic detune
+   * and micro laser pop that feels addictive and instant.
+   */
   public playItemAspirated() {
     if (this.isMuted) return;
     const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (nowMs - this.lastItemSoundTime < 60) {
-      return; // prevent audio buffer pileup during ultra-fast vacuuming
+    if (nowMs - this.lastItemSoundTime < 45) {
+      return; // prevent clipping pileup on high-speed sweeps
     }
     this.lastItemSoundTime = nowMs;
+
     const ctx = this.initContext();
-    if (!ctx) return;
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
+
+    try {
+      const now = ctx.currentTime;
+
+      // FM Carrier & Modulator for high-tech holographic texture
+      const carrier = ctx.createOscillator();
+      const modulator = ctx.createOscillator();
+      const modGain = ctx.createGain();
+      const masterItemGain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      // Frequencies: High crystalline cyber shimmer (A6 / 1760Hz range)
+      carrier.type = 'sine';
+      carrier.frequency.setValueAtTime(1760, now);
+      carrier.frequency.exponentialRampToValueAtTime(2640, now + 0.04);
+      carrier.frequency.exponentialRampToValueAtTime(1320, now + 0.12);
+
+      modulator.type = 'sine';
+      modulator.frequency.setValueAtTime(880, now);
+      modulator.frequency.linearRampToValueAtTime(3520, now + 0.08);
+
+      modGain.gain.setValueAtTime(500, now);
+      modGain.gain.exponentialRampToValueAtTime(10, now + 0.11);
+
+      modulator.connect(modGain);
+      modGain.connect(carrier.frequency);
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(2200, now);
+      filter.Q.setValueAtTime(3.5, now);
+
+      masterItemGain.gain.setValueAtTime(0.18, now);
+      masterItemGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+      carrier.connect(filter);
+      filter.connect(masterItemGain);
+      masterItemGain.connect(dest);
+
+      // Micro laser transient click on attack
+      const click = ctx.createOscillator();
+      const clickGain = ctx.createGain();
+      click.type = 'triangle';
+      click.frequency.setValueAtTime(4200, now);
+      click.frequency.exponentialRampToValueAtTime(800, now + 0.02);
+
+      clickGain.gain.setValueAtTime(0.15, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+
+      click.connect(clickGain);
+      clickGain.connect(dest);
+
+      carrier.start(now);
+      modulator.start(now);
+      click.start(now);
+
+      carrier.stop(now + 0.15);
+      modulator.stop(now + 0.15);
+      click.stop(now + 0.03);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  /**
+   * 3. Futuristic Holographic Screen Tap / Click
+   * Crisp micro tactile beep, sounds like touching a futuristic glass HUD
+   */
+  public playHoloTap(freq = 2400) {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
+
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.4, now + 0.015);
+
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+
+      osc.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.03);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  /**
+   * 4. Futuristic Tab / View Channel Switcher
+   * Double frequency whoosh with cyber harmonic glissando
+   */
+  public playTabSwitch() {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
 
     try {
       const now = ctx.currentTime;
@@ -102,140 +280,93 @@ class CyberAudioSynth {
       const gain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
 
-      // Futuristic frequencies (FM-like shimmer)
       osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(1100, now);
+      osc1.frequency.exponentialRampToValueAtTime(2200, now + 0.07);
+
       osc2.type = 'triangle';
-
-      osc1.frequency.setValueAtTime(1200, now);
-      osc1.frequency.exponentialRampToValueAtTime(2400, now + 0.08);
-
-      osc2.frequency.setValueAtTime(1800, now);
-      osc2.frequency.exponentialRampToValueAtTime(3600, now + 0.12);
+      osc2.frequency.setValueAtTime(1650, now);
+      osc2.frequency.exponentialRampToValueAtTime(3300, now + 0.07);
 
       filter.type = 'highpass';
-      filter.frequency.setValueAtTime(800, now);
+      filter.frequency.setValueAtTime(900, now);
 
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
 
       osc1.connect(filter);
       osc2.connect(filter);
       filter.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
 
       osc1.start(now);
       osc2.start(now);
-      osc1.stop(now + 0.19);
-      osc2.stop(now + 0.19);
+      osc1.stop(now + 0.1);
+      osc2.stop(now + 0.1);
     } catch {
-      // Ignore
+      // Audio fallback
     }
   }
 
-  // Futuristic radar / category scanner sweep
+  /**
+   * 5. Radar Scanner Sweep (Matrix Category Discovery)
+   */
   public playScanSweep() {
     if (this.isMuted) return;
     const ctx = this.initContext();
-    if (!ctx) return;
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
 
     try {
       const now = ctx.currentTime;
       const osc = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
       const gain = ctx.createGain();
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(400, now);
-      osc.frequency.exponentialRampToValueAtTime(1600, now + 0.18);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(350, now);
+      osc.frequency.exponentialRampToValueAtTime(1900, now + 0.16);
 
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1200, now);
+      filter.Q.setValueAtTime(5, now);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.11, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
-      osc.start(now);
-      osc.stop(now + 0.21);
-    } catch {
-      // Ignore
-    }
-  }
-
-  // Category Complete & Locked In Sound (Futuristic Power Chord)
-  public playCategoryUnlocked() {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      const notes = [587.33, 739.99, 880.0, 1174.66]; // D5, F#5, A5, D6
-      notes.forEach((freq, idx) => {
-        setTimeout(() => {
-          if (!this.ctx) return;
-          const now = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(freq, now);
-          gain.gain.setValueAtTime(0.1, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.16);
-        }, idx * 45);
-      });
-    } catch {
-      // Ignore
-    }
-  }
-
-  // Digital Matrix Chirp
-  public playChirp(freq = 1200, duration = 0.04) {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.frequency.setValueAtTime(freq * 1.5, now + duration / 2);
-
-      gain.gain.setValueAtTime(0.05, now);
-      gain.gain.linearRampToValueAtTime(0.001, now + duration);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
 
       osc.start(now);
-      osc.stop(now + duration + 0.01);
+      osc.stop(now + 0.19);
     } catch {
-      // Ignore
+      // Audio fallback
     }
   }
 
-  // High-Priority Attention Alert for Master Sweep Category Completion
+  /**
+   * 6. Category Complete / Master Sweep Fanfare
+   * Cyberpunk synth chord arpeggio with crystalline harmonics and synthetic vocal announce
+   */
   public playMasterSweepCategoryAlert(categoryName?: string, itemsCount?: number) {
-    // 0. Trigger device vibration for smartphones in pockets or desks
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
-        navigator.vibrate([200, 100, 200, 100, 400]);
+        navigator.vibrate([150, 80, 150, 80, 350]);
       } catch {
-        // ignore vibration permissions
+        // ignore
       }
     }
 
     if (this.isMuted) return;
     const ctx = this.initContext();
-    if (!ctx) return;
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
 
     try {
-      // 1. Crystal harmonic chime sequence (C5 -> E5 -> G5 -> C6 -> E6 bell harmonics with resonant shimmer)
-      const bells = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
-      bells.forEach((freq, idx) => {
+      // Blade Runner / Cyberpunk power chord arpeggio (C5 - G5 - C6 - E6 - G6)
+      const freqs = [523.25, 783.99, 1046.5, 1318.51, 1567.98, 2093.0];
+      freqs.forEach((freq, idx) => {
         setTimeout(() => {
           if (!this.ctx) return;
           const now = this.ctx.currentTime;
@@ -247,57 +378,122 @@ class CyberAudioSynth {
           osc1.frequency.setValueAtTime(freq, now);
 
           osc2.type = 'triangle';
-          osc2.frequency.setValueAtTime(freq * 1.5, now); // Fifth harmonic shimmer
+          osc2.frequency.setValueAtTime(freq * 1.004, now); // subtle unison detune
 
-          gain.gain.setValueAtTime(0.22, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
 
           osc1.connect(gain);
           osc2.connect(gain);
-          gain.connect(this.ctx.destination);
+          gain.connect(this.masterCompressor || this.ctx.destination);
 
           osc1.start(now);
           osc2.start(now);
-          osc1.stop(now + 0.58);
-          osc2.stop(now + 0.58);
-        }, idx * 65);
+          osc1.stop(now + 0.55);
+          osc2.stop(now + 0.55);
+        }, idx * 60);
       });
 
-      // 2. Synthetic vocal notification via Web Speech API (tells user which category finished even if in another room/tab)
+      // Synthetic cyber voice announcement via Web Speech API
       if (categoryName && typeof window !== 'undefined' && 'speechSynthesis' in window) {
         setTimeout(() => {
           try {
-            window.speechSynthesis.cancel(); // clear queue
-            const phrase = itemsCount && itemsCount > 0
-              ? `Catégorie ${categoryName} terminée avec succès ! ${itemsCount} nouveaux articles scellés.`
-              : `Catégorie ${categoryName} terminée avec succès.`;
+            window.speechSynthesis.cancel();
+            const phrase =
+              itemsCount && itemsCount > 0
+                ? `Catégorie ${categoryName} aspirée et scellée avec succès. ${itemsCount} articles récoltés.`
+                : `Catégorie ${categoryName} terminée avec succès.`;
             const utter = new SpeechSynthesisUtterance(phrase);
             utter.lang = 'fr-FR';
-            utter.rate = 1.05;
-            utter.pitch = 1.02;
+            utter.rate = 1.06;
+            utter.pitch = 1.05;
             utter.volume = 0.95;
             window.speechSynthesis.speak(utter);
           } catch {
-            // speech synthesis optional fallback
+            // speech synthesis fallback
           }
         }, 420);
       }
     } catch {
-      // Ignore audio glitches
+      // Audio fallback
     }
   }
 
-  // Futuristic Completion Fanfare
+  /**
+   * 7. Digital Matrix Chirp
+   */
+  public playChirp(freq = 1400, duration = 0.04) {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
+
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.6, now + duration);
+
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.linearRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + duration + 0.01);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  /**
+   * 8. Category Unlocked Power Chime
+   */
+  public playCategoryUnlocked() {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    try {
+      const notes = [659.25, 830.61, 987.77, 1318.51]; // E5, G#5, B5, E6
+      notes.forEach((freq, idx) => {
+        setTimeout(() => {
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.connect(gain);
+          gain.connect(this.masterCompressor || this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.19);
+        }, idx * 45);
+      });
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  /**
+   * 9. Complete Fanfare (Major 9th Cyber Shimmer)
+   */
   public playComplete() {
     if (this.isMuted) return;
     const ctx = this.initContext();
     if (!ctx) return;
 
     const chords = [
-      [523.25, 659.25, 783.99], // C Major
-      [587.33, 739.99, 880.0],  // D Major
-      [659.25, 830.61, 987.77], // E Major
-      [1046.5, 1318.5, 1567.98], // High C shimmer
+      [523.25, 659.25, 783.99],
+      [587.33, 739.99, 880.0],
+      [659.25, 830.61, 987.77],
+      [1046.5, 1318.51, 1567.98],
     ];
 
     chords.forEach((chord, i) => {
@@ -309,10 +505,10 @@ class CyberAudioSynth {
           const gain = this.ctx!.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, now);
-          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.setValueAtTime(0.09, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
           osc.connect(gain);
-          gain.connect(this.ctx!.destination);
+          gain.connect(this.masterCompressor || this.ctx!.destination);
           osc.start(now);
           osc.stop(now + 0.3);
         });
@@ -320,44 +516,50 @@ class CyberAudioSynth {
     });
   }
 
-  // Futuristic disintegration swoosh when a product is deleted
+  /**
+   * 10. Item Disintegration / Deletion Swoosh
+   */
   public playItemDeleted() {
     if (this.isMuted) return;
     const ctx = this.initContext();
-    if (!ctx) return;
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
     try {
       const now = ctx.currentTime;
       const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
 
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(520, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.22);
+      osc.frequency.setValueAtTime(580, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.22);
 
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1400, now);
-      filter.frequency.exponentialRampToValueAtTime(120, now + 0.22);
+      filter.frequency.setValueAtTime(1600, now);
+      filter.frequency.exponentialRampToValueAtTime(100, now + 0.22);
 
-      gain.gain.setValueAtTime(0.14, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.23);
 
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
 
       osc.start(now);
-      osc.stop(now + 0.23);
+      osc.stop(now + 0.24);
     } catch {
-      // Ignore
+      // Audio fallback
     }
   }
 
-  // Quantum vaporize sweep when the catalog is cleared
+  /**
+   * 11. Full Catalog Purged Sound
+   */
   public playCatalogPurged() {
     if (this.isMuted) return;
     const ctx = this.initContext();
-    if (!ctx) return;
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
     try {
       const now = ctx.currentTime;
       const osc = ctx.createOscillator();
@@ -366,25 +568,25 @@ class CyberAudioSynth {
 
       osc.type = 'sine';
       osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(60, now + 0.38);
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.38);
 
       sub.type = 'triangle';
-      sub.frequency.setValueAtTime(180, now);
-      sub.frequency.exponentialRampToValueAtTime(30, now + 0.45);
+      sub.frequency.setValueAtTime(160, now);
+      sub.frequency.exponentialRampToValueAtTime(25, now + 0.45);
 
       gain.gain.setValueAtTime(0.18, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
       osc.connect(gain);
       sub.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
 
       osc.start(now);
       sub.start(now);
       osc.stop(now + 0.46);
       sub.stop(now + 0.46);
     } catch {
-      // Ignore
+      // Audio fallback
     }
   }
 }

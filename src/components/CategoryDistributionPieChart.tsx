@@ -264,40 +264,45 @@ export const CategoryDistributionPieChart: React.FC<CategoryDistributionPieChart
 
       {/* Metrics Header Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 mb-6">
-        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5">
+        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5 min-w-0 overflow-hidden">
           <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
-          <div className="truncate">
-            <div className="text-[10px] text-slate-400 uppercase">Catégories</div>
-            <div className="text-sm font-bold text-white">{chartData.length} actives</div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] text-slate-400 uppercase font-semibold truncate">Catégories</div>
+            <div className="text-sm font-bold text-white truncate">{chartData.length} actives</div>
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5">
+        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5 min-w-0 overflow-hidden">
           <TrendingUp className="w-4 h-4 text-cyan-400 shrink-0" />
-          <div className="truncate">
-            <div className="text-[10px] text-slate-400 uppercase">Dominante</div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] text-slate-400 uppercase font-semibold truncate">Dominante</div>
             <div className="text-sm font-bold text-cyan-300 truncate" title={topCategory?.name}>
               {topCategory?.name || 'N/A'}
             </div>
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5">
+        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5 min-w-0 overflow-hidden">
           <Percent className="w-4 h-4 text-purple-400 shrink-0" />
-          <div className="truncate">
-            <div className="text-[10px] text-slate-400 uppercase">Part dominante</div>
-            <div className="text-sm font-bold text-purple-300">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] text-slate-400 uppercase font-semibold truncate">Part dominante</div>
+            <div className="text-sm font-bold text-purple-300 truncate">
               {topCategory ? `${topCategory.percentage}%` : '0%'}
             </div>
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5">
+        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5 min-w-0 overflow-hidden">
           <CircleDollarSign className="w-4 h-4 text-amber-400 shrink-0" />
-          <div className="truncate">
-            <div className="text-[10px] text-slate-400 uppercase">Valorisation</div>
-            <div className="text-sm font-bold text-amber-300 truncate">
-              {totalValuation.toLocaleString()} {currency}
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] text-slate-400 uppercase font-semibold truncate">Valorisation</div>
+            <div
+              className="text-sm font-bold text-amber-300 truncate"
+              title={`${totalValuation.toLocaleString('fr-FR')} ${currency}`}
+            >
+              {totalValuation >= 1_000_000
+                ? `${(totalValuation / 1_000_000).toFixed(1)}M ${currency}`
+                : `${totalValuation.toLocaleString('fr-FR')} ${currency}`}
             </div>
           </div>
         </div>
@@ -393,8 +398,8 @@ export const CategoryDistributionPieChart: React.FC<CategoryDistributionPieChart
                     : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900/60 hover:border-slate-700'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 truncate">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span
                       className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_6px]"
                       style={{ backgroundColor: slice.color }}
@@ -431,10 +436,12 @@ export const CategoryDistributionPieChart: React.FC<CategoryDistributionPieChart
                 </div>
 
                 {/* Additional metadata row */}
-                <div className="flex items-center justify-between text-[10px] text-slate-400">
-                  <span>Moy : {slice.avgPrice.toLocaleString()} {slice.currency}</span>
-                  <span className="text-slate-500">
-                    Lot : {slice.totalValuation.toLocaleString()} {slice.currency}
+                <div className="flex items-center justify-between text-[10px] text-slate-400 gap-2 min-w-0">
+                  <span className="truncate">
+                    Moy : {slice.avgPrice >= 1_000_000 ? `${(slice.avgPrice / 1_000_000).toFixed(1)}M` : Math.round(slice.avgPrice).toLocaleString('fr-FR')} {slice.currency}
+                  </span>
+                  <span className="text-slate-500 truncate text-right">
+                    Lot : {slice.totalValuation >= 1_000_000 ? `${(slice.totalValuation / 1_000_000).toFixed(1)}M` : Math.round(slice.totalValuation).toLocaleString('fr-FR')} {slice.currency}
                   </span>
                 </div>
               </div>

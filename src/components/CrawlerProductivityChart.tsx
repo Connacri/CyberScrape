@@ -430,37 +430,37 @@ export const CrawlerProductivityChart: React.FC<CrawlerProductivityChartProps> =
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 font-mono text-xs">
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-emerald-500/20">
-          <span className="text-[10px] text-slate-400 block uppercase">VOLUME TOTAL 30J</span>
-          <span className="text-lg font-black text-[#00ff88] block mt-0.5">
-            {stats.totalHarvested.toLocaleString()} articles
+        <div className="p-3 rounded-xl bg-slate-900/70 border border-emerald-500/20 min-w-0 overflow-hidden">
+          <span className="text-[10px] text-slate-400 block uppercase font-semibold truncate">VOLUME TOTAL 30J</span>
+          <span className="text-base sm:text-lg font-black text-[#00ff88] block mt-0.5 truncate">
+            {stats.totalHarvested.toLocaleString('fr-FR')} articles
           </span>
-          <span className="text-[10px] text-emerald-400/80">Indexés dans la matrice</span>
+          <span className="text-[10px] text-emerald-400/80 truncate block">Indexés dans la matrice</span>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-cyan-500/20">
-          <span className="text-[10px] text-slate-400 block uppercase">MOYENNE JOURNALIÈRE</span>
-          <span className="text-lg font-black text-cyan-300 block mt-0.5">
-            ~{stats.dailyAverage.toLocaleString()} ads/j
+        <div className="p-3 rounded-xl bg-slate-900/70 border border-cyan-500/20 min-w-0 overflow-hidden">
+          <span className="text-[10px] text-slate-400 block uppercase font-semibold truncate">MOYENNE / JOUR</span>
+          <span className="text-base sm:text-lg font-black text-cyan-300 block mt-0.5 truncate">
+            ~{stats.dailyAverage.toLocaleString('fr-FR')} ads/j
           </span>
-          <span className="text-[10px] text-cyan-400/80">Productivité stable</span>
+          <span className="text-[10px] text-cyan-400/80 truncate block">Productivité stable</span>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-purple-500/20">
-          <span className="text-[10px] text-slate-400 block uppercase">PIC D'ASPIRATION</span>
-          <span className="text-lg font-black text-purple-300 block mt-0.5">
-            {stats.peakDay.total.toLocaleString()} ads
+        <div className="p-3 rounded-xl bg-slate-900/70 border border-purple-500/20 min-w-0 overflow-hidden">
+          <span className="text-[10px] text-slate-400 block uppercase font-semibold truncate">PIC D'ASPIRATION</span>
+          <span className="text-base sm:text-lg font-black text-purple-300 block mt-0.5 truncate">
+            {stats.peakDay.total.toLocaleString('fr-FR')} ads
           </span>
-          <span className="text-[10px] text-purple-400/80">Record: {stats.peakDay.dateStr}</span>
+          <span className="text-[10px] text-purple-400/80 truncate block">Record: {stats.peakDay.dateStr}</span>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/70 border border-amber-500/20">
-          <span className="text-[10px] text-slate-400 block uppercase">CATÉGORIE N°1</span>
-          <span className="text-base font-black text-amber-300 truncate block mt-0.5">
+        <div className="p-3 rounded-xl bg-slate-900/70 border border-amber-500/20 min-w-0 overflow-hidden">
+          <span className="text-[10px] text-slate-400 block uppercase font-semibold truncate">CATÉGORIE N°1</span>
+          <span className="text-sm sm:text-base font-black text-amber-300 truncate block mt-0.5" title={stats.topCategory.name}>
             {stats.topCategory.name}
           </span>
-          <span className="text-[10px] text-amber-400/80">
-            {stats.topCategory.total.toLocaleString()} articles récoltés
+          <span className="text-[10px] text-amber-400/80 truncate block">
+            {stats.topCategory.total.toLocaleString('fr-FR')} récoltés
           </span>
         </div>
       </div>

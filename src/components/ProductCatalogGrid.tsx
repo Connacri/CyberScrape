@@ -1264,52 +1264,52 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </div>
 
           {/* Title & Category tag */}
-          <div className="space-y-1 mb-2">
-            <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider truncate flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-              {det.category || det.brand}
+          <div className="space-y-1 mb-2 min-w-0">
+            <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider truncate flex items-center gap-1 min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
+              <span className="truncate">{det.category || det.brand}</span>
             </div>
-            <h3 className="font-mono text-xs font-semibold text-slate-100 line-clamp-2 group-hover:text-emerald-300 transition-colors leading-snug">
+            <h3 className="font-mono text-xs font-semibold text-slate-100 line-clamp-2 group-hover:text-emerald-300 transition-colors leading-snug break-words">
               {det.title}
             </h3>
           </div>
 
           {/* Price Section */}
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-base font-black font-mono text-[#00ff66]">
+          <div className="flex flex-wrap items-baseline gap-1.5 mb-2 min-w-0">
+            <span className="text-sm sm:text-base font-black font-mono text-[#00ff66] truncate">
               {formatPrice(det.currentPrice, det.currency)}
             </span>
             {hasDiscount && (
-              <span className="text-xs line-through text-slate-500 font-mono">
+              <span className="text-xs line-through text-slate-500 font-mono truncate">
                 {formatPrice(det.originalPrice, det.currency)}
               </span>
             )}
           </div>
 
           {/* Publisher Identity Badge (Who published it) */}
-          <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 mb-2.5 space-y-1">
-            <div className="flex items-center justify-between text-[10px] font-mono">
-              <span className="text-slate-400 truncate flex items-center gap-1">
+          <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 mb-2.5 space-y-1 min-w-0 overflow-hidden">
+            <div className="flex items-center justify-between text-[10px] font-mono gap-1">
+              <span className="text-slate-400 truncate flex items-center gap-1 min-w-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                 <strong className="text-slate-200 truncate">{seller.name}</strong>
               </span>
-              <span className="text-emerald-400 font-bold shrink-0">✓ Vérifié</span>
+              <span className="text-emerald-400 font-bold shrink-0 text-[9px]">✓ Vérifié</span>
             </div>
-            <div className="flex items-center justify-between text-[9px] font-mono text-slate-500">
+            <div className="flex items-center justify-between text-[9px] font-mono text-slate-500 gap-1">
               <span className="truncate">{seller.type}</span>
               <span className="text-cyan-400 shrink-0">{seller.responseTime}</span>
             </div>
           </div>
 
           {/* Stock & Rating info */}
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-3 pt-1 border-t border-slate-900">
-            <span className={`flex items-center gap-1 ${det.inStock ? 'text-emerald-400' : 'text-rose-400'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${det.inStock ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-              {det.inStock ? 'En stock' : 'Rupture'}
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-3 pt-1 border-t border-slate-900 min-w-0">
+            <span className={`flex items-center gap-1 truncate ${det.inStock ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${det.inStock ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+              <span className="truncate">{det.inStock ? 'En stock' : 'Rupture'}</span>
             </span>
             {det.rating > 0 && (
-              <span className="flex items-center gap-1 text-amber-400">
-                <Star className="w-3 h-3 fill-amber-400" />
+              <span className="flex items-center gap-1 text-amber-400 shrink-0">
+                <Star className="w-3 h-3 fill-amber-400 shrink-0" />
                 {det.rating.toFixed(1)} ({det.reviewsCount})
               </span>
             )}
@@ -1321,31 +1321,31 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           {/* 1-CLICK CALL BUTTON: Direct click dials phone */}
           <a
             href={tel}
-            className="w-full py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00ff66] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,255,102,0.25)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer"
+            className="w-full py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00ff66] text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(0,255,102,0.25)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer min-w-0 overflow-hidden"
             title={`Appeler directement : ${seller.phone}`}
           >
-            <PhoneCall className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
-            <span>Appel direct : {seller.phone}</span>
+            <PhoneCall className="w-3.5 h-3.5 text-slate-950 animate-pulse shrink-0" />
+            <span className="truncate">Appel : {seller.phone}</span>
           </a>
 
           {/* Secondary Action Row: WhatsApp + Full Announcement Details */}
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 min-w-0">
             <a
               href={wa}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-1.5 px-2 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer"
+              className="py-1.5 px-2 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
               title="Contacter sur WhatsApp"
             >
-              <MessageCircle className="w-3 h-3" /> WhatsApp
+              <MessageCircle className="w-3 h-3 shrink-0" /> <span className="truncate">WhatsApp</span>
             </a>
 
             <button
               onClick={() => setSelectedDetailProduct(det)}
-              className="py-1.5 px-2 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer"
+              className="py-1.5 px-2 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
               title="Voir l'annonce complète et ses détails"
             >
-              <Eye className="w-3 h-3 text-emerald-400" /> Détails
+              <Eye className="w-3 h-3 text-emerald-400 shrink-0" /> <span className="truncate">Détails</span>
             </button>
           </div>
 

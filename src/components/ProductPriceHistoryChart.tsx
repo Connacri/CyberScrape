@@ -294,34 +294,34 @@ export const ProductPriceHistoryChart: React.FC<ProductPriceHistoryChartProps> =
       {/* Key Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
         {/* Current price */}
-        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30">
-          <span className="text-[10px] text-slate-500 block uppercase">Prix Actuel</span>
-          <span className="text-sm font-bold text-[#00ff66] truncate block">
+        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30 min-w-0 overflow-hidden">
+          <span className="text-[10px] text-slate-500 block uppercase font-semibold truncate">Prix Actuel</span>
+          <span className="text-xs sm:text-sm font-bold text-[#00ff66] truncate block" title={formatCur(stats.latestPrice)}>
             {formatCur(stats.latestPrice)}
           </span>
         </div>
 
         {/* Lowest price */}
-        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-          <span className="text-[10px] text-slate-500 block uppercase">Plus Bas Relevé</span>
-          <span className="text-sm font-semibold text-emerald-400 truncate block">
+        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 min-w-0 overflow-hidden">
+          <span className="text-[10px] text-slate-500 block uppercase font-semibold truncate">Plus Bas</span>
+          <span className="text-xs sm:text-sm font-semibold text-emerald-400 truncate block" title={formatCur(stats.minPrice)}>
             {formatCur(stats.minPrice)}
           </span>
         </div>
 
         {/* Highest price */}
-        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-          <span className="text-[10px] text-slate-500 block uppercase">Plus Haut Relevé</span>
-          <span className="text-sm font-semibold text-slate-300 truncate block">
+        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 min-w-0 overflow-hidden">
+          <span className="text-[10px] text-slate-500 block uppercase font-semibold truncate">Plus Haut</span>
+          <span className="text-xs sm:text-sm font-semibold text-slate-300 truncate block" title={formatCur(stats.maxPrice)}>
             {formatCur(stats.maxPrice)}
           </span>
         </div>
 
         {/* Variation */}
-        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-          <span className="text-[10px] text-slate-500 block uppercase">Variation Période</span>
+        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 min-w-0 overflow-hidden">
+          <span className="text-[10px] text-slate-500 block uppercase font-semibold truncate">Variation</span>
           <span
-            className={`text-sm font-semibold truncate block ${
+            className={`text-xs sm:text-sm font-semibold truncate block ${
               stats.delta < 0
                 ? 'text-emerald-400'
                 : stats.delta > 0

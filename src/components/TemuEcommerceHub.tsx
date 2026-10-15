@@ -383,12 +383,12 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                   </div>
 
                   {/* Pricing row in Algerian Dinar (DA) */}
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-base sm:text-lg font-black text-[#ff5000]">
+                  <div className="flex flex-wrap items-baseline gap-1.5 mb-2 min-w-0">
+                    <span className="text-sm sm:text-base font-black text-[#ff5000] truncate">
                       {formatPrice(det.currentPrice, det.currency)}
                     </span>
                     {det.discountPercent > 0 && (
-                      <span className="text-[11px] line-through text-slate-500 font-medium">
+                      <span className="text-[10px] sm:text-[11px] line-through text-slate-500 font-medium truncate">
                         {formatPrice(det.originalPrice, det.currency)}
                       </span>
                     )}
@@ -402,11 +402,11 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                         style={{ width: `${60 + (det.title.length % 35)}%` }}
                       />
                     </div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span className="flex items-center gap-1 text-orange-300 font-semibold">
-                        <Flame className="w-3 h-3 text-[#ff5000] fill-[#ff5000]" /> Offre Vendeur
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 gap-1 min-w-0">
+                      <span className="flex items-center gap-1 text-orange-300 font-semibold truncate min-w-0">
+                        <Flame className="w-3 h-3 text-[#ff5000] fill-[#ff5000] shrink-0" /> <span className="truncate">Offre Vendeur</span>
                       </span>
-                      <span>{seller.name.slice(0, 14)}</span>
+                      <span className="truncate shrink-0 max-w-[90px]">{seller.name}</span>
                     </div>
                   </div>
                 </div>
@@ -415,10 +415,10 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                 <div className="space-y-1.5 pt-2 border-t border-slate-900 text-xs" onClick={(e) => e.stopPropagation()}>
                   <a
                     href={tel}
-                    className="w-full py-2 px-2 rounded-xl bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer"
+                    className="w-full py-2 px-2 rounded-xl bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer min-w-0 overflow-hidden"
                     title={`Appeler directement : ${seller.phone}`}
                   >
-                    <PhoneCall className="w-3.5 h-3.5" />
+                    <PhoneCall className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">Appel direct</span>
                   </a>
 
@@ -427,10 +427,10 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                       href={wa}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="py-1.5 px-2 rounded-lg bg-[#25D366] text-white font-bold text-[11px] flex items-center justify-center gap-1 hover:brightness-105 transition-colors cursor-pointer"
+                      className="py-1.5 px-2 rounded-lg bg-[#25D366] text-white font-bold text-[11px] flex items-center justify-center gap-1 hover:brightness-105 transition-colors cursor-pointer min-w-0 overflow-hidden"
                       title="WhatsApp Direct"
                     >
-                      <MessageCircle className="w-3 h-3" /> WhatsApp
+                      <MessageCircle className="w-3 h-3 shrink-0" /> <span className="truncate">WhatsApp</span>
                     </a>
 
                     <a

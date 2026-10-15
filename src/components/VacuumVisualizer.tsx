@@ -21,51 +21,59 @@ interface VacuumVisualizerProps {
 }
 
 /**
- * Hook for smooth real-time animated counter with acceleration and visual ping
+ * Hook for instantaneous real-time animated counter with vacuum suction pulse
  */
-function useAnimatedCounter(targetValue: number, duration: number = 700) {
+function useAnimatedCounter(targetValue: number, duration: number = 280) {
   const [displayValue, setDisplayValue] = useState(targetValue);
   const [isIncrementing, setIsIncrementing] = useState(false);
+  const [recentDelta, setRecentDelta] = useState<number>(0);
   const lastTargetRef = useRef(targetValue);
+  const currentDisplayRef = useRef(displayValue);
+
+  currentDisplayRef.current = displayValue;
 
   useEffect(() => {
-    const startValue = displayValue;
-    const diff = targetValue - startValue;
-
-    if (diff === 0) return;
-
-    if (targetValue > lastTargetRef.current) {
-      setIsIncrementing(true);
-      const pulseTimeout = setTimeout(() => setIsIncrementing(false), 600);
-      lastTargetRef.current = targetValue;
-      return () => clearTimeout(pulseTimeout);
-    }
+    const prevTarget = lastTargetRef.current;
     lastTargetRef.current = targetValue;
 
-    let startTime: number | null = null;
+    if (targetValue === currentDisplayRef.current) return;
+
+    const diff = targetValue - currentDisplayRef.current;
+    if (diff > 0) {
+      setIsIncrementing(true);
+      setRecentDelta(targetValue - prevTarget > 0 ? targetValue - prevTarget : diff);
+    }
+
+    const startVal = currentDisplayRef.current;
+    const startTime = performance.now();
     let animId: number;
 
     const step = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      // Smooth easeOutCubic
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // High-octane cubic out for snappy numeric rolling
       const ease = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(startValue + diff * ease);
-      setDisplayValue(current);
+      const nextVal = Math.round(startVal + diff * ease);
+
+      setDisplayValue(nextVal);
 
       if (progress < 1) {
         animId = requestAnimationFrame(step);
       } else {
         setDisplayValue(targetValue);
-        setIsIncrementing(false);
+        // Keep the pulse glowing briefly for visual satisfaction
+        setTimeout(() => {
+          setIsIncrementing(false);
+          setRecentDelta(0);
+        }, 320);
       }
     };
 
     animId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(animId);
-  }, [targetValue, duration, displayValue]);
+  }, [targetValue, duration]);
 
-  return { displayValue, isIncrementing };
+  return { displayValue, isIncrementing, recentDelta };
 }
 
 const VacuumVisualizerComponent: React.FC<VacuumVisualizerProps> = ({
@@ -76,7 +84,7 @@ const VacuumVisualizerComponent: React.FC<VacuumVisualizerProps> = ({
   isContinuousScraping = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { displayValue: animatedCount, isIncrementing } = useAnimatedCounter(totalProductsCount, 650);
+  const { displayValue: animatedCount, isIncrementing, recentDelta } = useAnimatedCounter(totalProductsCount, 260);
 
   const isUnlimitedMode = scrapeVolume === 0 || isContinuousScraping;
   const isAspirating = job.status === 'aspirating' || job.status === 'scanning';
@@ -330,25 +338,41 @@ const VacuumVisualizerComponent: React.FC<VacuumVisualizerProps> = ({
             </span>
           </div>
 
-          {/* Real-time Animated Counter of Harvested Items */}
+          {/* Real-time Animated Counter of Harvested Items with Instant Vacuum Suction Effect */}
           <div
-            className={`px-3.5 py-1.5 rounded-xl border text-right transition-all duration-300 ${
+            className={`relative px-3.5 py-1.5 rounded-xl border text-right transition-all duration-200 overflow-visible ${
               isIncrementing
-                ? 'bg-emerald-950/90 border-[#00ff88] shadow-[0_0_20px_rgba(0,255,102,0.5)] scale-105'
+                ? 'bg-emerald-950/95 border-[#00ff88] shadow-[0_0_25px_rgba(0,255,102,0.7)] scale-105 ring-2 ring-[#00ff88]/50'
                 : 'bg-slate-900/80 border-emerald-500/30'
             }`}
           >
+            {/* Instant Floating Numeric Pulse Pill */}
+            {isIncrementing && recentDelta > 0 && (
+              <span className="absolute -top-3 -left-2 z-20 px-1.5 py-0.5 rounded-full bg-[#00ff66] text-black font-mono font-black text-[10px] shadow-[0_0_12px_#00ff66] animate-bounce flex items-center gap-0.5">
+                <Zap className="w-2.5 h-2.5 fill-current" />
+                +{recentDelta}
+              </span>
+            )}
             <span className="block text-[10px] text-emerald-400 font-mono font-bold tracking-wider flex items-center justify-end gap-1">
-              {isIncrementing && <Flame className="w-3 h-3 text-[#00ff88] animate-bounce" />}
-              ARTICLES RÉCOLTÉS
+              {isIncrementing ? (
+                <span className="flex items-center gap-1 text-[#00ff88]">
+                  <Flame className="w-3 h-3 text-[#00ff88] animate-bounce" />
+                  ASPIRATION EN COURS
+                </span>
+              ) : (
+                'ARTICLES RÉCOLTÉS'
+              )}
             </span>
-            <span
-              className={`text-sm font-black font-mono transition-colors ${
-                isIncrementing ? 'text-white' : 'text-[#00ff88]'
-              }`}
-            >
-              {animatedCount.toLocaleString()} REC
-            </span>
+            <div className="flex items-baseline justify-end gap-1">
+              <span
+                className={`text-base font-black font-mono tracking-tight transition-colors ${
+                  isIncrementing ? 'text-white scale-110 drop-shadow-[0_0_8px_#00ff88]' : 'text-[#00ff88]'
+                }`}
+              >
+                {animatedCount.toLocaleString()}
+              </span>
+              <span className="text-[10px] font-mono text-emerald-400/80 font-bold">REC</span>
+            </div>
           </div>
         </div>
       </div>
@@ -472,26 +496,26 @@ const VacuumVisualizerComponent: React.FC<VacuumVisualizerProps> = ({
         </div>
 
         {/* Right Side: Newly Aspirated Product Flash Card */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 min-w-0">
           <div className="text-[10px] font-mono text-emerald-400 tracking-wider uppercase mb-1.5 flex items-center justify-between">
-            <span className="flex items-center gap-1 font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="flex items-center gap-1 font-bold truncate">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               DERNIER PRODUIT ASPIRÉ
             </span>
             {isUnlimitedMode && (
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40">
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shrink-0">
                 Mode Illimité
               </span>
             )}
           </div>
 
           {latestProduct ? (
-            <div className="relative group overflow-hidden rounded-xl bg-slate-900/90 border border-emerald-400/40 p-3 shadow-lg transition-all duration-300 hover:border-emerald-400">
-              <div className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-[#00ff88] font-mono border border-emerald-500/40 font-bold">
+            <div className="relative group overflow-hidden rounded-xl bg-slate-900/90 border border-emerald-400/40 p-3 shadow-lg transition-all duration-300 hover:border-emerald-400 min-w-0">
+              <div className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-[#00ff88] font-mono border border-emerald-500/40 font-bold shrink-0">
                 +1 ASPIRÉ
               </div>
 
-              <div className="flex gap-2.5 items-start mt-1">
+              <div className="flex gap-2.5 items-start mt-1 min-w-0">
                 <img
                   src={latestProduct.imageUrl}
                   alt={latestProduct.title}
@@ -502,30 +526,30 @@ const VacuumVisualizerComponent: React.FC<VacuumVisualizerProps> = ({
                   }}
                 />
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-xs font-semibold text-slate-100 truncate font-mono">
+                  <h4 className="text-xs font-semibold text-slate-100 truncate font-mono" title={latestProduct.title}>
                     {latestProduct.title}
                   </h4>
                   <span className="text-[10px] text-slate-400 block truncate">
                     {latestProduct.category}
                   </span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-sm font-bold text-[#00ff66] font-mono">
-                      {latestProduct.currentPrice.toLocaleString()} {latestProduct.currency}
+                  <div className="flex flex-wrap items-baseline gap-1.5 mt-1 min-w-0">
+                    <span className="text-xs sm:text-sm font-bold text-[#00ff66] font-mono truncate">
+                      {latestProduct.currentPrice.toLocaleString('fr-FR')} {latestProduct.currency}
                     </span>
                     {latestProduct.discountPercent > 0 && (
-                      <span className="text-[10px] text-rose-400 font-mono line-through">
-                        {latestProduct.originalPrice.toLocaleString()} {latestProduct.currency}
+                      <span className="text-[10px] text-rose-400 font-mono line-through truncate">
+                        {latestProduct.originalPrice.toLocaleString('fr-FR')} {latestProduct.currency}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                <span className="flex items-center gap-1 text-emerald-400">
-                  <ShieldCheck className="w-3.5 h-3.5" /> IA: {latestProduct.aiConfidence}%
+              <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-mono min-w-0">
+                <span className="flex items-center gap-1 text-emerald-400 truncate">
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" /> IA: {latestProduct.aiConfidence}%
                 </span>
-                <span className="text-cyan-400 truncate max-w-[110px]">
+                <span className="text-cyan-400 truncate max-w-[110px] shrink-0">
                   {latestProduct.sourceDomain}
                 </span>
               </div>
