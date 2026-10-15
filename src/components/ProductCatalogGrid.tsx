@@ -43,6 +43,7 @@ import {
 } from '../utils/sellerGenerator';
 import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
 import { cyberAudio } from '../utils/cyberAudio';
+import { LazyMatrixProductImage } from './LazyMatrixProductImage';
 
 interface ProductCatalogGridProps {
   products: ScrapedProduct[];
@@ -941,15 +942,13 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                       >
                         <td className="p-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <img
-                              src={p.imageUrl}
-                              alt={p.title}
-                              className="w-10 h-10 object-cover rounded bg-slate-900 border border-slate-800 group-hover:border-emerald-500/50 transition-colors"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src =
-                                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=60';
-                              }}
-                            />
+                            <div className="w-10 h-10 shrink-0 rounded overflow-hidden border border-slate-800 group-hover:border-emerald-500/50 transition-colors">
+                              <LazyMatrixProductImage
+                                src={p.imageUrl}
+                                alt={p.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
                             <span className="text-[10px] text-cyan-400 font-mono">
                               {p.matrixHash || p.id.slice(-6)}
                             </span>
@@ -1228,16 +1227,10 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         <div>
           {/* Image container */}
           <div className="relative aspect-square w-full rounded-xl bg-slate-900 border border-slate-800 overflow-hidden mb-3">
-            <img
+            <LazyMatrixProductImage
               src={det.imageUrl}
               alt={det.title}
-              loading="lazy"
-              decoding="async"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src =
-                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60';
-              }}
             />
 
             {/* Discount badge */}
@@ -1441,16 +1434,10 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
           {/* Square Image Thumbnail */}
           <div className="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
-            <img
+            <LazyMatrixProductImage
               src={det.imageUrl}
               alt={det.title}
-              loading="lazy"
-              decoding="async"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src =
-                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=60';
-              }}
             />
             {hasDiscount && (
               <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-rose-600/90 text-white font-mono font-bold text-[9px] border border-rose-400/40">

@@ -110,17 +110,17 @@ export const CyberNativeSplashScreen: React.FC<CyberNativeSplashScreenProps> = (
       }`}
       style={{ backgroundColor: '#030712' }}
     >
-      {/* Immersive background matrix image */}
+      {/* Immersive background matrix image - Full Screen Cyberpunk Vortex */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img
-          src="/src/assets/images/splash_cyber_bg_1792098494533.jpg"
-          alt="Cyber Background"
+          src="/src/assets/images/cyber_splash_screen_1792103934786.jpg"
+          alt="Cyber Splash Screen Background"
           referrerPolicy="no-referrer"
-          className="w-full h-full object-cover object-center opacity-45 scale-105 animate-pulse-slow filter brightness-90 contrast-125"
+          className="w-full h-full object-cover object-center opacity-60 scale-105 animate-pulse-slow filter brightness-95 contrast-125"
         />
         {/* Dark radial vignette & gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-[#030712]/70 to-[#030712]/90" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,#030712_85%)]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-[#030712]/60 to-[#030712]/80" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,#030712_90%)]" />
         {/* Cyber scanline texture */}
         <div className="absolute inset-0 cyber-scanlines opacity-40 pointer-events-none" />
       </div>
@@ -149,16 +149,16 @@ export const CyberNativeSplashScreen: React.FC<CyberNativeSplashScreenProps> = (
           {/* Glow backdrop */}
           <div className="absolute inset-0 bg-[#00ff66]/20 blur-2xl rounded-full" />
           
-          {/* Generated Native App Icon */}
-          <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,255,102,0.5),0_0_80px_rgba(0,240,255,0.25)] border-2 border-[#00ff66] bg-black">
+          {/* Generated Clean Minimalist App Icon */}
+          <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-3xl overflow-hidden shadow-[0_0_45px_rgba(0,255,102,0.6),0_0_90px_rgba(0,240,255,0.35)] border-2 border-[#00ff66] bg-black">
             <img
-              src="/src/assets/images/app_cyber_icon_1792098494227.jpg"
-              alt="CYBER-VACUUM Native Icon"
+              src="/src/assets/images/app_icon_clean_1792103934835.jpg"
+              alt="CYBER-VACUUM Clean Icon"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
             />
             {/* Holographic light sheen sweep */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
           </div>
         </div>
 

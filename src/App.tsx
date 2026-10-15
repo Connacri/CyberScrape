@@ -1127,6 +1127,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'vacuum' | 'temu' | 'trends' | 'catalog'>('vacuum');
   const [selectedModalProduct, setSelectedModalProduct] = useState<ScrapedProduct | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
+  const [isVoiceActive, setIsVoiceActive] = useState<boolean>(true);
   const [rainIntensity, setRainIntensity] = useState<'subtle' | 'normal' | 'turbo' | 'off'>('normal');
   const [isContinuousScraping, setIsContinuousScraping] = useState<boolean>(false);
   const [sweepPagesPerCategory, setSweepPagesPerCategory] = useState<number>(0); // 0 = Illimité ∞
@@ -1144,6 +1145,12 @@ export default function App() {
     setActiveTab(tab);
     cyberAudio.playTabSwitch();
   };
+
+  const handleToggleVoice = () => {
+    const active = cyberAudio.toggleVoice();
+    setIsVoiceActive(active);
+  };
+
 
   // Live Flash Sale countdown for Temu-DZ storefront header
   const [temuCountdown, setTemuCountdown] = useState('04:58:32');
@@ -1462,6 +1469,7 @@ export default function App() {
     setSweepNewItemsCount(0);
     setSweepPercent(0);
     setSweepCompletedCategories([]);
+    cyberAudio.speakScrapeStarted("toutes les catégories");
 
     const isUnlimited = sweepPagesPerCategory === 0;
     // Mode Illimité : aspiration profonde jusqu'au bout (150 pages par catégorie = 7 200+ articles par catégorie, aucune coupure à 720/722)
@@ -1568,6 +1576,8 @@ export default function App() {
               }
             }
             setProducts([...accumulated]);
+            await saveScrapedProductsBatch(pageProducts);
+            saveStoredProducts(accumulated, false);
           }
 
           // Vitesse optimisée ultra-rapide (80ms) pour ne perdre aucun article tout en maintenant 60fps
@@ -1578,6 +1588,8 @@ export default function App() {
       }
 
       // Catégorie complètement terminée !
+      cyberAudio.speakCategoryCompleted(cat.name, categoryTotalNew);
+
       // 1. Alerte sonore & vocale haute priorité + vibration mobile
       cyberAudio.playMasterSweepCategoryAlert(cat.name, categoryTotalNew);
 
@@ -1661,6 +1673,7 @@ export default function App() {
     } catch {
       // ignore
     }
+    cyberAudio.speakScrapeStarted(domain);
 
     const isOuedkniss = domain.includes('ouedkniss');
 
@@ -1794,6 +1807,8 @@ export default function App() {
                 );
               }
               setProducts([...accumulated]);
+              await saveScrapedProductsBatch(pageProducts);
+              saveStoredProducts(accumulated, false);
             }
 
             // Vitesse d'aspiration optimisée (80ms) pour rapidité maximale sans perte
@@ -1908,9 +1923,12 @@ export default function App() {
         );
         finalProductsList = merged;
         setProducts(finalProductsList);
+        await saveScrapedProductsBatch(extractedProducts);
+        saveStoredProducts(finalProductsList, true);
 
         if (newCount > 0 || updatedCount > 0) {
           cyberAudio.playItemAspirated();
+          cyberAudio.speakBatchSaved(newCount, finalProductsList.length);
         }
 
         const logMsg = `+${newCount} nouveaux, ${updatedCount} mis à jour (modifiés), ${unchangedCount} existants inchangés ignorés. Total: ${merged.length}`;
@@ -2223,6 +2241,21 @@ export default function App() {
               <Layers className="w-4 h-4 text-emerald-400" />
             </button>
 
+            {/* Female French AI Voice Assistant Toggle */}
+            <button
+              type="button"
+              onClick={handleToggleVoice}
+              className={`w-9 h-9 sm:w-9 sm:h-9 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer min-h-[38px] min-w-[38px] ${
+                isVoiceActive
+                  ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 shadow-[0_0_12px_rgba(0,240,255,0.25)]'
+                  : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+              }`}
+              title={isVoiceActive ? 'Assistant Vocal Féminin (Français) : ACTIF' : 'Assistant Vocal Féminin : MUTÉ'}
+              aria-label="Assistant vocal féminin français"
+            >
+              <Radio className={`w-4 h-4 ${isVoiceActive ? 'text-cyan-400 animate-pulse' : 'text-slate-500'}`} />
+            </button>
+
             <button
               type="button"
               onClick={handleToggleAudio}
@@ -2377,6 +2410,20 @@ export default function App() {
                   </div>
                   <span className={`text-[10px] font-bold ${isAudioMuted ? 'text-slate-500' : 'text-emerald-400'}`}>
                     {isAudioMuted ? 'MUET' : 'ACTIF'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleVoice}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-between cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Radio className={`w-4 h-4 ${isVoiceActive ? 'text-cyan-400 animate-pulse' : 'text-slate-500'}`} />
+                    <span>Voix IA Féminine (FR)</span>
+                  </div>
+                  <span className={`text-[10px] font-bold ${isVoiceActive ? 'text-cyan-400' : 'text-slate-500'}`}>
+                    {isVoiceActive ? 'ACTIVÉE' : 'MUTÉE'}
                   </span>
                 </button>
 

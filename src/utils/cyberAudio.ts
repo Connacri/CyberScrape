@@ -589,6 +589,271 @@ class CyberAudioSynth {
       // Audio fallback
     }
   }
+
+  /**
+   * 12. Futuristic Warp Laser Beam
+   */
+  public playWarpLaser() {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(3200, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.16);
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(2400, now);
+      filter.frequency.exponentialRampToValueAtTime(300, now + 0.16);
+      filter.Q.setValueAtTime(6, now);
+
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.18);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  /**
+   * 13. Neural Matrix Pulse (Deep high-tech ping)
+   */
+  public playNeuralPulse() {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1480, now);
+      osc.frequency.exponentialRampToValueAtTime(740, now + 0.25);
+
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+      osc.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  /**
+   * 14. Price Drop Siren / Electronic Alert Chime
+   */
+  public playPriceAlert() {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
+    try {
+      const now = ctx.currentTime;
+      const freqs = [880, 1174.66, 1760];
+      freqs.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+        gain.gain.setValueAtTime(0.15, now + idx * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.18);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now + idx * 0.05);
+        osc.stop(now + idx * 0.05 + 0.2);
+      });
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  /**
+   * 15. Sci-Fi Matrix Glitch Burst
+   */
+  public playMatrixGlitch() {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.setValueAtTime(1800, now + 0.03);
+      osc.frequency.setValueAtTime(450, now + 0.06);
+      osc.frequency.setValueAtTime(3200, now + 0.09);
+
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+      osc.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  /**
+   * 16. Sub-Bass Lock Confirm (Deep tactile hit when saving to IndexedDB)
+   */
+  public playSubBassLock() {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    const dest = this.getDestination();
+    if (!ctx || !dest) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(95, now);
+      osc.frequency.exponentialRampToValueAtTime(35, now + 0.18);
+
+      gain.gain.setValueAtTime(0.24, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+      osc.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.22);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // ==============================================================
+  // FRENCH FEMALE AI VOCAL SYNTHESIZER ("CYBER-VOIX FÉMININE")
+  // ==============================================================
+  public isVoiceEnabled: boolean = true;
+  private frenchFemaleVoice: SpeechSynthesisVoice | null = null;
+  private voiceLoaded: boolean = false;
+  private lastSpokenTime: number = 0;
+
+  public toggleVoice(): boolean {
+    this.isVoiceEnabled = !this.isVoiceEnabled;
+    if (this.isVoiceEnabled) {
+      this.speakFrenchFemale("Assistant vocal cybernétique activé. Système prêt.", true);
+    } else {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+    return this.isVoiceEnabled;
+  }
+
+  private loadFrenchVoice() {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return;
+
+    // Prefer French female voices (Google français, Amélie, Audrey, Marie, Céline, Julie, Hortense, etc.)
+    const frenchVoices = voices.filter(v => v.lang.startsWith('fr'));
+    const femaleKeywords = ['femme', 'female', 'amelie', 'amélie', 'audrey', 'marie', 'céline', 'celine', 'julie', 'hortense', 'virginie', 'denise', 'google'];
+    
+    let preferred = frenchVoices.find(v => {
+      const name = v.name.toLowerCase();
+      return femaleKeywords.some(k => name.includes(k));
+    });
+
+    if (!preferred && frenchVoices.length > 0) {
+      preferred = frenchVoices[0];
+    }
+
+    this.frenchFemaleVoice = preferred || null;
+    this.voiceLoaded = true;
+  }
+
+  public speakFrenchFemale(text: string, force = false) {
+    if (!this.isVoiceEnabled && !force) return;
+    if (this.isMuted && !force) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    const now = Date.now();
+    // Debounce non-forced speeches to avoid stacking
+    if (!force && now - this.lastSpokenTime < 2800) {
+      return;
+    }
+    this.lastSpokenTime = now;
+
+    try {
+      if (!this.voiceLoaded) {
+        this.loadFrenchVoice();
+        if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+          window.speechSynthesis.onvoiceschanged = () => this.loadFrenchVoice();
+        }
+      }
+
+      window.speechSynthesis.cancel(); // Cancel any ongoing speech
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'fr-FR';
+      if (this.frenchFemaleVoice) {
+        utter.voice = this.frenchFemaleVoice;
+      }
+      // Crisp, slightly elevated sci-fi pitch for a sleek female robot assistant
+      utter.pitch = 1.18;
+      utter.rate = 1.04;
+      utter.volume = 0.95;
+
+      window.speechSynthesis.speak(utter);
+    } catch {
+      // Speech synthesis unsupported or blocked
+    }
+  }
+
+  public speakSystemReady() {
+    this.speakFrenchFemale("Système Cyber-Vacuum activé. Base matricielle connectée.", true);
+  }
+
+  public speakScrapeStarted(target: string = "catalogue") {
+    this.speakFrenchFemale(`Aspiration matricielle lancée. Scan haute performance en cours.`);
+  }
+
+  public speakBatchSaved(count: number, total: number) {
+    this.speakFrenchFemale(`Lot sécurisé. ${count} nouveaux articles consolidés.`);
+  }
+
+  public speakCategoryCompleted(category: string, count: number) {
+    this.speakFrenchFemale(`Catégorie ${category} terminée avec succès. ${count} articles archivés.`);
+  }
+
+  public speakBackgroundModeActive() {
+    this.speakFrenchFemale(`Mode arrière-plan engagé. Aspiration continue active.`, true);
+  }
+
+  public speakPriceDropAlert(percent: number) {
+    this.speakFrenchFemale(`Alerte tarifaire. Baisse de ${percent} pour cent détectée sur le marché.`);
+  }
+
+  public speakSupabaseSynced(count: number) {
+    this.speakFrenchFemale(`Synchronisation Cloud Supabase validée pour ${count} produits.`);
+  }
 }
 
 export const cyberAudio = new CyberAudioSynth();
+
