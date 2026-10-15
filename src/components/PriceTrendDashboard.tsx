@@ -12,6 +12,7 @@ import {
   Package,
 } from 'lucide-react';
 import { CrawlerProductivityChart } from './CrawlerProductivityChart';
+import { CategoryDistributionPieChart } from './CategoryDistributionPieChart';
 
 interface PriceTrendDashboardProps {
   products: ScrapedProduct[];
@@ -471,6 +472,9 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Recharts Category Volume & Valuation Distribution Pie/Donut Chart */}
+      <CategoryDistributionPieChart products={products} />
 
       {/* D3.js Crawler 30-Day Productivity & Category Volume Monitoring */}
       <CrawlerProductivityChart products={products} />
