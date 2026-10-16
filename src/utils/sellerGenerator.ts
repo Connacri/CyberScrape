@@ -368,3 +368,56 @@ export function buildSmsLink(seller: SellerInfo, product: ScrapedProduct): strin
   const message = `Bonjour, je suis intéressé par votre annonce Ouedkniss : ${product.title}`;
   return `sms:${seller.phoneClean}?body=${encodeURIComponent(message)}`;
 }
+
+/**
+ * Checks if a product comes from an official / certified store
+ * by filtering on the 'brand' or 'seller' fields.
+ */
+export function isOfficialStoreProduct(product: ScrapedProduct): boolean {
+  // 1. Check seller object properties
+  if (product.seller) {
+    const s = product.seller;
+    if (s.type === 'Boutique / Store Certifié' || s.type === 'Showroom Auto' || s.type === 'Agence Immobilière') {
+      return true;
+    }
+    if (s.type !== 'Particulier' && Boolean(s.type)) {
+      return true;
+    }
+    if (s.storeName && s.storeName.trim().length > 0) {
+      return true;
+    }
+    if (s.verified && s.type !== 'Particulier') {
+      return true;
+    }
+    if (/(boutique|store|official|officiel|pro|showroom|agence|tech|digital|informatique|auto|dz store)/i.test(s.name || '')) {
+      return true;
+    }
+  }
+
+  // 2. Check brand field
+  if (product.brand) {
+    if (/(officiel|official|store|certifi|boutique)/i.test(product.brand)) {
+      return true;
+    }
+  }
+
+  // 3. Check explicit classification flags
+  if (product.isOfficialStore || product.itemType === 'boutique') {
+    return true;
+  }
+
+  // 4. Check announcement specs
+  if (product.specs?.Vendeur && /(boutique|store|pro|officiel|certifié)/i.test(product.specs.Vendeur)) {
+    return true;
+  }
+  if (product.specs?.Boutique || product.specs?.Store) {
+    return true;
+  }
+
+  // 5. Fallback check for unhydrated demo/raw items
+  const seed = (product.id || product.title).length;
+  // If no seller yet, inspect default seller generated for this item
+  const det = ensureProductDetails(product);
+  return det.seller ? det.seller.type !== 'Particulier' : false;
+}
+

@@ -43,6 +43,7 @@ import {
   ensureProductDetails,
   buildTelLink,
   buildWhatsAppLink,
+  isOfficialStoreProduct,
 } from '../utils/sellerGenerator';
 import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
 import { cyberAudio } from '../utils/cyberAudio';
@@ -157,7 +158,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     for (const p of products) {
       if (p.itemType === 'pub' || p.isSponsored) {
         pub++;
-      } else if (p.itemType === 'boutique' || p.isOfficialStore || (p.seller && p.seller.type !== 'Particulier')) {
+      } else if (isOfficialStoreProduct(p)) {
         boutique++;
       } else {
         annonce++;
@@ -273,7 +274,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           !onlyDiscounted || (p.discountPercent !== undefined && p.discountPercent > 0 && p.discountPercent >= minDiscountPercent);
 
         const isPub = p.itemType === 'pub' || p.isSponsored;
-        const isBoutique = p.itemType === 'boutique' || p.isOfficialStore || (p.seller && p.seller.type !== 'Particulier');
+        const isBoutique = isOfficialStoreProduct(p);
         const isAnnonce = !isPub && !isBoutique;
 
         const matchesItemType =
@@ -1271,7 +1272,14 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                           <div className="font-bold text-slate-200 line-clamp-1 max-w-[240px] group-hover:text-emerald-300 transition-colors">
                             {p.title}
                           </div>
-                          <div className="text-[10px] text-slate-500">{p.category}</div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] text-slate-500">{p.category}</span>
+                            {p.brand && (
+                              <span className="px-1.5 py-0.2 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-500/40 text-[9px] font-mono font-semibold" title={`Marque : ${p.brand}`}>
+                                {p.brand}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-3 whitespace-nowrap font-bold text-[#00ff88]">
                           {formatPrice(p.currentPrice, p.currency)}
@@ -1297,9 +1305,15 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                         </td>
                         <td className="p-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="space-y-1">
-                            <div className="text-[11px] font-bold text-slate-200 truncate max-w-[150px] flex items-center gap-1">
+                            <div className="text-[11px] font-bold text-slate-200 truncate max-w-[175px] flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                               <span className="truncate">{seller.name}</span>
+                              {isOfficialStoreProduct(p) && (
+                                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 text-[9px] font-bold inline-flex items-center gap-0.5 shrink-0" title="Store Certifié / Boutique Officielle">
+                                  <ShieldCheck className="w-2.5 h-2.5 text-[#00ff88]" />
+                                  Pro
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1.5">
                               <a
@@ -1804,11 +1818,16 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             )}
 
             {/* Seller Info */}
-            <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 pt-0.5">
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono text-slate-400 pt-0.5">
               <span className="flex items-center gap-1 text-slate-300 font-semibold truncate max-w-[150px]">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                 {seller.name}
               </span>
+              {isOfficialStoreProduct(product) && (
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 text-[9px] font-bold flex items-center gap-1 shrink-0">
+                  <ShieldCheck className="w-2.5 h-2.5 text-[#00ff88]" /> Store Officiel
+                </span>
+              )}
               <span>•</span>
               <span className="text-slate-500">{seller.type}</span>
               <span>•</span>

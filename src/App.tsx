@@ -54,6 +54,8 @@ import { ApkReleaseModal } from './components/ApkReleaseModal';
 import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
 import { CyberVacuumLogo } from './components/CyberVacuumLogo';
 import { CategoryDistributionPieChart } from './components/CategoryDistributionPieChart';
+import { AnimatedAspirationCounter } from './components/AnimatedAspirationCounter';
+import { isOfficialStoreProduct } from './utils/sellerGenerator';
 import {
   executeScrapeRequest,
   executeSimulatePriceUpdate,
@@ -1167,9 +1169,10 @@ export default function App() {
   const activeProductIdsRef = useRef<Set<string>>(new Set());
   const activeProductUrlsRef = useRef<Set<string>>(new Set());
 
-  // Real-Time Global Topbar Search & Category Filters
+  // Real-Time Global Topbar Search, Official Stores & Category Filters
   const [globalSearchTerm, setGlobalSearchTerm] = useState<string>('');
   const [globalSelectedCategory, setGlobalSelectedCategory] = useState<string>('all');
+  const [filterOfficialStoresOnly, setFilterOfficialStoresOnly] = useState<boolean>(false);
   const [showCategoryChartsModal, setShowCategoryChartsModal] = useState<boolean>(false);
 
 
@@ -1316,9 +1319,17 @@ export default function App() {
     }
   }, [products]);
 
-  // Global filtered products across search term and category
+  // Total available official stores count in dataset
+  const officialStoresCount = useMemo(() => {
+    return products.filter((p) => isOfficialStoreProduct(p)).length;
+  }, [products]);
+
+  // Global filtered products across official stores, search term and category
   const filteredProducts = useMemo(() => {
     let list = products;
+    if (filterOfficialStoresOnly) {
+      list = list.filter((p) => isOfficialStoreProduct(p));
+    }
     if (globalSelectedCategory && globalSelectedCategory !== 'all') {
       const targetCat = globalSelectedCategory.toLowerCase();
       list = list.filter((p) => p.category && p.category.toLowerCase().includes(targetCat));
@@ -1335,7 +1346,7 @@ export default function App() {
       });
     }
     return list;
-  }, [products, globalSearchTerm, globalSelectedCategory]);
+  }, [products, filterOfficialStoresOnly, globalSearchTerm, globalSelectedCategory]);
 
 
   // Stats helpers for specialized headers
@@ -2342,25 +2353,12 @@ export default function App() {
             </button>
           </div>
 
-          {/* ZONE 2: BIG LIVE COUNTER IN TOPBAR (Requis: "le nombre d'articles aspirer réellement en gros dans top bar") */}
-          <div
+          {/* ZONE 2: ANIMATED ASPIRATION COUNTER IN TOPBAR */}
+          <AnimatedAspirationCounter
+            count={Math.max(liveAspiratedCount, products.length)}
+            isLiveScraping={isContinuousScraping || job.status === 'aspirating' || job.status === 'scanning'}
             onClick={() => handleSelectTab('catalog')}
-            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-emerald-950/80 border border-emerald-500/60 shadow-[0_0_20px_rgba(0,255,102,0.3)] cursor-pointer hover:border-emerald-400 transition-all shrink-0"
-            title="Nombre total réel d'articles aspirés et scellés dans le moteur — Cliquer pour ouvrir le catalogue"
-          >
-            <span className="w-2.5 h-2.5 rounded-full bg-[#00ff66] shadow-[0_0_8px_#00ff66] animate-pulse shrink-0" />
-            <div className="flex flex-col leading-none">
-              <span className="text-[8px] sm:text-[9px] font-mono font-bold text-emerald-400/90 uppercase tracking-widest hidden xs:block">
-                Articles Aspirés
-              </span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-base sm:text-xl font-black text-[#00ff66] font-mono tracking-tight text-glow-green">
-                  {Math.max(liveAspiratedCount, products.length).toLocaleString('fr-DZ')}
-                </span>
-                <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-400">ADS</span>
-              </div>
-            </div>
-          </div>
+          />
 
           {/* Zone 3: Desktop Navigation Switcher Tabs (Hidden on mobile/tablet, shown on lg+) */}
           <nav className="hidden lg:flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs">
@@ -2490,8 +2488,9 @@ export default function App() {
           </div>
         </div>
 
-        {/* Row 2: REAL-TIME GLOBAL SEARCH BAR + CATEGORY SELECTOR + RECHARTS SUMMARY TRIGGER */}
+        {/* Row 2: REAL-TIME GLOBAL SEARCH BAR + BOUTIQUE OFFICIELLE FILTER + CATEGORY SELECTOR + RECHARTS SUMMARY TRIGGER */}
         <div className="w-full border-t border-emerald-500/20 bg-slate-950/95 px-2.5 sm:px-6 py-2 flex items-center gap-1.5 sm:gap-2">
+          {/* Main Search Input */}
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 pointer-events-none" />
             <input
@@ -2503,7 +2502,7 @@ export default function App() {
                   // User searching: keep tab or navigate
                 }
               }}
-              placeholder="Rechercher par titre, marque, wilaya en temps réel..."
+              placeholder="Rechercher par titre, marque, wilaya, vendeur..."
               className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 rounded-xl bg-slate-900/90 border border-emerald-500/30 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40 transition-all"
             />
             {globalSearchTerm && (
@@ -2517,6 +2516,34 @@ export default function App() {
               </button>
             )}
           </div>
+
+          {/* Boutique Officielle Filter in Global Search Bar (Filtrage sur champ brand ou seller) */}
+          <button
+            type="button"
+            onClick={() => {
+              setFilterOfficialStoresOnly((prev) => !prev);
+              cyberAudio.playClick();
+            }}
+            className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer select-none ${
+              filterOfficialStoresOnly
+                ? 'bg-emerald-500/25 border-[#00ff88] text-[#00ff88] shadow-[0_0_15px_rgba(0,255,102,0.35)] ring-1 ring-emerald-400/50'
+                : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/40'
+            }`}
+            title="Filtrer uniquement les Boutiques Officielles et Stores Certifiés (vérifiés sur la marque ou le vendeur)"
+          >
+            <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${filterOfficialStoresOnly ? 'text-[#00ff88] animate-pulse' : 'text-slate-400'}`} />
+            <span className="hidden sm:inline">Boutique Officielle</span>
+            <span className="sm:hidden">Store Pro</span>
+            <span
+              className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                filterOfficialStoresOnly
+                  ? 'bg-emerald-950/90 text-[#00ff88] border border-emerald-400/50 font-bold'
+                  : 'bg-black/60 text-slate-400'
+              }`}
+            >
+              {officialStoresCount}
+            </span>
+          </button>
 
           {/* Category Select Filter */}
           <select
@@ -2983,9 +3010,13 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-                  <span className="text-cyan-400 font-bold font-mono-numbers">
-                    {products.length.toLocaleString()} articles récoltés
-                  </span>
+                  <AnimatedAspirationCounter
+                    count={products.length}
+                    label="RÉCOLTE"
+                    unit="ARTICLES"
+                    size="sm"
+                    isLiveScraping={isContinuousScraping || job.status === 'aspirating'}
+                  />
                   <span className="text-slate-400">
                     Devise : <strong className="text-white">{targetUrl.includes('ouedkniss') ? '🇩🇿 DA' : '🇪🇺 €'}</strong>
                   </span>
@@ -3089,9 +3120,13 @@ export default function App() {
                     <h2 className="font-mono text-base sm:text-lg font-black text-white tracking-wide uppercase">
                       CYBER-BASE // CATALOGUE DE MARCHÉ ALGÉRIE
                     </h2>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-[#00ff88] border border-emerald-400/40 font-bold">
-                      {products.length} ITEMS SCELLÉS
-                    </span>
+                    <AnimatedAspirationCounter
+                      count={products.length}
+                      label=""
+                      unit="ITEMS SCELLÉS"
+                      size="sm"
+                      isLiveScraping={isContinuousScraping || job.status === 'aspirating'}
+                    />
                   </div>
                   <p className="text-xs text-slate-400 font-mono">
                     Répertoire complet des annonces aspirées • Filtrage par Wilaya, Fourchettes DA, et tri intelligent
@@ -3164,12 +3199,13 @@ export default function App() {
               </div>
             </div>
 
-            {(globalSearchTerm.trim() || globalSelectedCategory !== 'all') && (
+            {(globalSearchTerm.trim() || globalSelectedCategory !== 'all' || filterOfficialStoresOnly) && (
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40 text-xs font-mono text-emerald-300">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>
                     Filtre actif : <strong>{filteredProducts.length}</strong> sur {products.length} articles
+                    {filterOfficialStoresOnly && ' [🏪 Boutiques Officielles uniquement]'}
                     {globalSearchTerm && ` ("${globalSearchTerm}")`}
                     {globalSelectedCategory !== 'all' && ` [${globalSelectedCategory}]`}
                   </span>
@@ -3179,6 +3215,7 @@ export default function App() {
                   onClick={() => {
                     setGlobalSearchTerm('');
                     setGlobalSelectedCategory('all');
+                    setFilterOfficialStoresOnly(false);
                   }}
                   className="px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-[#00ff88] border border-emerald-500/40 font-bold transition-all cursor-pointer text-[11px]"
                 >
