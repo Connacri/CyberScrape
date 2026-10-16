@@ -31,6 +31,7 @@ import {
   Eye,
   ShieldCheck,
   BarChart3,
+  Heart,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
@@ -105,6 +106,44 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   const [maxPrice, setMaxPrice] = useState<number | ''>('');
   const [showCategoryCharts, setShowCategoryCharts] = useState<boolean>(false);
 
+  // Favorites state persisted in localStorage
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('cyber_vacuum_favorites');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return Array.isArray(parsed) ? new Set(parsed) : new Set<string>();
+      }
+    } catch (err) {
+      console.warn('Could not load favorites from localStorage', err);
+    }
+    return new Set<string>();
+  });
+  const [onlyFavorites, setOnlyFavorites] = useState<boolean>(false);
+
+  const toggleFavorite = useCallback((productId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+        cyberAudio.playClick();
+      } else {
+        next.add(productId);
+        cyberAudio.playSuccess();
+      }
+      try {
+        localStorage.setItem('cyber_vacuum_favorites', JSON.stringify(Array.from(next)));
+      } catch (err) {
+        console.error('Failed to save favorites to localStorage', err);
+      }
+      return next;
+    });
+  }, []);
+
   const handleResetPriceFilter = useCallback(() => {
     setMinPrice('');
     setMaxPrice('');
@@ -143,7 +182,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   // Reset visibleCount whenever filters change
   useEffect(() => {
     setVisibleCount(CHUNK_SIZE);
-  }, [searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, selectedItemType]);
+  }, [searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, selectedItemType, onlyFavorites]);
 
 
   // Overall dataset min/max price for the range filter slider bounds
@@ -243,6 +282,8 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           (selectedItemType === 'boutique' && isBoutique) ||
           (selectedItemType === 'annonce' && isAnnonce);
 
+        const matchesFavorites = !onlyFavorites || favorites.has(p.id);
+
         return (
           matchesTitle &&
           matchesSearch &&
@@ -252,7 +293,8 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           matchesMinPrice &&
           matchesMaxPrice &&
           matchesDiscount &&
-          matchesItemType
+          matchesItemType &&
+          matchesFavorites
         );
       })
 
@@ -303,7 +345,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         }
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [products, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, onlyDiscounted, minDiscountPercent, selectedItemType]);
+  }, [products, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, onlyDiscounted, minDiscountPercent, selectedItemType, onlyFavorites, favorites]);
 
   // Grouped products for "Vue Groupée" (either by Category or by Wilaya)
   const groupedProducts = useMemo(() => {

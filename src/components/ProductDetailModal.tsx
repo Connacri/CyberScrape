@@ -27,6 +27,7 @@ import {
   TrendingDown,
   TrendingUp,
   LineChart,
+  Heart,
 } from 'lucide-react';
 import { ProductPriceHistoryChart } from './ProductPriceHistoryChart';
 import {
@@ -44,6 +45,8 @@ interface ProductDetailModalProps {
   onInspectJson?: (product: ScrapedProduct) => void;
   onSyncSupabase?: (product: ScrapedProduct) => void;
   isSyncingSupabase?: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: (productId: string) => void;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
@@ -52,6 +55,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onInspectJson,
   onSyncSupabase,
   isSyncingSupabase,
+  isFavorite,
+  onToggleFavorite,
 }) => {
   // Ensure product has all seller and announcement details
   const product = ensureProductDetails(rawProduct);
@@ -118,6 +123,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onToggleFavorite && (
+              <button
+                type="button"
+                onClick={() => onToggleFavorite(product.id)}
+                className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                  isFavorite
+                    ? 'bg-rose-950/80 border-rose-500 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-105'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/50 hover:bg-black/90'
+                }`}
+                title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+              >
+                <Heart className={`w-4 h-4 transition-transform ${isFavorite ? 'fill-rose-500 text-rose-400 scale-110' : ''}`} />
+              </button>
+            )}
+
             <button
               onClick={handleShareLink}
               className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition-colors cursor-pointer"
