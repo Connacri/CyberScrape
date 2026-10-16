@@ -51,6 +51,8 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   Utensils,
 };
 
+import { ScrapeSweepCheckpoint } from '../utils/scrapeCheckpoint';
+
 interface GlobalSweepProgressBarProps {
   isActive: boolean;
   isComplete: boolean;
@@ -66,6 +68,8 @@ interface GlobalSweepProgressBarProps {
   onChangeSweepPagesPerCategory: (pages: number) => void;
   onStartSweep: () => void;
   onStopSweep: () => void;
+  savedCheckpoint?: ScrapeSweepCheckpoint | null;
+  onResumeSweep?: () => void;
   onSelectCategory?: (category: OuedknissCategoryMeta) => void;
 }
 
@@ -84,6 +88,8 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
   onChangeSweepPagesPerCategory,
   onStartSweep,
   onStopSweep,
+  savedCheckpoint,
+  onResumeSweep,
   onSelectCategory,
 }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
@@ -256,13 +262,25 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
                   ))}
                 </div>
 
+                {/* Resume button if checkpoint exists */}
+                {savedCheckpoint && onResumeSweep && (
+                  <button
+                    onClick={onResumeSweep}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] animate-pulse"
+                    title={`Reprendre l'aspiration à la catégorie ${savedCheckpoint.categoryIndex + 1}/${totalCategories} (${savedCheckpoint.categoryName}), page ${savedCheckpoint.pageNumber}`}
+                  >
+                    <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+                    <span>Reprendre (Cat. {savedCheckpoint.categoryIndex + 1})</span>
+                  </button>
+                )}
+
                 <button
                   onClick={onStartSweep}
                   className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00ff88] text-slate-950 hover:from-emerald-400 hover:to-cyan-300 text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,255,102,0.35)] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                  title="Démarrer l'aspiration séquentielle des 17 catégories Ouedkniss"
+                  title={savedCheckpoint ? "Recommencer depuis la 1ère catégorie" : "Démarrer l'aspiration séquentielle des 17 catégories Ouedkniss"}
                 >
-                  <Zap className="w-3.5 h-3.5 fill-black text-black" />
-                  <span>Balayer les 17 Catégories</span>
+                  <Globe className="w-3.5 h-3.5 text-slate-950" />
+                  <span>{savedCheckpoint ? 'Recommencer (17 Cat.)' : 'Balayer les 17 Catégories'}</span>
                 </button>
               </div>
             )}

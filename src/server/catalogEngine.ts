@@ -896,12 +896,8 @@ export function generateOuedknissItems(count: number, page: number = 1, category
     const { currentPrice, discountPercent } = profile.priceCalc(globalIdx);
     const originalPrice = Math.round(currentPrice * (1 + discountPercent / 100));
     const specs = profile.specsGenerator(globalIdx, wilaya);
-    const cleanSlug = `${brand}-${model}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    const announcementId = 55000000 + ((globalIdx * 19483 + 38291) % 4000000);
-    const directProductUrl = `https://www.ouedkniss.com/${cleanSlug}-d${announcementId}`;
+    const encodedModelKeywords = encodeURIComponent(`${brand} ${model}`.trim());
+    const directProductUrl = `https://www.ouedkniss.com/${catKey}?keywords=${encodedModelKeywords}`;
 
     items.push({
       title: `${brand} ${model} - Annonce Ouedkniss #${1000 + globalIdx}`,

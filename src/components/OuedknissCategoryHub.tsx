@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES, OuedknissCategoryMeta } from '../data/ouedknissCategories';
 import { ScrapedProduct } from '../types';
+import { ScrapeSweepCheckpoint } from '../utils/scrapeCheckpoint';
 
 interface OuedknissCategoryHubProps {
   products: ScrapedProduct[];
@@ -43,6 +44,9 @@ interface OuedknissCategoryHubProps {
   onStartCategoryScrape?: (category: OuedknissCategoryMeta) => void;
   onStartAllCategoriesSweep: () => void;
   onStopSweep?: () => void;
+  savedCheckpoint?: ScrapeSweepCheckpoint | null;
+  onResumeSweep?: () => void;
+  onResetSweep?: () => void;
   isScrapingActive: boolean;
   activeSweepCategoryIndex?: number;
   sweepPagesPerCategory?: number;
@@ -74,12 +78,12 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
 };
 
 const DEPTH_PRESETS = [
-  { val: 5, label: '5p', count: '240 ads' },
-  { val: 15, label: '15p', count: '720 ads' },
+  { val: 10, label: '10p', count: '480 ads' },
   { val: 25, label: '25p', count: '1.2k ads' },
   { val: 50, label: '50p', count: '2.4k ads' },
   { val: 100, label: '100p', count: '4.8k ads' },
-  { val: 0, label: '∞ Illimité', count: 'Jusqu\'au bout (150p+)' },
+  { val: 250, label: '250p', count: '12k ads' },
+  { val: 0, label: '∞ Illimité', count: 'Sans limite (+50k ads)' },
 ];
 
 export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
@@ -89,6 +93,9 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
   onStartCategoryScrape,
   onStartAllCategoriesSweep,
   onStopSweep,
+  savedCheckpoint,
+  onResumeSweep,
+  onResetSweep,
   isScrapingActive,
   activeSweepCategoryIndex,
   sweepPagesPerCategory = 0,
@@ -232,6 +239,21 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              {/* Button 0: Resume In-Progress Sweep if checkpoint exists */}
+              {savedCheckpoint && onResumeSweep && (
+                <button
+                  type="button"
+                  onClick={onResumeSweep}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 hover:from-cyan-400 hover:to-emerald-300 font-mono text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.4)] min-h-[44px] animate-pulse"
+                  title={`Reprendre l'aspiration à la catégorie ${savedCheckpoint.categoryIndex + 1}/${OUEDKNISS_CATEGORIES.length} (${savedCheckpoint.categoryName}), page ${savedCheckpoint.pageNumber}`}
+                >
+                  <Play className="w-4 h-4 fill-slate-950 text-slate-950 shrink-0" />
+                  <span className="tracking-wide whitespace-nowrap">
+                    REPRENDRE : CAT. {savedCheckpoint.categoryIndex + 1} (P.{savedCheckpoint.pageNumber})
+                  </span>
+                </button>
+              )}
+
               {/* Button 1: Direct Category Scrape (functions identically to the bottom input scrape button) */}
               <button
                 type="button"
@@ -258,10 +280,12 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
                 type="button"
                 onClick={onStartAllCategoriesSweep}
                 className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-950/50 hover:border-emerald-400 font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px]"
-                title="Aspirer toutes les 17 catégories l'une après l'autre"
+                title={savedCheckpoint ? "Recommencer le balayage des 17 catégories depuis le début" : "Aspirer toutes les 17 catégories l'une après l'autre"}
               >
                 <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                <span className="tracking-wide whitespace-nowrap">BALAYER LES 17 CATÉGORIES</span>
+                <span className="tracking-wide whitespace-nowrap">
+                  {savedCheckpoint ? 'RECOMMENCER LES 17 CATÉGORIES' : 'BALAYER LES 17 CATÉGORIES'}
+                </span>
                 <span className="px-1.5 py-0.5 rounded bg-black/85 text-[#00ff88] text-[10px] font-bold border border-emerald-400/50 hidden sm:inline">
                   {sweepPagesPerCategory === 0 ? '∞ Illimité' : `${sweepPagesPerCategory * 48}/cat`}
                 </span>
