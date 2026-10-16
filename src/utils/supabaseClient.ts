@@ -341,9 +341,10 @@ function flushProductsSync(products: ScrapedProduct[]) {
       const tx = db.transaction(IDB_STORE, 'readwrite');
       const store = tx.objectStore(IDB_STORE);
       
-      // Save all products into IndexedDB
-      for (let i = 0; i < products.length; i++) {
-        store.put(products[i]);
+      // Save recent products into IndexedDB (streaming batches are saved via saveScrapedProductsBatch)
+      const writeSlice = products.length > 500 ? products.slice(0, 300) : products;
+      for (let i = 0; i < writeSlice.length; i++) {
+        store.put(writeSlice[i]);
       }
     } catch (err) {
       console.warn('[CYBER-VACUUM] Error writing products to IndexedDB:', err);

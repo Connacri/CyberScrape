@@ -358,20 +358,37 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     return groups;
   }, [filteredProducts, groupCriteria]);
 
-  // Sliced products for virtual / lazy rendering
-  const lazyProducts = useMemo(() => {
-    return filteredProducts.slice(0, visibleCount);
-  }, [filteredProducts, visibleCount]);
+  // High-performance Pagination & Stream state (Prevents mobile freeze with 5000+ items)
+  const [displayMode, setDisplayMode] = useState<'paged' | 'stream'>('paged');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(36);
 
-  // IntersectionObserver for buttery smooth infinite scrolling
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    setVisibleCount(CHUNK_SIZE);
+  }, [searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, selectedItemType, onlyDiscounted, onlyFavorites]);
+
+  // Sliced products for virtual / paged rendering
+  const displayedProducts = useMemo(() => {
+    if (displayMode === 'paged') {
+      const start = (currentPage - 1) * pageSize;
+      return filteredProducts.slice(start, start + pageSize);
+    }
+    return filteredProducts.slice(0, visibleCount);
+  }, [filteredProducts, displayMode, currentPage, pageSize, visibleCount]);
+
+  // IntersectionObserver for buttery smooth infinite scrolling (active in stream mode)
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [target] = entries;
-      if (target.isIntersecting && visibleCount < filteredProducts.length) {
+      if (displayMode === 'stream' && target.isIntersecting && visibleCount < filteredProducts.length) {
         setVisibleCount((prev) => Math.min(prev + CHUNK_SIZE, filteredProducts.length));
       }
     },
-    [visibleCount, filteredProducts.length]
+    [displayMode, visibleCount, filteredProducts.length]
   );
 
   useEffect(() => {
@@ -478,6 +495,124 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
   const hasEuros = products.some((p) => p.currency === '€');
   const isAllLoaded = visibleCount >= filteredProducts.length;
+
+  const renderPaginationControls = () => {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 my-3 rounded-2xl bg-slate-950/90 border border-emerald-500/30 font-mono text-xs text-slate-300 shadow-md backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[#00ff88] font-bold text-xs flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
+            {displayMode === 'paged' ? `Page ${currentPage} sur ${totalPages}` : `${visibleCount} sur ${filteredProducts.length}`}
+          </span>
+          <span className="hidden sm:inline-block text-slate-400 text-xs">
+            ({filteredProducts.length.toLocaleString('fr-DZ')} annonces filtrées)
+          </span>
+        </div>
+
+        {displayMode === 'paged' && totalPages > 1 && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => {
+                setCurrentPage(1);
+                window.scrollTo({ top: 300, behavior: 'smooth' });
+              }}
+              disabled={currentPage === 1}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:border-emerald-500/50 hover:text-white transition-all cursor-pointer disabled:cursor-not-allowed text-[11px]"
+              title="Première page"
+            >
+              « Début
+            </button>
+            <button
+              onClick={() => {
+                setCurrentPage((p) => Math.max(1, p - 1));
+                window.scrollTo({ top: 300, behavior: 'smooth' });
+              }}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:border-emerald-500/50 hover:text-white transition-all cursor-pointer disabled:cursor-not-allowed text-[11px]"
+              title="Page précédente"
+            >
+              ‹ Précédent
+            </button>
+
+            <span className="px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-[#00ff88] font-bold text-xs min-w-[36px] text-center">
+              {currentPage}
+            </span>
+
+            <button
+              onClick={() => {
+                setCurrentPage((p) => Math.min(totalPages, p + 1));
+                window.scrollTo({ top: 300, behavior: 'smooth' });
+              }}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:border-emerald-500/50 hover:text-white transition-all cursor-pointer disabled:cursor-not-allowed text-[11px]"
+              title="Page suivante"
+            >
+              Suivant ›
+            </button>
+            <button
+              onClick={() => {
+                setCurrentPage(totalPages);
+                window.scrollTo({ top: 300, behavior: 'smooth' });
+              }}
+              disabled={currentPage === totalPages}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 hover:border-emerald-500/50 hover:text-white transition-all cursor-pointer disabled:cursor-not-allowed text-[11px]"
+              title="Dernière page"
+            >
+              Fin »
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 rounded-xl bg-slate-900 p-1 border border-slate-800 text-[11px]">
+            <button
+              type="button"
+              onClick={() => setDisplayMode('paged')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                displayMode === 'paged'
+                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Mode pages légères (Recommandé : zéro freeze sur mobile)"
+            >
+              📑 Pages (Fluide)
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisplayMode('stream')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                displayMode === 'stream'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Mode flux continu"
+            >
+              🌊 Flux Continu
+            </button>
+          </div>
+
+          {displayMode === 'paged' && (
+            <div className="flex items-center gap-1.5">
+              <span className="hidden md:inline text-slate-500 text-[11px]">Par page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 font-mono focus:border-emerald-500 outline-none cursor-pointer"
+              >
+                <option value={24}>24</option>
+                <option value={36}>36</option>
+                <option value={48}>48</option>
+                <option value={96}>96</option>
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -965,6 +1100,9 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         </div>
       </div>
 
+      {/* Pagination Top Toolbar */}
+      {renderPaginationControls()}
+
       {/* ============================================================== */}
       {/* 4. MAIN PRODUCT DISPLAY: GRID / GROUPED / TABLE */}
       {/* ============================================================== */}
@@ -1378,24 +1516,10 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     const staggerDelay = Math.min((index % 12) * 0.045, 0.45);
 
     return (
-      <motion.div
+      <div
         key={det.id}
-        layout
-        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
-        transition={{
-          layout: {
-            type: 'spring',
-            stiffness: 350,
-            damping: 30,
-            mass: 0.8,
-          },
-          opacity: { duration: 0.25 },
-          scale: { duration: 0.25 },
-        }}
         onClick={() => setSelectedDetailProduct(det)}
-        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3.5 transition-colors duration-200 flex flex-col justify-between hover:shadow-[0_0_25px_rgba(0,255,102,0.18)] overflow-hidden cursor-pointer will-change-transform"
+        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3.5 transition-all duration-200 flex flex-col justify-between hover:shadow-[0_0_25px_rgba(0,255,102,0.18)] overflow-hidden cursor-pointer"
         style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 360px' }}
       >
         {/* Cyber corner accents */}
@@ -1594,7 +1718,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
@@ -1612,23 +1736,11 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     const staggerDelay = Math.min((index % 12) * 0.035, 0.35);
 
     return (
-      <motion.div
+      <div
         key={det.id}
-        layout
-        initial={{ opacity: 0, y: 14, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
-        transition={{
-          layout: {
-            type: 'spring',
-            stiffness: 350,
-            damping: 30,
-            mass: 0.8,
-          },
-          opacity: { duration: 0.25 },
-        }}
         onClick={() => setSelectedDetailProduct(det)}
-        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3 sm:p-4 transition-colors duration-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 hover:shadow-[0_0_20px_rgba(0,255,102,0.15)] cursor-pointer will-change-transform"
+        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3 sm:p-4 transition-all duration-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 hover:shadow-[0_0_20px_rgba(0,255,102,0.15)] cursor-pointer"
+        style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 110px' }}
       >
         <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
           {/* Square Image Thumbnail */}
@@ -1761,7 +1873,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 };

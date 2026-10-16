@@ -51,14 +51,26 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
     }
 
     const totalProducts = products.length;
-    const totalValuation = products.reduce((acc, p) => acc + p.currentPrice, 0);
-    const avgPrice = totalValuation / totalProducts;
-    const totalDiscount = products.reduce((acc, p) => acc + (p.discountPercent || 0), 0);
-    const avgDiscount = totalDiscount / totalProducts;
-    const maxDiscount = Math.max(...products.map((p) => p.discountPercent || 0));
-    const inStockCount = products.filter((p) => p.inStock).length;
-    const inStockRate = (inStockCount / totalProducts) * 100;
-    const priceDropsCount = products.filter((p) => p.discountPercent > 0).length;
+    let totalValuation = 0;
+    let totalDiscount = 0;
+    let maxDiscount = 0;
+    let inStockCount = 0;
+    let priceDropsCount = 0;
+
+    for (let i = 0; i < totalProducts; i++) {
+      const p = products[i];
+      const price = p.currentPrice || 0;
+      const disc = p.discountPercent || 0;
+      totalValuation += price;
+      totalDiscount += disc;
+      if (disc > maxDiscount) maxDiscount = disc;
+      if (p.inStock) inStockCount++;
+      if (disc > 0) priceDropsCount++;
+    }
+
+    const avgPrice = totalProducts > 0 ? totalValuation / totalProducts : 0;
+    const avgDiscount = totalProducts > 0 ? totalDiscount / totalProducts : 0;
+    const inStockRate = totalProducts > 0 ? (inStockCount / totalProducts) * 100 : 0;
 
     return {
       totalProducts,

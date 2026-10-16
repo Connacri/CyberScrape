@@ -19,6 +19,7 @@ import {
   generateGalleryImages,
 } from './src/utils/sellerGenerator.ts';
 import { getOuedknissOriginUrl } from './src/utils/ouedknissUrls.ts';
+import { scrapeOuedknissLiveAnnouncements } from './src/server/ouedknissLiveScraper.ts';
 
 dotenv.config();
 
@@ -184,20 +185,57 @@ app.post('/api/scrape', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // Step 1: Attempt HTML fetch with instant circuit breaker
-    const rawHtml = await fetchTargetHtml(url, domain, pageNum);
+    // Extract search keywords from target URL if present
+    let searchKeywords = '';
+    try {
+      const parsedUrl = new URL(url);
+      searchKeywords = parsedUrl.searchParams.get('keywords') || parsedUrl.searchParams.get('q') || '';
+      if (!searchKeywords && !activeCategorySlug) {
+        const lastPart = parsedUrl.pathname.replace(/^\/+|\/+$/g, '').split('/').pop() || '';
+        if (lastPart && !['telephones', 'automobiles', 'informatique', 'electromenager', 'immobilier'].includes(lastPart)) {
+          searchKeywords = lastPart.replace(/[-_+]/g, ' ');
+        }
+      }
+    } catch {
+      // ignore
+    }
 
     let rawItems: ScrapedItem[] = [];
-    let usedModel = engineMode === 'direct' ? 'DIRECT_HTML_PARSER_MK4' : 'gemini-3.8-flash';
-    let isFallbackMode = engineMode === 'direct';
+    const liveSellers = new Map<string, any>();
+    let usedModel = engineMode === 'direct' ? 'OUEDKNISS_LIVE_GRAPHQL_ENGINE_V4' : 'gemini-3.8-flash';
+    let isFallbackMode = false;
     let fallbackNotice: string | null = null;
 
-    // Step 2: Extract real data from HTML (JSON-LD / microdata / meta tags)
-    if (rawHtml) {
-      const htmlExtracted = extractProductsFromHtml(rawHtml, domain, isOuedkniss);
-      if (htmlExtracted.length > 0) {
-        rawItems = htmlExtracted;
-        console.log(`[CYBER-VACUUM] Direct DOM parser extracted ${htmlExtracted.length} products from HTML markup.`);
+    // Step 1: For Ouedkniss targets, query the official public GraphQL API directly for real authentic listings
+    if (isOuedkniss) {
+      console.log(`[CYBER-VACUUM] Calling Live Ouedkniss GraphQL API: category=${activeCategorySlug || 'all'}, keywords="${searchKeywords}", page=${pageNum}...`);
+      const liveResult = await scrapeOuedknissLiveAnnouncements({
+        categorySlug: activeCategorySlug,
+        keywords: searchKeywords,
+        page: pageNum,
+        count: targetCount,
+      });
+
+      if (liveResult.success && liveResult.products.length > 0) {
+        rawItems = liveResult.products;
+        liveResult.sellers.forEach((seller, key) => {
+          liveSellers.set(key, seller);
+        });
+        usedModel = 'OUEDKNISS_LIVE_GRAPHQL_STREAM (Authentique 100%)';
+        console.log(`[CYBER-VACUUM] Successfully scraped ${rawItems.length} live authentic Ouedkniss announcements!`);
+      }
+    }
+
+    // Step 2: Attempt HTML fetch for non-Ouedkniss domains or if GraphQL had 0 results
+    let rawHtml: string | null = null;
+    if (rawItems.length === 0) {
+      rawHtml = await fetchTargetHtml(url, domain, pageNum);
+      if (rawHtml) {
+        const htmlExtracted = extractProductsFromHtml(rawHtml, domain, isOuedkniss);
+        if (htmlExtracted.length > 0) {
+          rawItems = htmlExtracted;
+          console.log(`[CYBER-VACUUM] Direct DOM parser extracted ${htmlExtracted.length} products from HTML markup.`);
+        }
       }
     }
 
@@ -344,7 +382,7 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
       }
 
       const seller = isOuedkniss
-        ? generateSellerForProduct(prodId, item.category || 'Général', item.specs?.Wilaya)
+        ? (liveSellers.get(prodId) || generateSellerForProduct(prodId, item.category || 'Général', item.specs?.Wilaya))
         : undefined;
 
       const productImages = isOuedkniss && item.imageUrl

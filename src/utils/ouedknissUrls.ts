@@ -101,7 +101,7 @@ export function getOuedknissOriginUrl(
   const encodedKeywords = encodeURIComponent(cleanTitle);
 
   if (catSlug && catSlug !== 's') {
-    return `https://www.ouedkniss.com/${catSlug}?keywords=${encodedKeywords}`;
+    return `https://www.ouedkniss.com/s?keywords=${encodedKeywords}&c=${encodeURIComponent(catSlug)}`;
   }
   return `https://www.ouedkniss.com/s?keywords=${encodedKeywords}`;
 }
@@ -113,7 +113,7 @@ export function getOuedknissSearchUrl(keywords: string, categoryName?: string): 
   const catSlug = getOuedknissCategorySlug(categoryName);
   const encoded = encodeURIComponent(cleanOuedknissTitle(keywords));
   if (catSlug && catSlug !== 's') {
-    return `https://www.ouedkniss.com/${catSlug}?keywords=${encoded}`;
+    return `https://www.ouedkniss.com/s?keywords=${encoded}&c=${encodeURIComponent(catSlug)}`;
   }
   return `https://www.ouedkniss.com/s?keywords=${encoded}`;
 }
