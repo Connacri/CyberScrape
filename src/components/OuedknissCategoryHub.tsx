@@ -245,11 +245,11 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
                   type="button"
                   onClick={onResumeSweep}
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 hover:from-cyan-400 hover:to-emerald-300 font-mono text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.4)] min-h-[44px] animate-pulse"
-                  title={`Reprendre l'aspiration à la catégorie ${savedCheckpoint.categoryIndex + 1}/${OUEDKNISS_CATEGORIES.length} (${savedCheckpoint.categoryName}), page ${savedCheckpoint.pageNumber}`}
+                  title={`Reprendre l'aspiration à la catégorie ${savedCheckpoint.categoryIndex + 1}/${OUEDKNISS_CATEGORIES.length} (${savedCheckpoint.categoryName}), page ${savedCheckpoint.currentPage || 1}`}
                 >
                   <Play className="w-4 h-4 fill-slate-950 text-slate-950 shrink-0" />
                   <span className="tracking-wide whitespace-nowrap">
-                    REPRENDRE : CAT. {savedCheckpoint.categoryIndex + 1} (P.{savedCheckpoint.pageNumber})
+                    REPRENDRE : CAT. {savedCheckpoint.categoryIndex + 1} (P.{savedCheckpoint.currentPage || 1})
                   </span>
                 </button>
               )}

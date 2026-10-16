@@ -267,10 +267,10 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
                   <button
                     onClick={onResumeSweep}
                     className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] animate-pulse"
-                    title={`Reprendre l'aspiration à la catégorie ${savedCheckpoint.categoryIndex + 1}/${totalCategories} (${savedCheckpoint.categoryName}), page ${savedCheckpoint.pageNumber}`}
+                    title={`Reprendre l'aspiration à la catégorie ${savedCheckpoint.categoryIndex + 1}/${totalCategories} (${savedCheckpoint.categoryName}), page ${savedCheckpoint.currentPage || 1}`}
                   >
                     <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
-                    <span>Reprendre (Cat. {savedCheckpoint.categoryIndex + 1})</span>
+                    <span>Reprendre (Cat. {savedCheckpoint.categoryIndex + 1} p.{savedCheckpoint.currentPage || 1})</span>
                   </button>
                 )}
 

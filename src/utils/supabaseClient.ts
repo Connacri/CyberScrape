@@ -232,7 +232,7 @@ export async function queryProductsPageFromIndexedDB(params: IndexedDbQueryParam
  * Loads scraped products from IndexedDB with safety cap to avoid out-of-memory crash
  * if the database has millions of entries.
  */
-export async function loadStoredProductsFromIndexedDB(maxLimit: number = 30000): Promise<ScrapedProduct[]> {
+export async function loadStoredProductsFromIndexedDB(maxLimit: number = 250000): Promise<ScrapedProduct[]> {
   try {
     const db = await openIndexedDb();
     if (!db) return [];
