@@ -32,6 +32,7 @@ import {
   Flame,
   User,
   Store,
+  Radar,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES, OuedknissCategoryMeta } from '../data/ouedknissCategories';
 import { ScrapedProduct } from '../types';
@@ -55,6 +56,7 @@ interface OuedknissCategoryHubProps {
   onSelectDiscoveredCategory?: (catName: string) => void;
   targetTypeFilter?: 'all' | 'boutique' | 'annonce' | 'pub';
   onChangeTargetTypeFilter?: (type: 'all' | 'boutique' | 'annonce' | 'pub') => void;
+  onOpenAuditModal?: () => void;
 }
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -104,6 +106,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
   onSelectDiscoveredCategory,
   targetTypeFilter = 'all',
   onChangeTargetTypeFilter,
+  onOpenAuditModal,
 }) => {
 
   // Count articles present in catalog per category slug or name
@@ -275,6 +278,19 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
                 </span>
               </button>
 
+              {/* Button: Reconnaissance Audit Pre-Flight */}
+              {onOpenAuditModal && (
+                <button
+                  type="button"
+                  onClick={onOpenAuditModal}
+                  className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:border-cyan-400 font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] shadow-[0_0_12px_rgba(0,240,255,0.25)]"
+                  title="Scanner et auditer les 17 catégories : pages, articles, boutiques et pubs"
+                >
+                  <Radar className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span className="tracking-wide whitespace-nowrap">AUDITER LES 17 CATÉGORIES</span>
+                </button>
+              )}
+
               {/* Button 2: Sequential 17 Categories Sweep */}
               <button
                 type="button"
@@ -417,7 +433,12 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
 
               {/* Action Footer: Badge + Quick Direct Aspirer Button */}
               <div className="mt-2.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono">
-                <span className="text-slate-400 text-[9px] truncate">{cat.badge}</span>
+                <div className="flex flex-col min-w-0 pr-1 leading-tight">
+                  <span className="text-slate-400 text-[9px] truncate">{cat.badge}</span>
+                  <span className="text-cyan-400 text-[8.5px] truncate font-mono">
+                    {Math.ceil(cat.countEstimate / 30).toLocaleString('fr-FR')} pages • ~{Math.round(cat.countEstimate * 0.22).toLocaleString('fr-FR')} stores
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={(e) => {

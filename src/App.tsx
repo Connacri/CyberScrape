@@ -21,7 +21,9 @@ import {
   OUEDKNISS_CATEGORIES,
   OuedknissCategoryMeta,
   detectOuedknissCategory,
+  getCategoryAuditStats,
 } from './data/ouedknissCategories';
+import { CategoryMatrixAuditModal } from './components/CategoryMatrixAuditModal';
 import {
   getStoredSupabaseConfig,
   saveStoredSupabaseConfig,
@@ -63,6 +65,7 @@ import {
 import {
   Zap,
   Radio,
+  Radar,
   Database,
   Volume2,
   VolumeX,
@@ -1032,10 +1035,15 @@ function smartMergeProducts(
 ): SmartMergeResult {
   const existingMap = new Map<string, ScrapedProduct>();
   const urlMap = new Map<string, ScrapedProduct>();
+  const titleMap = new Map<string, ScrapedProduct>();
 
   for (const item of currentList) {
     if (item.id) existingMap.set(item.id, item);
     if (item.productUrl) urlMap.set(item.productUrl.toLowerCase(), item);
+    if (item.title) {
+      const normKey = `${item.title.trim().toLowerCase().replace(/\s+/g, ' ')}:::${(item.brand || '').trim().toLowerCase()}`;
+      titleMap.set(normKey, item);
+    }
   }
 
   let newCount = 0;
@@ -1048,9 +1056,13 @@ function smartMergeProducts(
   const todayStr = new Date().toISOString().split('T')[0];
 
   for (const incoming of incomingList) {
+    const normKey = incoming.title
+      ? `${incoming.title.trim().toLowerCase().replace(/\s+/g, ' ')}:::${(incoming.brand || '').trim().toLowerCase()}`
+      : '';
     const existing =
       (incoming.id && updatedMap.get(incoming.id)) ||
-      (incoming.productUrl && urlMap.get(incoming.productUrl.toLowerCase()));
+      (incoming.productUrl && urlMap.get(incoming.productUrl.toLowerCase())) ||
+      (normKey && titleMap.get(normKey));
 
     if (!existing) {
       // NOUVEAU PRODUIT: Ajouté au catalogue
@@ -1058,6 +1070,7 @@ function smartMergeProducts(
       newCount++;
       if (incoming.id) updatedMap.set(incoming.id, incoming);
       if (incoming.productUrl) urlMap.set(incoming.productUrl.toLowerCase(), incoming);
+      if (normKey) titleMap.set(normKey, incoming);
     } else {
       // PRODUIT EXISTANT DÉJÀ PRÉSENT:
       // Détection stricte des modifications (prix, remise, stock, note, avis)
@@ -1151,6 +1164,7 @@ export default function App() {
   const [categoryCompletionAlert, setCategoryCompletionAlert] = useState<CategoryCompletionAlertData | null>(null);
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
   const [showSplashScreen, setShowSplashScreen] = useState<boolean>(true);
+  const [isCategoryAuditModalOpen, setIsCategoryAuditModalOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [targetTypeFilter, setTargetTypeFilter] = useState<'all' | 'boutique' | 'annonce' | 'pub'>('all');
@@ -1616,13 +1630,18 @@ export default function App() {
       if (abortScrapingRef.current) break;
 
       const cat = OUEDKNISS_CATEGORIES[catIdx];
+      const audit = getCategoryAuditStats(cat);
       setActiveSweepCategoryIndex(catIdx);
       setSelectedCategorySlug(cat.slug);
       setTargetUrl(cat.url);
 
       const firstPage = catIdx === startCatIndex ? Math.max(1, startPage) : 1;
 
-      addLog(`[CATÉGORIE_${catIdx + 1}/${totalCats}] Début de l'aspiration intégrale de "${cat.name}" (Page ${firstPage})...`, 'cyber', `0xCAT_${catIdx + 1}`);
+      addLog(
+        `[CATÉGORIE_${catIdx + 1}/${totalCats}] ⚡ Analyse de "${cat.name}" // ${audit.totalPages.toLocaleString('fr-FR')} Pages existantes (~${audit.totalArticles.toLocaleString('fr-FR')} Articles répertoriés) • ~${audit.boutiquesCount.toLocaleString('fr-FR')} Boutiques Certifiées • ~${audit.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées`,
+        'cyber',
+        `0xCAT_${catIdx + 1}`
+      );
 
       let categoryTotalNew = 0;
       let categoryTotalUpdated = 0;
@@ -1729,6 +1748,16 @@ export default function App() {
               cyberAudio.playItemAspirated();
               setProducts(accumulated);
               saveScrapedProductsBatch(newUniqueBatch);
+
+              const boutiqueCount = pageProducts.filter(isOfficialStoreProduct).length;
+              const pubCount = pageProducts.filter((p) => p.isSponsored || p.itemType === 'pub').length;
+              const particulierCount = Math.max(0, pageProducts.length - boutiqueCount - pubCount);
+
+              addLog(
+                `[PAGE ${page}/${audit.totalPages}] +${pageProducts.length} articles aspirés (${boutiqueCount} Boutiques Pro, ${particulierCount} Annonces, ${pubCount} Pubs) - Total "${cat.name}": ${categoryTotalNew} articles`,
+                'vacuum',
+                `0xPG_${page}`
+              );
             }
 
             // Enregistrer l'avancement dans le checkpoint
@@ -1785,9 +1814,14 @@ export default function App() {
         timestamp: Date.now(),
       });
 
+      const nextCat = catIdx + 1 < totalCats ? OUEDKNISS_CATEGORIES[catIdx + 1] : null;
       addLog(
-        `[CATÉGORIE_SCELLÉE] "${cat.name}" terminée à 100% ! (+${categoryTotalNew} nouveaux). Passage à la catégorie ${catIdx + 2 <= totalCats ? catIdx + 2 : 'FINALE'}...`,
-        'vacuum',
+        `[CATÉGORIE_SCELLÉE] 🎉 "${cat.name}" terminée à 100% ! (+${categoryTotalNew} nouveaux articles scellés sur ${audit.totalPages} pages). ${
+          nextCat
+            ? `Passage automatique à la catégorie suivante : "${nextCat.name}" (Page 1) !`
+            : 'Balayage intégral de toutes les catégories achevé avec succès !'
+        }`,
+        'success',
         `0xDONE_${cat.slug.slice(0, 4).toUpperCase()}`
       );
 
@@ -1952,9 +1986,15 @@ export default function App() {
         const currentCatSlug = targetCategorySlugs[cIdx];
         const catMeta = OUEDKNISS_CATEGORIES.find((c) => c.slug === currentCatSlug);
         const catName = catMeta?.name || currentCatSlug;
+        const audit = catMeta ? getCategoryAuditStats(catMeta) : null;
+        const totalCatPages = audit ? audit.totalPages : 100;
         setSelectedCategorySlug(currentCatSlug);
 
-        addLog(`[CATÉGORIE_${cIdx + 1}/${targetCategorySlugs.length}] Début aspiration intégrale Turbo de "${catName}"...`, 'cyber');
+        addLog(
+          `[CATÉGORIE_${cIdx + 1}/${targetCategorySlugs.length}] ⚡ Analyse de "${catName}" // ${totalCatPages.toLocaleString('fr-FR')} pages existantes (~${audit?.totalArticles.toLocaleString('fr-FR') || '30 000+'} articles) • ~${audit?.boutiquesCount.toLocaleString('fr-FR') || '6 000'} Boutiques • ~${audit?.adsPubsCount.toLocaleString('fr-FR') || '1 500'} Pubs`,
+          'cyber',
+          `0xCAT_${cIdx + 1}`
+        );
 
         // Récupérer le point de reprise pour ne jamais recommencer à zéro
         const startPage = lotPageRef.current[currentCatSlug] || getCategoryResumePage(currentCatSlug) || 1;
@@ -1963,7 +2003,7 @@ export default function App() {
         let emptyStreak = 0;
 
         addLog(
-          `[PIPELINE_SENIOR_START] Reprise/Démarrage de "${catName}" à la page ${startPage} (Mode Illimité Continu)...`,
+          `[PIPELINE_SENIOR_START] Démarrage de "${catName}" à la page ${startPage}/${totalCatPages} (${totalCatPages} pages existantes)...`,
           'cyber',
           `0xSTART_P${startPage}`
         );
@@ -2037,8 +2077,12 @@ export default function App() {
                 if (newCount > 0 || updatedCount > 0) {
                   cyberAudio.playItemAspirated();
                 }
+                const boutiqueCount = pageProducts.filter(isOfficialStoreProduct).length;
+                const pubCount = pageProducts.filter((p) => p.isSponsored || p.itemType === 'pub').length;
+                const particulierCount = Math.max(0, pageProducts.length - boutiqueCount - pubCount);
+
                 addLog(
-                  `[${catName} P${page}-${page + CONCURRENT_PAGES - 1}] +${newCount} nouveaux, ${updatedCount} màj (${accumulated.length.toLocaleString('fr-DZ')} total)`,
+                  `[${catName} P${page}-${page + CONCURRENT_PAGES - 1}/${totalCatPages}] +${newCount} nouveaux (${boutiqueCount} Boutiques Pro, ${particulierCount} Annonces, ${pubCount} Pubs) • Cumul: ${accumulated.length.toLocaleString('fr-DZ')} articles`,
                   updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
                   `0xP${page}`
                 );
@@ -2067,10 +2111,20 @@ export default function App() {
         }
 
         cyberAudio.playCategoryUnlocked();
+        const nextSlug = targetCategorySlugs[cIdx + 1];
+        const nextCatMeta = nextSlug ? OUEDKNISS_CATEGORIES.find((c) => c.slug === nextSlug) : null;
         addLog(
-          `[CATÉGORIE_SCELLÉE] "${catName}" terminée à 100% ! Passage à la suite...`,
-          'vacuum'
+          `[CATÉGORIE_SCELLÉE] 🎉 "${catName}" terminée à 100% ! ${
+            nextCatMeta
+              ? `Passage automatique à la catégorie suivante : "${nextCatMeta.name}" (Page 1) !`
+              : 'Toutes les catégories ciblées sont achevées !'
+          }`,
+          'success',
+          '0xNEXT_CAT'
         );
+        if (nextCatMeta) {
+          cyberAudio.speakCategoryCompleted(catName, accumulated.length);
+        }
       }
 
       setIsContinuousScraping(false);
@@ -2450,6 +2504,28 @@ export default function App() {
 
               <button
                 type="button"
+                onClick={() => setIsCategoryAuditModalOpen(true)}
+                className="h-9 px-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+                title="Scanner & Auditer les 17 Catégories Ouedkniss (Pages, Articles, Stores, Pubs)"
+                aria-label="Audit Catégories"
+              >
+                <Radar className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Audit Catégories</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSplashScreen(true)}
+                className="h-9 px-2.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 hover:bg-purple-900/60 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold"
+                title="Afficher l'écran de démarrage Splash Screen"
+                aria-label="Splash Screen"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>Splash</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsApkModalOpen(true)}
                 className="h-9 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold"
                 title="Télécharger l'APK Android (Signé)"
@@ -2644,16 +2720,33 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowSplashScreen(true);
+                    setIsCategoryAuditModalOpen(true);
                     setIsMobileMenuOpen(false);
                   }}
                   className="w-full min-h-[46px] p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/40 flex items-center justify-between font-bold cursor-pointer transition-all active:scale-98"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
-                    <span>Lancer le Splash Natif</span>
+                    <Radar className="w-4 h-4 text-cyan-400" />
+                    <span>Audit Pré-Vol Catégories</span>
                   </div>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/40 text-cyan-300">
+                    17 Catégories
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSplashScreen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 hover:bg-purple-900/40 flex items-center justify-between font-bold cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <span>Lancer le Splash Natif</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 border border-purple-400/40 text-purple-300">
                     Plein écran
                   </span>
                 </button>
@@ -2792,6 +2885,7 @@ export default function App() {
               discoveredCategories={discoveredCategories}
               targetTypeFilter={targetTypeFilter}
               onChangeTargetTypeFilter={setTargetTypeFilter}
+              onOpenAuditModal={() => setIsCategoryAuditModalOpen(true)}
               onSelectDiscoveredCategory={(catName) => {
                 setSelectedCategorySlug(catName);
                 handleSelectTab('catalog');
@@ -3039,6 +3133,7 @@ export default function App() {
               products={products}
               scrapeVolume={scrapeVolume}
               totalProductsCount={products.length}
+              onOpenCategoryAudit={() => setIsCategoryAuditModalOpen(true)}
               onClearLogs={() =>
                 setJob((prev) => ({
                   ...prev,
@@ -3621,6 +3716,18 @@ export default function App() {
         isOpen={showSplashScreen}
         onComplete={() => setShowSplashScreen(false)}
         soundEnabled={!isAudioMuted}
+      />
+
+      {/* Pre-Flight Category Reconnaissance & Market Audit Modal */}
+      <CategoryMatrixAuditModal
+        isOpen={isCategoryAuditModalOpen}
+        onClose={() => setIsCategoryAuditModalOpen(false)}
+        onLaunchFullSweep={handleStartAllCategoriesSweep}
+        onLaunchSingleCategory={(slug) => {
+          const cat = OUEDKNISS_CATEGORIES.find((c) => c.slug === slug);
+          if (cat) handleStartCategoryScrape(cat);
+        }}
+        currentActiveCategorySlug={selectedCategorySlug}
       />
     </div>
   );

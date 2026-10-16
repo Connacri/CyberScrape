@@ -67,21 +67,45 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
     return () => clearInterval(timer);
   }, []);
 
+  // Strict deduplication to guarantee zero repetitive items in TEMU storefront
+  const uniqueProducts = useMemo(() => {
+    const seenIds = new Set<string>();
+    const seenKeys = new Set<string>();
+    const result: ScrapedProduct[] = [];
+
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      if (!p) continue;
+      const idKey = p.id || '';
+      const normTitle = (p.title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const brandKey = (p.brand || '').trim().toLowerCase();
+      const combinedKey = `${normTitle}:::${brandKey}`;
+
+      if (idKey && seenIds.has(idKey)) continue;
+      if (normTitle && seenKeys.has(combinedKey)) continue;
+
+      if (idKey) seenIds.add(idKey);
+      if (normTitle) seenKeys.add(combinedKey);
+      result.push(p);
+    }
+    return result;
+  }, [products]);
+
   // Memoized category counts map (O(N) single pass instead of O(N * 17))
   const categoryCounts = useMemo(() => {
     const map = new Map<string, number>();
-    for (let i = 0; i < products.length; i++) {
-      const c = products[i].category;
+    for (let i = 0; i < uniqueProducts.length; i++) {
+      const c = uniqueProducts[i].category;
       if (c) map.set(c, (map.get(c) || 0) + 1);
     }
     return map;
-  }, [products]);
+  }, [uniqueProducts]);
 
   // Filter & sort
   const filteredProducts = useMemo(() => {
     const query = titleSearch.trim().toLowerCase();
 
-    return products
+    return uniqueProducts
       .filter((p) => {
         const matchesTitle = !query || p.title.toLowerCase().includes(query) || (p.brand && p.brand.toLowerCase().includes(query));
         const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
@@ -97,7 +121,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
         if (sortBy === 'discount') return (b.discountPercent || 0) - (a.discountPercent || 0);
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [products, titleSearch, selectedCategory, selectedWilaya, sortBy]);
+  }, [uniqueProducts, titleSearch, selectedCategory, selectedWilaya, sortBy]);
 
   // Reset visibleCount on filter change
   useEffect(() => {

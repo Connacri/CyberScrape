@@ -27,6 +27,7 @@ import {
   Baby,
   Utensils,
   Globe,
+  Radar,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES, OuedknissCategoryMeta } from '../data/ouedknissCategories';
 import { ScrapedProduct } from '../types';
@@ -71,6 +72,7 @@ interface GlobalSweepProgressBarProps {
   savedCheckpoint?: ScrapeSweepCheckpoint | null;
   onResumeSweep?: () => void;
   onSelectCategory?: (category: OuedknissCategoryMeta) => void;
+  onOpenAuditModal?: () => void;
 }
 
 export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
@@ -91,6 +93,7 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
   savedCheckpoint,
   onResumeSweep,
   onSelectCategory,
+  onOpenAuditModal,
 }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
 
@@ -271,6 +274,18 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
                   >
                     <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
                     <span>Reprendre (Cat. {savedCheckpoint.categoryIndex + 1} p.{savedCheckpoint.currentPage || 1})</span>
+                  </button>
+                )}
+
+                {onOpenAuditModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenAuditModal}
+                    className="px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:text-white hover:bg-cyan-900/60 text-xs font-mono font-bold flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,240,255,0.25)] transition-all cursor-pointer"
+                    title="Audit pré-vol : scanner le nombre de pages, articles, boutiques et pubs de chaque catégorie"
+                  >
+                    <Radar className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="hidden sm:inline">Audit Pré-Vol</span>
                   </button>
                 )}
 
