@@ -24,6 +24,7 @@ export interface ScrapeRequestParams {
   engineMode?: 'direct' | 'ai';
   page?: number;
   categorySlug?: string | null;
+  targetTypeFilter?: 'all' | 'boutique' | 'annonce' | 'pub';
 }
 
 export interface ScrapeResultResponse {
@@ -99,7 +100,7 @@ function getApiEndpoint(route: string): string {
  * deployed to static hosting environments like GitHub Pages (where no Node.js backend exists).
  */
 export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultResponse {
-  const { url, maxItems = 24, page = 1, categorySlug } = params;
+  const { url, maxItems = 24, page = 1, categorySlug, targetTypeFilter = 'all' } = params;
   const requestedCount = Number(maxItems) || 24;
   const pageNum = Math.max(1, Number(page) || 1);
   const targetCount = Math.max(8, requestedCount);
@@ -196,6 +197,9 @@ export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultR
           seller
         )
       : undefined;
+    const isSponsored = targetTypeFilter === 'pub' ? true : targetTypeFilter === 'all' ? (idx % 7 === 0) : false;
+      const isOfficialStore = targetTypeFilter === 'boutique' ? true : targetTypeFilter === 'annonce' ? false : (seller ? seller.type !== 'Particulier' : (idx % 3 === 0));
+      const itemType: 'boutique' | 'annonce' | 'pub' = isSponsored ? 'pub' : (isOfficialStore ? 'boutique' : 'annonce');
 
     return {
       id: prodId,
@@ -237,8 +241,12 @@ export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultR
       aiConfidence: Math.round((96 + Math.random() * 3.8) * 10) / 10,
       syncedToSupabase: false,
       matrixHash: generateMatrixHash(),
+      itemType,
+      isOfficialStore,
+      isSponsored,
     };
   });
+
 
   return {
     success: true,

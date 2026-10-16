@@ -27,6 +27,11 @@ import {
   Infinity as InfinityIcon,
   Zap,
   Activity,
+  ShieldCheck,
+  Filter,
+  Flame,
+  User,
+  Store,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES, OuedknissCategoryMeta } from '../data/ouedknissCategories';
 import { ScrapedProduct } from '../types';
@@ -35,6 +40,7 @@ interface OuedknissCategoryHubProps {
   products: ScrapedProduct[];
   selectedCategorySlug: string | null;
   onSelectCategory: (category: OuedknissCategoryMeta) => void;
+  onStartCategoryScrape?: (category: OuedknissCategoryMeta) => void;
   onStartAllCategoriesSweep: () => void;
   onStopSweep?: () => void;
   isScrapingActive: boolean;
@@ -43,6 +49,8 @@ interface OuedknissCategoryHubProps {
   onChangeSweepPagesPerCategory?: (pages: number) => void;
   discoveredCategories?: string[];
   onSelectDiscoveredCategory?: (catName: string) => void;
+  targetTypeFilter?: 'all' | 'boutique' | 'annonce' | 'pub';
+  onChangeTargetTypeFilter?: (type: 'all' | 'boutique' | 'annonce' | 'pub') => void;
 }
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -78,6 +86,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
   products,
   selectedCategorySlug,
   onSelectCategory,
+  onStartCategoryScrape,
   onStartAllCategoriesSweep,
   onStopSweep,
   isScrapingActive,
@@ -86,7 +95,10 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
   onChangeSweepPagesPerCategory,
   discoveredCategories = [],
   onSelectDiscoveredCategory,
+  targetTypeFilter = 'all',
+  onChangeTargetTypeFilter,
 }) => {
+
   // Count articles present in catalog per category slug or name
   const categoryCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
@@ -219,21 +231,105 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
               )}
             </div>
           ) : (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              {/* Button 1: Direct Category Scrape (functions identically to the bottom input scrape button) */}
+              <button
+                type="button"
+                onClick={() => {
+                  const selectedCat = OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug) || OUEDKNISS_CATEGORIES[0];
+                  if (onStartCategoryScrape) {
+                    onStartCategoryScrape(selectedCat);
+                  } else {
+                    onSelectCategory(selectedCat);
+                  }
+                }}
+                className="w-full sm:w-auto relative group overflow-hidden px-4 sm:px-5 py-2.5 rounded-xl font-mono text-xs font-black text-slate-950 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.45)] hover:shadow-[0_0_35px_rgba(0,255,102,0.7)] hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#00ff66] via-emerald-400 to-cyan-300 border border-emerald-300 min-h-[44px]"
+                title={`Aspirer immédiatement la catégorie "${OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug)?.name || 'sélectionnée'}"`}
+              >
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
+                <Zap className="w-4 h-4 fill-black text-black group-hover:rotate-12 transition-transform shrink-0" />
+                <span className="tracking-wide whitespace-nowrap">
+                  ASPIRER : {(OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug)?.name || 'CETTE CATÉGORIE').toUpperCase()}
+                </span>
+              </button>
+
+              {/* Button 2: Sequential 17 Categories Sweep */}
+              <button
+                type="button"
+                onClick={onStartAllCategoriesSweep}
+                className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-950/50 hover:border-emerald-400 font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px]"
+                title="Aspirer toutes les 17 catégories l'une après l'autre"
+              >
+                <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span className="tracking-wide whitespace-nowrap">BALAYER LES 17 CATÉGORIES</span>
+                <span className="px-1.5 py-0.5 rounded bg-black/85 text-[#00ff88] text-[10px] font-bold border border-emerald-400/50 hidden sm:inline">
+                  {sweepPagesPerCategory === 0 ? '∞ Illimité' : `${sweepPagesPerCategory * 48}/cat`}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Distinction Bar: Catégories Exactes, Boutiques, Annonces & Pubs (Avant l'aspiration) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 mb-3 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-slate-400 text-[11px] font-bold flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5 text-emerald-400" />
+            CIBLAGE AVANT ASPIRATION :
+          </span>
+          <div className="flex flex-wrap items-center gap-1">
             <button
               type="button"
-              onClick={onStartAllCategoriesSweep}
-              className="w-full sm:w-auto relative group overflow-hidden px-4 sm:px-5 py-2.5 rounded-xl font-mono text-xs font-black text-slate-950 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.45)] hover:shadow-[0_0_35px_rgba(0,255,102,0.7)] hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#00ff66] via-emerald-400 to-cyan-300 border border-emerald-300 min-h-[44px]"
+              onClick={() => onChangeTargetTypeFilter && onChangeTargetTypeFilter('all')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                targetTypeFilter === 'all'
+                  ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400 shadow-sm'
+                  : 'bg-black/40 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
             >
-              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
-              <Zap className="w-4 h-4 fill-black text-black group-hover:rotate-12 transition-transform shrink-0" />
-              <span className="tracking-wide whitespace-nowrap">
-                BALAYER LES 17 CATÉGORIES
-              </span>
-              <span className="px-1.5 py-0.5 rounded bg-black/85 text-[#00ff88] text-[10px] font-bold border border-emerald-400/50 hidden sm:inline">
-                {sweepPagesPerCategory === 0 ? '∞ Illimité' : `${sweepPagesPerCategory * 48}/cat`}
-              </span>
+              🌟 Tout cibler
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => onChangeTargetTypeFilter && onChangeTargetTypeFilter('boutique')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                targetTypeFilter === 'boutique'
+                  ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400 shadow-sm'
+                  : 'bg-black/40 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <Store className="w-3 h-3 text-emerald-400" />
+              🏪 Boutiques & Stores Certifiés
+            </button>
+            <button
+              type="button"
+              onClick={() => onChangeTargetTypeFilter && onChangeTargetTypeFilter('annonce')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                targetTypeFilter === 'annonce'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-sm'
+                  : 'bg-black/40 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <User className="w-3 h-3 text-cyan-400" />
+              👤 Annonces Particuliers
+            </button>
+            <button
+              type="button"
+              onClick={() => onChangeTargetTypeFilter && onChangeTargetTypeFilter('pub')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                targetTypeFilter === 'pub'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-400 shadow-sm'
+                  : 'bg-black/40 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <Flame className="w-3 h-3 text-amber-400" />
+              📢 Pubs & Annonces Sponsorisées
+            </button>
+          </div>
+        </div>
+        <div className="text-[11px] text-cyan-400">
+          Catégorie active : <strong className="text-white">{OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug)?.name || 'Toutes'}</strong>
         </div>
       </div>
 
@@ -247,8 +343,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
           const countInCatalog = categoryCounts[cat.id] || 0;
 
           return (
-            <button
-              type="button"
+            <div
               key={cat.id}
               onClick={() => onSelectCategory(cat)}
               className={`group relative text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden ${
@@ -296,20 +391,31 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
                 </div>
               </div>
 
-              {/* Active / Select Footer */}
+              {/* Action Footer: Badge + Quick Direct Aspirer Button */}
               <div className="mt-2.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono">
                 <span className="text-slate-400 text-[9px] truncate">{cat.badge}</span>
-                {isSelected ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                ) : (
-                  <ArrowRight className="w-3 h-3 text-slate-500 group-hover:text-emerald-400 transition-colors shrink-0" />
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectCategory(cat);
+                    if (onStartCategoryScrape) {
+                      onStartCategoryScrape(cat);
+                    }
+                  }}
+                  className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-[#00ff66] text-[#00ff88] hover:text-black border border-emerald-500/40 font-mono font-bold text-[10px] flex items-center gap-1 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+                  title={`Lancer l'aspiration immédiate de "${cat.name}"`}
+                >
+                  <Zap className="w-2.5 h-2.5 fill-current" />
+                  <span>Aspirer</span>
+                </button>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
       )}
+
 
       {/* Discovered Categories Row (Scanner in real-time) */}
       {discoveredCategories.length > 0 && (

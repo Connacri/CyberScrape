@@ -52,7 +52,11 @@ export interface ScrapedProduct {
   aiConfidence: number; // e.g. 98.5%
   syncedToSupabase: boolean;
   matrixHash?: string;
+  itemType?: 'boutique' | 'annonce' | 'pub'; // Classification: Boutique officielle, Annonce particulier, ou Pub
+  isOfficialStore?: boolean; // Boutique / Store Pro certifié
+  isSponsored?: boolean; // Pub / Annonce sponsorisée mise en avant
 }
+
 
 export interface ScrapeLog {
   id: string;

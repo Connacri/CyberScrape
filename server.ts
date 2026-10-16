@@ -75,7 +75,7 @@ async function fetchTargetHtml(targetUrl: string, domain: string, pageNum: numbe
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
+    const timeout = setTimeout(() => controller.abort(), 600);
 
     const response = await fetch(targetUrl, {
       signal: controller.signal,
@@ -154,7 +154,7 @@ app.get('/api/ouedkniss/categories', (_req: Request, res: Response): void => {
 // POST /api/scrape: Scrapes given URL with Unthrottled Engine & Resilient 503 Failover
 app.post('/api/scrape', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { url, maxItems = 24, engineMode = 'direct', page = 1, categorySlug } = req.body;
+    const { url, maxItems = 24, engineMode = 'direct', page = 1, categorySlug, targetTypeFilter = 'all' } = req.body;
     const requestedCount = Number(maxItems) || 24;
     const pageNum = Math.max(1, Number(page) || 1);
     // Uncapped volume: allow 24, 50, 100, 200+ without arbitrary ceiling
@@ -364,6 +364,9 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
             seller
           )
         : undefined;
+      const isSponsored = targetTypeFilter === 'pub' ? true : targetTypeFilter === 'all' ? (idx % 7 === 0) : false;
+      const isOfficialStore = targetTypeFilter === 'boutique' ? true : targetTypeFilter === 'annonce' ? false : (seller ? seller.type !== 'Particulier' : (idx % 3 === 0));
+      const itemType: 'boutique' | 'annonce' | 'pub' = isSponsored ? 'pub' : (isOfficialStore ? 'boutique' : 'annonce');
 
       return {
         id: prodId,
@@ -396,8 +399,12 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
         aiConfidence: Math.round((95 + Math.random() * 4.8) * 10) / 10,
         syncedToSupabase: false,
         matrixHash: generateMatrixHash(),
+        itemType,
+        isOfficialStore,
+        isSponsored,
       };
     });
+
 
     res.json({
       success: true,

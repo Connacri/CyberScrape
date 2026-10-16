@@ -283,6 +283,12 @@ export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
   const priceType = product.priceType || (product.discountPercent > 0 ? 'Négociable' : 'Fixe');
   const verifiedLiveUrl = getOuedknissOriginUrl(product);
 
+  const isPub = product.isSponsored ?? (seed % 6 === 0);
+  const isBoutique = product.isOfficialStore ?? (seller.type !== 'Particulier');
+  product.isSponsored = isPub;
+  product.isOfficialStore = isBoutique;
+  product.itemType = product.itemType || (isPub ? 'pub' : (isBoutique ? 'boutique' : 'annonce'));
+
   product.seller = seller;
   product.description = description;
   product.images = images;
@@ -293,6 +299,7 @@ export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
 
   return product;
 }
+
 
 /**
  * Builds direct WhatsApp URL with pre-filled message

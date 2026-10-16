@@ -1138,8 +1138,11 @@ export default function App() {
   const [showSplashScreen, setShowSplashScreen] = useState<boolean>(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [targetTypeFilter, setTargetTypeFilter] = useState<'all' | 'boutique' | 'annonce' | 'pub'>('all');
+  const isDbHydrated = useRef<boolean>(false);
   const abortScrapingRef = useRef<boolean>(false);
   const lotPageRef = useRef<Record<string, number>>({});
+
 
   // Futuristic tab selection with tactile sci-fi sound
   const handleSelectTab = (tab: 'vacuum' | 'temu' | 'trends' | 'catalog') => {
@@ -1213,7 +1216,10 @@ export default function App() {
   const [products, setProducts] = useState<ScrapedProduct[]>(() => {
     try {
       if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('products') || localStorage.getItem('cyber_vacuum_products_cache');
+        const stored =
+          localStorage.getItem('products') ||
+          localStorage.getItem('cyber_vacuum_products_cache') ||
+          localStorage.getItem('cyber_vacuum_products_store');
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -1228,21 +1234,33 @@ export default function App() {
     if (cached && cached.length > 0) {
       return cached;
     }
-    // Si premier lancement après installation APK, charger le seed officiel Ouedkniss
+    const hasCustomData =
+      typeof localStorage !== 'undefined' &&
+      localStorage.getItem('cyber_vacuum_has_custom_data') === 'true';
+    if (hasCustomData) {
+      return []; // Patiently await IndexedDB hydration rather than overwriting with seed
+    }
+    // Si premier lancement après installation APK sans données préalables, charger le seed officiel Ouedkniss
     return INITIAL_DEMO_PRODUCTS;
   });
 
   // Hydrate full real dataset from IndexedDB on startup
   useEffect(() => {
     loadStoredProductsFromIndexedDB().then((stored) => {
+      const hasCustomData =
+        typeof localStorage !== 'undefined' &&
+        localStorage.getItem('cyber_vacuum_has_custom_data') === 'true';
+
       if (stored && stored.length > 0) {
         setProducts(stored);
-      } else {
-        // Premier lancement APK : persister le catalogue initial dans IndexedDB locale
+      } else if (!hasCustomData) {
+        // Premier lancement absolu : persister le catalogue initial dans IndexedDB locale
         saveStoredProducts(INITIAL_DEMO_PRODUCTS, true);
       }
+      isDbHydrated.current = true;
     });
   }, []);
+
 
   // Stats helpers for specialized headers
   const catalogTotalValueDa = useMemo(() => {
@@ -1317,46 +1335,24 @@ export default function App() {
   });
   const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
 
-  // Sync products state to localStorage immediately upon every change
+  // Sync products state to localStorage & IndexedDB upon every change (only after initial hydration has loaded)
   useEffect(() => {
+    if (!isDbHydrated.current) return;
+
     try {
-      const serialized = JSON.stringify(products);
+      const previewSlice = products.slice(0, 50);
+      const serialized = JSON.stringify(previewSlice);
       localStorage.setItem('products', serialized);
       localStorage.setItem('cyber_vacuum_products_cache', serialized);
+      localStorage.setItem('cyber_vacuum_total_count', String(products.length));
+      localStorage.setItem('cyber_vacuum_has_custom_data', 'true');
     } catch (err) {
       console.warn('LocalStorage save failed:', err);
-      try {
-        // Fallback for 5MB quota: save latest 100 products to localStorage
-        const trimmed = JSON.stringify(products.slice(0, 100));
-        localStorage.setItem('products', trimmed);
-        localStorage.setItem('cyber_vacuum_products_cache', trimmed);
-      } catch (quotaErr) {
-        console.error('LocalStorage quota exceeded:', quotaErr);
-      }
     }
-    // Also sync immediately to IndexedDB layer for virtually unlimited capacity
-    saveStoredProducts(products, true);
+    // Reliable persistence to IndexedDB
+    saveStoredProducts(products, false);
   }, [products]);
 
-  // Asynchronous recovery from IndexedDB (preserves complete catalogue across reloads without 5MB quota limit)
-  useEffect(() => {
-    loadStoredProductsFromIndexedDB().then((idbProducts) => {
-      if (idbProducts && idbProducts.length > 0) {
-        setProducts((current) => {
-          // If IndexedDB has more items or current was only the demo seed items, restore from IndexedDB
-          if (idbProducts.length >= current.length || current === INITIAL_DEMO_PRODUCTS) {
-            return idbProducts;
-          }
-          const currentIds = new Set(current.map((p) => p.id));
-          const extra = idbProducts.filter((p) => !currentIds.has(p.id));
-          if (extra.length > 0) {
-            return [...current, ...extra];
-          }
-          return current;
-        });
-      }
-    });
-  }, []);
 
   // Purge specific currency (e.g. clean out old € items)
   const handleRemoveCurrency = (currency: string) => {
@@ -1509,7 +1505,8 @@ export default function App() {
       let categoryTotalNew = 0;
       let categoryTotalUpdated = 0;
 
-      for (let page = 1; page <= pagesPerCat; page++) {
+      // High-speed parallel chunked streaming (3 pages concurrently) for blistering speed
+      for (let page = 1; page <= pagesPerCat; page += 3) {
         if (abortScrapingRef.current) break;
 
         setSweepCurrentPage(page);
@@ -1523,7 +1520,7 @@ export default function App() {
           status: 'aspirating',
           progress: progressPct,
           itemsFound: accumulated.length,
-          aiAgentAction: `[${catIdx + 1}/${totalCats}: ${cat.name}] Page ${page}/${isUnlimited ? '∞ Illimité (jusqu\'au bout)' : pagesPerCat} en cours... (${accumulated.length.toLocaleString()} articles scellés)`,
+          aiAgentAction: `[${catIdx + 1}/${totalCats}: ${cat.name}] Pages ${page}-${Math.min(page + 2, pagesPerCat)}/${isUnlimited ? '∞ Illimité (jusqu\'au dernier article)' : pagesPerCat} en cours... (${accumulated.length.toLocaleString()} articles scellés)`,
           crawlerState: {
             ...prev.crawlerState,
             scrollY: currentStep * 1200,
@@ -1533,15 +1530,38 @@ export default function App() {
         }));
 
         try {
-          const data = await executeScrapeRequest({
-            url: cat.url,
-            maxItems: 48,
-            engineMode,
-            page,
-            categorySlug: cat.slug,
-          });
+          const [d1, d2, d3] = await Promise.all([
+            executeScrapeRequest({
+              url: cat.url,
+              maxItems: 48,
+              engineMode,
+              page,
+              categorySlug: cat.slug,
+              targetTypeFilter,
+            }),
+            page + 1 <= pagesPerCat
+              ? executeScrapeRequest({
+                  url: cat.url,
+                  maxItems: 48,
+                  engineMode,
+                  page: page + 1,
+                  categorySlug: cat.slug,
+                  targetTypeFilter,
+                })
+              : Promise.resolve({ products: [] as ScrapedProduct[] }),
+            page + 2 <= pagesPerCat
+              ? executeScrapeRequest({
+                  url: cat.url,
+                  maxItems: 48,
+                  engineMode,
+                  page: page + 2,
+                  categorySlug: cat.slug,
+                  targetTypeFilter,
+                })
+              : Promise.resolve({ products: [] as ScrapedProduct[] }),
+          ]);
 
-          if (data.isClientSideFallback && catIdx === 0 && page === 1) {
+          if (d1.isClientSideFallback && catIdx === 0 && page === 1) {
             addLog(
               `[MOTEUR_AUTONOME] Mode client natif actif (Compatible GitHub Pages) : Aspiration des ${totalCats} catégories en cours.`,
               'cyber',
@@ -1549,7 +1569,17 @@ export default function App() {
             );
           }
 
-          const pageProducts: ScrapedProduct[] = data.products || [];
+          const pageProducts: ScrapedProduct[] = [
+            ...(d1.products || []),
+            ...(d2.products || []),
+            ...(d3.products || []),
+          ];
+
+          if (pageProducts.length === 0) {
+            // No more products found in this category, reached the absolute last page!
+            addLog(`[FIN_CATÉGORIE] Fin complète des annonces pour "${cat.name}" à la page ${page}.`, 'info', '0xEND');
+            break;
+          }
 
           if (pageProducts.length > 0) {
             // Scanner en continu pour détecter de nouvelles catégories découvertes
@@ -1581,8 +1611,8 @@ export default function App() {
             saveStoredProducts(accumulated, false);
           }
 
-          // Vitesse optimisée ultra-rapide (80ms) pour ne perdre aucun article tout en maintenant 60fps
-          await new Promise((r) => setTimeout(r, 80));
+          // Vitesse ultra-rapide turbo (10ms) pour une réactivité maximale
+          await new Promise((r) => setTimeout(r, 10));
         } catch (catErr) {
           console.warn('Sweep category error:', catErr);
         }
@@ -1659,18 +1689,30 @@ export default function App() {
   // ========================================================
   // START QUANTUM SCRAPE & ASPIRATION PIPELINE
   // ========================================================
-  const handleStartScrape = async () => {
-    if (!targetUrl || !targetUrl.startsWith('http')) {
+  const handleStartCategoryScrape = async (category: OuedknissCategoryMeta) => {
+    setSelectedCategorySlug(category.slug);
+    setTargetUrl(category.url);
+    cyberAudio.playHoloTap(880);
+    addLog(`[ACTION DIRECTE] Lancement de l'aspiration instantanée pour "${category.name}"`, 'cyber', `0xCAT_${category.slug}`);
+    await handleStartScrape(category.url, category.slug);
+  };
+
+  const handleStartScrape = async (overrideUrl?: string, overrideCategorySlug?: string | null) => {
+    const activeUrl = overrideUrl || targetUrl;
+    if (!activeUrl || !activeUrl.startsWith('http')) {
       alert('Veuillez entrer une URL valide (commençant par http:// ou https://)');
       return;
     }
+
+    if (overrideUrl) setTargetUrl(overrideUrl);
+    if (overrideCategorySlug) setSelectedCategorySlug(overrideCategorySlug);
 
     setActiveTab('vacuum');
     abortScrapingRef.current = false;
 
     let domain = 'ecommerce.com';
     try {
-      domain = new URL(targetUrl).hostname.replace(/^www\./, '');
+      domain = new URL(activeUrl).hostname.replace(/^www\./, '');
     } catch {
       // ignore
     }
@@ -1679,9 +1721,9 @@ export default function App() {
     const isOuedkniss = domain.includes('ouedkniss');
 
     // Auto-detect category slug from URL if not already selected
-    let effectiveCategorySlug = selectedCategorySlug;
-    if (isOuedkniss) {
-      const match = detectOuedknissCategory(targetUrl);
+    let effectiveCategorySlug = overrideCategorySlug !== undefined ? overrideCategorySlug : selectedCategorySlug;
+    if (isOuedkniss && !effectiveCategorySlug) {
+      const match = detectOuedknissCategory(activeUrl);
       if (match) {
         effectiveCategorySlug = match.slug;
         setSelectedCategorySlug(match.slug);
@@ -1690,39 +1732,32 @@ export default function App() {
 
     // ========================================================
     // MODE CONTINU : ASPIRER TOUT LE CATALOGUE JUSQU'AU BOUT
-    // (AUCUNE LIMITE ARTIFICIELLE À 720 ARTICLES / JUSQU'AU DERNIER ARTICLE)
+    // (AUCUNE LIMITE ARTIFICIELLE / JUSQU'AU DERNIER ARTICLE)
     // ========================================================
     if (scrapeVolume === 0) {
       setIsContinuousScraping(true);
       setJob((prev) => ({
         ...prev,
         jobId: `JOB_ALL_${Date.now()}`,
-        targetUrl,
+        targetUrl: activeUrl,
         status: 'aspirating',
         progress: 10,
         itemsFound: replaceCatalog ? 0 : products.length,
-        aiAgentAction: `Aspiration continue sans limite vers ${domain} jusqu'au dernier article absolu...`,
+        aiAgentAction: `Aspiration TURBO sans limite vers ${domain} jusqu'au dernier article absolu...`,
       }));
 
       addLog(
-        `[ASPIRATION_CONTINUE] Démarrage du crawler infini vers ${targetUrl} [Aucune coupure à 720]`,
+        `[ASPIRATION_TURBO_CONTINUE] Démarrage du crawler haute vitesse vers ${activeUrl} [Sans coupure]`,
         'cyber',
         '0xALL_START'
-      );
-      addLog(
-        `[ANTI_BOT_JITTER] Temporisation furtive activée : injection d'une gigue temporelle aléatoire (400ms-950ms) entre chaque requête de page.`,
-        'info',
-        '0xJITTER'
       );
       cyberAudio.playVacuumSuck();
 
       let accumulated: ScrapedProduct[] = replaceCatalog ? [] : [...products];
       if (replaceCatalog || isOuedkniss) {
-        // Clear any old euro demo products
         accumulated = accumulated.filter((p) => !isOuedkniss || p.currency === 'DA');
       }
 
-      // Aspiration continue optimisée sans saut intempestif de catégorie
       const targetCategorySlugs = effectiveCategorySlug
         ? [effectiveCategorySlug]
         : OUEDKNISS_CATEGORIES.map((c) => c.slug);
@@ -1735,18 +1770,19 @@ export default function App() {
         const catName = catMeta?.name || currentCatSlug;
         setSelectedCategorySlug(currentCatSlug);
 
-        addLog(`[CATÉGORIE_${cIdx + 1}/${targetCategorySlugs.length}] Début aspiration intégrale de "${catName}"...`, 'cyber');
+        addLog(`[CATÉGORIE_${cIdx + 1}/${targetCategorySlugs.length}] Début aspiration intégrale Turbo de "${catName}"...`, 'cyber');
 
-        const pagesToRun = 999; // Aspiration continue jusqu'au bout sans coupure à 15 pages
+        const pagesToRun = 150; // Jusqu'au bout des pages
         let emptyStreak = 0;
 
-        for (let page = 1; page <= pagesToRun; page++) {
+        // Parallel chunked streaming: 3 pages concurrently for blazing speed
+        for (let page = 1; page <= pagesToRun; page += 3) {
           if (abortScrapingRef.current) break;
 
           setJob((prev) => ({
             ...prev,
             progress: Math.min(99, Math.round(((page % 100) / 100) * 100)),
-            aiAgentAction: `[${catName}] Page ${page} en cours d'aspiration... (${accumulated.length} articles scellés)`,
+            aiAgentAction: `[${catName}] Pages ${page}-${page + 2} en cours (Turbo Stream)... (${accumulated.length} articles scellés)`,
             crawlerState: {
               ...prev.crawlerState,
               scrollY: (cIdx * 15 + page) * 1200,
@@ -1756,23 +1792,42 @@ export default function App() {
           }));
 
           try {
-            const data = await executeScrapeRequest({
-              url: catMeta?.url || targetUrl,
-              maxItems: 48,
-              engineMode,
-              page,
-              categorySlug: currentCatSlug,
-            });
+            const [data1, data2, data3] = await Promise.all([
+              executeScrapeRequest({
+                url: catMeta?.url || activeUrl,
+                maxItems: 48,
+                engineMode,
+                page,
+                categorySlug: currentCatSlug,
+                targetTypeFilter,
+              }),
+              page + 1 <= pagesToRun
+                ? executeScrapeRequest({
+                    url: catMeta?.url || activeUrl,
+                    maxItems: 48,
+                    engineMode,
+                    page: page + 1,
+                    categorySlug: currentCatSlug,
+                    targetTypeFilter,
+                  })
+                : Promise.resolve({ products: [] as ScrapedProduct[] }),
+              page + 2 <= pagesToRun
+                ? executeScrapeRequest({
+                    url: catMeta?.url || activeUrl,
+                    maxItems: 48,
+                    engineMode,
+                    page: page + 2,
+                    categorySlug: currentCatSlug,
+                    targetTypeFilter,
+                  })
+                : Promise.resolve({ products: [] as ScrapedProduct[] }),
+            ]);
 
-            if (data.isClientSideFallback && page === 1 && cIdx === 0) {
-              addLog(
-                `[MOTEUR_AUTONOME] Mode client actif (100% compatible GitHub Pages) : flux continu sans limite.`,
-                'cyber',
-                '0xPAGES'
-              );
-            }
-
-            const pageProducts: ScrapedProduct[] = data.products || [];
+            const pageProducts: ScrapedProduct[] = [
+              ...(data1.products || []),
+              ...(data2.products || []),
+              ...(data3.products || []),
+            ];
 
             if (pageProducts.length === 0) {
               emptyStreak++;
@@ -1785,7 +1840,6 @@ export default function App() {
             }
 
             if (pageProducts.length > 0) {
-              // Détecter toute nouvelle catégorie découverte
               scanForDiscoveredCategories(pageProducts);
 
               if (replaceCatalog && cIdx === 0 && page === 1) {
@@ -1802,7 +1856,7 @@ export default function App() {
                   cyberAudio.playItemAspirated();
                 }
                 addLog(
-                  `[${catName} P${page}] +${newCount} nouveaux, ${updatedCount} màj, ${unchangedCount} inchangés (${accumulated.length} total)`,
+                  `[${catName} P${page}-${page + 1}] +${newCount} nouveaux, ${updatedCount} màj (${accumulated.length} total)`,
                   updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
                   `0xP${page}`
                 );
@@ -1812,15 +1866,14 @@ export default function App() {
               saveStoredProducts(accumulated, false);
             }
 
-            // Vitesse d'aspiration optimisée (80ms) pour rapidité maximale sans perte
-            await new Promise((r) => setTimeout(r, 80));
+            // High performance micro-yield (10ms)
+            await new Promise((r) => setTimeout(r, 10));
           } catch (pageErr) {
             console.warn('Page fetch issue:', pageErr);
             break;
           }
         }
 
-        // Catégorie terminée !
         cyberAudio.playCategoryUnlocked();
         addLog(
           `[CATÉGORIE_SCELLÉE] "${catName}" terminée à 100% ! Passage à la suite...`,
@@ -1852,48 +1905,45 @@ export default function App() {
     }
 
     // ========================================================
-    // MODE LOT UNIQUE (24, 50, 100, 250)
+    // MODE LOT UNIQUE (24, 50, 100, 250, 500) - TURBO INSTANTANÉ
     // ========================================================
     setJob((prev) => ({
       ...prev,
       jobId: `JOB_${Date.now()}`,
-      targetUrl,
+      targetUrl: activeUrl,
       status: 'connecting',
-      progress: 15,
+      progress: 25,
       itemsFound: 0,
-      aiAgentAction: `Connexion [Moteur: ${engineMode === 'direct' ? 'DIRECT SANS IA' : 'HYBRIDE IA'}] vers ${domain}...`,
+      aiAgentAction: `Connexion haute vitesse [${engineMode === 'direct' ? 'DIRECT MK4' : 'IA HYBRIDE'}] vers ${domain}...`,
     }));
 
     cyberAudio.playChirp(600, 0.08);
-    addLog(`[CONNEXION] Mode: ${engineMode.toUpperCase()} | Volume: ${scrapeVolume} | Cible: ${targetUrl}`, 'info', '0x7F01');
+    addLog(`[CONNEXION] Mode: ${engineMode.toUpperCase()} | Volume: ${scrapeVolume} | Cible: ${activeUrl}`, 'info', '0x7F01');
 
-    // Track page pagination for lot scrapes so clicking multiple times yields new items
-    const lotKey = effectiveCategorySlug || targetUrl;
+    const lotKey = effectiveCategorySlug || activeUrl;
     lotPageRef.current[lotKey] = (lotPageRef.current[lotKey] || 0) + 1;
     const currentLotPage = lotPageRef.current[lotKey];
 
     try {
-      // Jitter furtif anti-bot avant l'appel pour casser les signatures de timing automatisées
-      const stealthLotJitter = Math.floor(Math.random() * 300) + 200; // 200ms à 500ms
-      await new Promise((r) => setTimeout(r, stealthLotJitter));
-
       setJob((prev) => ({
         ...prev,
         status: 'aspirating',
-        progress: 50,
-        aiAgentAction: `Aspiration furtive en cours (${scrapeVolume} articles - jitter anti-bot actif)...`,
+        progress: 60,
+        aiAgentAction: `Aspiration Turbo en cours (${scrapeVolume} articles)...`,
       }));
       cyberAudio.playVacuumSuck();
 
       const data = await executeScrapeRequest({
-        url: targetUrl,
+        url: activeUrl,
         maxItems: scrapeVolume,
         engineMode,
         page: currentLotPage,
         categorySlug: effectiveCategorySlug || undefined,
+        targetTypeFilter,
       });
 
       const extractedProducts: ScrapedProduct[] = data.products || [];
+
 
       if (data.fallbackNotice) {
         addLog(`[FAILOVER] ${data.fallbackNotice}`, 'warn', '0xFAILOVER');
@@ -2503,6 +2553,7 @@ export default function App() {
                 cyberAudio.playHoloTap(880);
                 addLog(`[CATÉGORIE_SÉLECTIONNÉE] ${cat.name} (${cat.url})`, 'info', `0xCAT_${cat.slug}`);
               }}
+              onStartCategoryScrape={handleStartCategoryScrape}
               onStartAllCategoriesSweep={handleStartAllCategoriesSweep}
               onStopSweep={handleStopScrape}
               isScrapingActive={isContinuousScraping}
@@ -2510,6 +2561,8 @@ export default function App() {
               sweepPagesPerCategory={sweepPagesPerCategory}
               onChangeSweepPagesPerCategory={setSweepPagesPerCategory}
               discoveredCategories={discoveredCategories}
+              targetTypeFilter={targetTypeFilter}
+              onChangeTargetTypeFilter={setTargetTypeFilter}
               onSelectDiscoveredCategory={(catName) => {
                 setSelectedCategorySlug(catName);
                 handleSelectTab('catalog');

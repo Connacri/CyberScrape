@@ -228,7 +228,11 @@ export async function queryProductsPageFromIndexedDB(params: IndexedDbQueryParam
  * Loads scraped products from IndexedDB with safety cap to avoid out-of-memory crash
  * if the database has millions of entries.
  */
-export async function loadStoredProductsFromIndexedDB(maxLimit: number = 3000): Promise<ScrapedProduct[]> {
+/**
+ * Loads scraped products from IndexedDB with safety cap to avoid out-of-memory crash
+ * if the database has millions of entries.
+ */
+export async function loadStoredProductsFromIndexedDB(maxLimit: number = 30000): Promise<ScrapedProduct[]> {
   try {
     const db = await openIndexedDb();
     if (!db) return [];
@@ -236,14 +240,45 @@ export async function loadStoredProductsFromIndexedDB(maxLimit: number = 3000): 
       try {
         const tx = db.transaction(IDB_STORE, 'readonly');
         const store = tx.objectStore(IDB_STORE);
-        
-        // If modern getAll with count is available
-        const req = store.getAll(null, maxLimit);
+
+        // Standard IDB: store.getAll() without arguments retrieves all objects safely across all browsers
+        const req = store.getAll();
+
         req.onsuccess = () => {
-          const list = (req.result as ScrapedProduct[]) || [];
+          let list = (req.result as ScrapedProduct[]) || [];
+          if (list.length > 0) {
+            // Sort by scrapedAt desc to show newest first
+            list.sort((a, b) => {
+              const tA = new Date(a.lastUpdated || a.scrapedAt).getTime() || 0;
+              const tB = new Date(b.lastUpdated || b.scrapedAt).getTime() || 0;
+              return tB - tA;
+            });
+            if (typeof maxLimit === 'number' && maxLimit > 0 && list.length > maxLimit) {
+              list = list.slice(0, maxLimit);
+            }
+          }
           resolve(list);
         };
-        req.onerror = () => resolve([]);
+
+        req.onerror = () => {
+          // Robust cursor fallback if getAll fails
+          try {
+            const fallbackList: ScrapedProduct[] = [];
+            const cursorReq = store.openCursor(null, 'prev');
+            cursorReq.onsuccess = (ev) => {
+              const cursor = (ev.target as IDBRequest<IDBCursorWithValue>).result;
+              if (cursor && (!maxLimit || fallbackList.length < maxLimit)) {
+                fallbackList.push(cursor.value);
+                cursor.continue();
+              } else {
+                resolve(fallbackList);
+              }
+            };
+            cursorReq.onerror = () => resolve([]);
+          } catch {
+            resolve([]);
+          }
+        };
       } catch {
         resolve([]);
       }
@@ -259,7 +294,10 @@ export async function loadStoredProductsFromIndexedDB(maxLimit: number = 3000): 
 export function getStoredProducts(): ScrapedProduct[] {
   try {
     if (typeof window === 'undefined') return [];
-    const raw = localStorage.getItem('products') || localStorage.getItem(STORAGE_KEY_PRODUCTS);
+    const raw =
+      localStorage.getItem('products') ||
+      localStorage.getItem('cyber_vacuum_products_cache') ||
+      localStorage.getItem(STORAGE_KEY_PRODUCTS);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -275,74 +313,42 @@ export function getStoredProducts(): ScrapedProduct[] {
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let latestProductsRef: ScrapedProduct[] | null = null;
 
-let isFlushingDb = false;
-let pendingDbWriteQueue: ScrapedProduct[] | null = null;
-
 function flushProductsSync(products: ScrapedProduct[]) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !products || products.length === 0) return;
 
-  // 1. Lightweight preview slice (max 20 items) and total count in LocalStorage
+  // 1. High-capacity preview slice (first 200 items) and total count in LocalStorage
   try {
-    const previewSlice = products.slice(0, 20);
-    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(previewSlice));
+    const previewSlice = products.slice(0, 200);
+    const serialized = JSON.stringify(previewSlice);
+    localStorage.setItem(STORAGE_KEY_PRODUCTS, serialized);
+    localStorage.setItem('products', serialized);
+    localStorage.setItem('cyber_vacuum_products_cache', serialized);
     localStorage.setItem('cyber_vacuum_total_count', String(products.length));
+    localStorage.setItem('cyber_vacuum_has_custom_data', 'true');
   } catch {
-    // ignore
+    // If localstorage quota reached, store compact slice
+    try {
+      const compactSlice = products.slice(0, 50);
+      localStorage.setItem('products', JSON.stringify(compactSlice));
+    } catch {}
   }
 
-  // 2. Asynchronous non-blocking chunked writes to IndexedDB
-  pendingDbWriteQueue = products;
-  if (isFlushingDb) return;
-  isFlushingDb = true;
-
+  // 2. Direct, reliable transactional commit to IndexedDB
   openIndexedDb().then((db) => {
-    if (!db) {
-      isFlushingDb = false;
-      return;
-    }
-
-    const itemsToWrite = pendingDbWriteQueue || products;
-    pendingDbWriteQueue = null;
+    if (!db) return;
 
     try {
       const tx = db.transaction(IDB_STORE, 'readwrite');
       const store = tx.objectStore(IDB_STORE);
       
-      let idx = 0;
-      const CHUNK = 120;
-
-      function writeNextChunk() {
-        if (!store || idx >= itemsToWrite.length) {
-          isFlushingDb = false;
-          if (pendingDbWriteQueue) {
-            flushProductsSync(pendingDbWriteQueue);
-          }
-          return;
-        }
-
-        const limit = Math.min(idx + CHUNK, itemsToWrite.length);
-        for (; idx < limit; idx++) {
-          store.put(itemsToWrite[idx]);
-        }
-
-        if (idx < itemsToWrite.length) {
-          if (typeof requestIdleCallback !== 'undefined') {
-            requestIdleCallback(writeNextChunk, { timeout: 80 });
-          } else {
-            setTimeout(writeNextChunk, 12);
-          }
-        } else {
-          isFlushingDb = false;
-        }
+      // Save all products into IndexedDB
+      for (let i = 0; i < products.length; i++) {
+        store.put(products[i]);
       }
-
-      writeNextChunk();
-    } catch {
-      isFlushingDb = false;
+    } catch (err) {
+      console.warn('[CYBER-VACUUM] Error writing products to IndexedDB:', err);
     }
-  }).catch(() => {
-    isFlushingDb = false;
-  });
+  }).catch(() => {});
 }
 
 // Hook page unload to flush any pending write immediately
@@ -371,9 +377,10 @@ export function saveStoredProducts(products: ScrapedProduct[], immediate = false
       if (latestProductsRef) {
         flushProductsSync(latestProductsRef);
       }
-    }, 200);
+    }, 150);
   }
 }
+
 
 /**
  * High-speed incremental batch writer for live streaming scraping
@@ -398,6 +405,7 @@ export async function saveScrapedProductsBatch(newBatch: ScrapedProduct[]): Prom
         try {
           const currentCount = parseInt(localStorage.getItem('cyber_vacuum_total_count') || '0', 10);
           localStorage.setItem('cyber_vacuum_total_count', String(currentCount + newBatch.length));
+          localStorage.setItem('cyber_vacuum_has_custom_data', 'true');
         } catch {
           // ignore
         }
