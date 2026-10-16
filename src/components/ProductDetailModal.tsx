@@ -33,6 +33,7 @@ import {
   ensureProductDetails,
   buildWhatsAppLink,
   buildTelLink,
+  buildTelLink2,
   buildSmsLink,
 } from '../utils/sellerGenerator';
 import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
@@ -58,6 +59,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [copiedPhone2, setCopiedPhone2] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'priceHistory' | 'seller' | 'specs' | 'json'>('details');
 
@@ -73,6 +75,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setTimeout(() => setCopiedPhone(false), 2500);
   };
 
+  const handleCopyPhone2 = () => {
+    if (seller.phone2) {
+      navigator.clipboard.writeText(seller.phone2);
+      setCopiedPhone2(true);
+      setTimeout(() => setCopiedPhone2(false), 2500);
+    }
+  };
+
   const handleShareLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopiedLink(true);
@@ -80,6 +90,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   };
 
   const telLink = buildTelLink(seller);
+  const telLink2 = buildTelLink2(seller);
   const whatsAppLink = buildWhatsAppLink(seller, product);
   const smsLink = buildSmsLink(seller, product);
 
@@ -331,54 +342,87 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 {/* ============================================================== */}
                 {/* 1-CLICK CALL & 1-CLICK WHATSAPP BUTTONS (CORE REQUIREMENT)     */}
                 {/* ============================================================== */}
-                <div className="space-y-2 pt-1">
-                  {/* DIRECT CALL BUTTON: Click directly calls the phone number */}
-                  <a
-                    href={telLink}
-                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-emerald-400 text-slate-950 font-mono font-extrabold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(0,255,102,0.4)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer group"
-                    title={`Appeler directement le vendeur au ${seller.phone}`}
-                  >
-                    <PhoneCall className="w-5 h-5 text-slate-950 animate-bounce group-hover:scale-110 transition-transform" />
-                    <span>APPEL DIRECT : {seller.phone}</span>
-                  </a>
-
-                  {/* DIRECT WHATSAPP BUTTON: Click opens WhatsApp with prefilled message */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-2.5 pt-1">
+                  {/* DIRECT CALL BUTTON 1 (Ligne Principale) */}
+                  <div className="flex items-center gap-2">
                     <a
-                      href={whatsAppLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-mono font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg hover:brightness-105 active:scale-[0.99] transition-all cursor-pointer"
-                      title="Contacter instantanément le vendeur sur WhatsApp"
+                      href={telLink}
+                      className="flex-1 py-3 px-3.5 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-emerald-400 text-slate-950 font-mono font-extrabold text-xs sm:text-sm flex items-center justify-between gap-2 shadow-[0_0_20px_rgba(0,255,102,0.35)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer group"
+                      title={`Appeler directement la ligne 1 au ${seller.phone}`}
                     >
-                      <MessageCircle className="w-4 h-4 text-white" />
-                      <span>WhatsApp Direct</span>
+                      <div className="flex items-center gap-2 truncate">
+                        <PhoneCall className="w-4 h-4 text-slate-950 shrink-0 animate-bounce group-hover:scale-110 transition-transform" />
+                        <span className="truncate">N°1 : {seller.phone}</span>
+                      </div>
+                      <span className="px-1.5 py-0.5 rounded bg-black/25 text-slate-900 font-mono text-[10px] font-black uppercase shrink-0">
+                        {seller.operator || 'Ligne 1'}
+                      </span>
                     </a>
 
-                    {/* COPY NUMBER BUTTON */}
+                    {/* COPY N°1 BUTTON */}
                     <button
+                      type="button"
                       onClick={handleCopyPhone}
-                      className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 font-mono font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                      title="Copier le numéro de téléphone dans le presse-papier"
+                      className="h-[44px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-mono text-xs flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                      title="Copier le 1er numéro de téléphone"
                     >
                       {copiedPhone ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-400" />
-                          <span className="text-emerald-400">Numéro copié !</span>
-                        </>
+                        <Check className="w-4 h-4 text-emerald-400" />
                       ) : (
-                        <>
-                          <Copy className="w-4 h-4 text-slate-400" />
-                          <span>Copier numéro</span>
-                        </>
+                        <Copy className="w-4 h-4 text-slate-400" />
                       )}
                     </button>
                   </div>
+
+                  {/* DIRECT CALL BUTTON 2 (2ème numéro de téléphone - Requis par l'utilisateur) */}
+                  {seller.phone2 && (
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={telLink2}
+                        className="flex-1 py-3 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500 via-[#00f0ff] to-cyan-400 text-slate-950 font-mono font-extrabold text-xs sm:text-sm flex items-center justify-between gap-2 shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer group"
+                        title={`Appeler directement la 2ème ligne au ${seller.phone2}`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Phone className="w-4 h-4 text-slate-950 shrink-0 group-hover:scale-110 transition-transform" />
+                          <span className="truncate">2ème N° : {seller.phone2}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded bg-black/25 text-slate-900 font-mono text-[10px] font-black uppercase shrink-0">
+                          {seller.operator2 || 'Ligne 2'}
+                        </span>
+                      </a>
+
+                      {/* COPY N°2 BUTTON */}
+                      <button
+                        type="button"
+                        onClick={handleCopyPhone2}
+                        className="h-[44px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-mono text-xs flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                        title="Copier le 2ème numéro de téléphone"
+                      >
+                        {copiedPhone2 ? (
+                          <Check className="w-4 h-4 text-cyan-400" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-slate-400" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* DIRECT WHATSAPP BUTTON */}
+                  <a
+                    href={whatsAppLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-mono font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg hover:brightness-105 active:scale-[0.99] transition-all cursor-pointer"
+                    title="Contacter instantanément le vendeur sur WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4 text-white" />
+                    <span>WhatsApp Direct (Message pré-rempli)</span>
+                  </a>
                 </div>
 
                 <div className="text-[11px] font-mono text-slate-400 text-center flex items-center justify-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Numéro algérien vérifié par SMS sur Ouedkniss</span>
+                  <span>2 numéros algériens vérifiés et joignables 7j/7</span>
                 </div>
               </div>
             </div>

@@ -188,11 +188,20 @@ export function generateSellerForProduct(
   const wilaya = wilayaHint || getRandom69Wilaya(seed);
   const commune = wilaya.includes('-') ? wilaya.split('-')[1]?.trim() : wilaya;
 
+  // Generate 2nd Algerian phone number (different operator for maximum reach)
+  const seed2 = seed * 13 + 37;
+  const phoneData2 = generateAlgerianPhone(seed2);
+  const finalOperator2 = phoneData2.operator === phoneData.operator
+    ? (phoneData.operator === 'Mobilis' ? 'Djezzy' : phoneData.operator === 'Djezzy' ? 'Ooredoo' : 'Mobilis')
+    : phoneData2.operator;
+
   return {
     name,
     type,
     phone: phoneData.formatted,
     phoneClean: phoneData.clean,
+    phone2: phoneData2.formatted,
+    phone2Clean: phoneData2.clean,
     whatsappClean: phoneData.whatsapp,
     wilaya,
     commune,
@@ -204,6 +213,7 @@ export function generateSellerForProduct(
     avatarUrl,
     storeName: type !== 'Particulier' ? `${name} Algérie Marketplace` : undefined,
     operator: phoneData.operator,
+    operator2: finalOperator2,
   };
 }
 
@@ -231,9 +241,10 @@ Je mets en vente mon article : **${product.title}** en ${condition}.
 - Livraison express disponible vers les 58 Wilayas (Yalidine Express / ZR Express / Procolis) avec paiement sécurisé à la réception (contre-remboursement).
 - Paiement accepté : Espèces en Dinars Algériens (DA), BaridiMob, ou Virement CCP.
 
-📞 **Contact & Coordonnées vendeur :**
-- Appel téléphonique direct : **${seller.phone}** (de 09h00 à 22h00)
-- WhatsApp direct : Cliquez sur le bouton WhatsApp pour me laisser un message instantané avec la référence de l'annonce.
+📞 **Contacts & Lignes téléphoniques directes :**
+- 📞 N° Principal : **${seller.phone}** (${seller.operator || 'Mobile'}) - Joignable 7j/7 de 09h à 22h
+${seller.phone2 ? `- 📱 2ème Ligne : **${seller.phone2}** (${seller.operator2 || 'Secondaire'}) - En cas d'injoignabilité` : ''}
+- 💬 WhatsApp Direct : Cliquez sur le bouton WhatsApp pour me laisser un message instantané avec la référence de l'annonce.
 - Réponse rapide garantie pour toute question ou demande de photos supplémentaires.
 
 Curieux et non sérieux s'abstenir svp. Merci et bonne journée !`;
@@ -266,6 +277,16 @@ export function generateGalleryImages(primaryImage: string, seed: number): strin
  */
 export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
   if (product.seller) {
+    if (!product.seller.phone2) {
+      const seed = hashString(product.id || product.title);
+      const seed2 = seed * 13 + 37;
+      const phoneData2 = generateAlgerianPhone(seed2);
+      product.seller.phone2 = phoneData2.formatted;
+      product.seller.phone2Clean = phoneData2.clean;
+      product.seller.operator2 = phoneData2.operator === product.seller.operator
+        ? (product.seller.operator === 'Mobilis' ? 'Djezzy' : product.seller.operator === 'Djezzy' ? 'Ooredoo' : 'Mobilis')
+        : phoneData2.operator;
+    }
     if (!product.productUrl || (product.sourceDomain.includes('ouedkniss') && !product.productUrl.includes('keywords='))) {
       product.productUrl = getOuedknissOriginUrl(product);
     }
@@ -316,6 +337,21 @@ export function buildWhatsAppLink(seller: SellerInfo, product: ScrapedProduct): 
  */
 export function buildTelLink(seller: SellerInfo): string {
   const clean = seller.phoneClean.replace(/[^0-9]/g, '');
+  if (clean.startsWith('0')) {
+    return `tel:+213${clean.substring(1)}`;
+  }
+  if (clean.startsWith('213')) {
+    return `tel:+${clean}`;
+  }
+  return `tel:${clean}`;
+}
+
+/**
+ * Builds direct Tel URI for 2nd phone number (2ème numéro de téléphone)
+ */
+export function buildTelLink2(seller: SellerInfo): string {
+  const clean = (seller.phone2Clean || seller.phone2 || '').replace(/[^0-9]/g, '');
+  if (!clean) return buildTelLink(seller);
   if (clean.startsWith('0')) {
     return `tel:+213${clean.substring(1)}`;
   }

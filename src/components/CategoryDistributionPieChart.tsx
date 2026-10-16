@@ -6,10 +6,16 @@ import {
   ResponsiveContainer,
   Tooltip,
   Sector,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
 } from 'recharts';
 import { ScrapedProduct } from '../types';
 import {
   PieChart as PieChartIcon,
+  BarChart3,
   Layers,
   Sparkles,
   Tag,
@@ -57,7 +63,8 @@ export const CategoryDistributionPieChart: React.FC<CategoryDistributionPieChart
   selectedCategory,
 }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [isDonut, setIsDonut] = useState<boolean>(true);
+  const [chartView, setChartView] = useState<'donut' | 'pie' | 'barPrices' | 'barVolumes'>('donut');
+  const isDonut = chartView === 'donut';
 
   // Group and aggregate products by category
   const { chartData, totalItems, topCategory, totalValuation, currency } = useMemo(() => {
@@ -192,6 +199,46 @@ export const CategoryDistributionPieChart: React.FC<CategoryDistributionPieChart
     return null;
   };
 
+  // Custom Bar Price Tooltip
+  const CustomBarPriceTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data: CategoryPieSlice = payload[0].payload;
+      return (
+        <div className="rounded-xl bg-slate-950/95 border border-amber-500/50 p-3 shadow-[0_0_25px_rgba(255,190,11,0.25)] backdrop-blur-md font-mono text-xs text-slate-100 min-w-[210px]">
+          <div className="flex items-center gap-2 mb-1.5 pb-1.5 border-b border-amber-500/20">
+            <span className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px]" style={{ backgroundColor: data.color }} />
+            <span className="font-bold text-white text-sm truncate">{data.name}</span>
+          </div>
+          <div className="space-y-1">
+            <div className="flex justify-between text-slate-400">
+              <span>Prix Moyen :</span>
+              <span className="text-amber-400 font-bold">
+                {data.avgPrice.toLocaleString('fr-DZ')} {data.currency}
+              </span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Volume d'annonces :</span>
+              <span className="text-emerald-400 font-bold">{data.value.toLocaleString()} ads</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Part du catalogue :</span>
+              <span className="text-cyan-400 font-bold">{data.percentage}%</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Valeur du stock :</span>
+              <span className="text-purple-400 font-bold">
+                {data.totalValuation >= 1_000_000
+                  ? `${(data.totalValuation / 1_000_000).toFixed(1)}M ${data.currency}`
+                  : `${data.totalValuation.toLocaleString('fr-DZ')} ${data.currency}`}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (products.length === 0) {
     return (
       <div className="rounded-2xl bg-slate-900/60 border border-emerald-500/30 p-6 backdrop-blur-md text-center">
@@ -218,12 +265,20 @@ export const CategoryDistributionPieChart: React.FC<CategoryDistributionPieChart
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-emerald-500/20">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(0,255,102,0.2)]">
-            <PieChartIcon className="w-5 h-5" />
+            {chartView === 'barPrices' || chartView === 'barVolumes' ? (
+              <BarChart3 className="w-5 h-5" />
+            ) : (
+              <PieChartIcon className="w-5 h-5" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base sm:text-lg font-bold text-white tracking-wide">
-                RÉPARTITION PAR CATÉGORIE
+                {chartView === 'barPrices'
+                  ? 'COMPARAISON DES PRIX MOYENS (DA)'
+                  : chartView === 'barVolumes'
+                  ? 'VOLUMÉTRIE DES ANNONCES PAR CATÉGORIE'
+                  : 'RÉPARTITION PAR CATÉGORIE'}
               </h3>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                 RECHARTS
@@ -235,29 +290,53 @@ export const CategoryDistributionPieChart: React.FC<CategoryDistributionPieChart
           </div>
         </div>
 
-        {/* Donut vs Solid Pie toggle buttons */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+        {/* View mode toggle buttons (Donut / Camembert / Barres Prix / Barres Volumes) */}
+        <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto bg-slate-900/80 p-1 rounded-xl border border-slate-800">
           <button
             type="button"
-            onClick={() => setIsDonut(true)}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-              isDonut
+            onClick={() => setChartView('donut')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              chartView === 'donut'
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Donut Anneau
+            Donut
           </button>
           <button
             type="button"
-            onClick={() => setIsDonut(false)}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-              !isDonut
+            onClick={() => setChartView('pie')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              chartView === 'pie'
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Camembert Plein
+            Plein
+          </button>
+          <button
+            type="button"
+            onClick={() => setChartView('barPrices')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+              chartView === 'barPrices'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_10px_rgba(255,190,11,0.2)]'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <BarChart3 className="w-3 h-3" />
+            <span>Prix (DA)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setChartView('barVolumes')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+              chartView === 'barVolumes'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <BarChart3 className="w-3 h-3" />
+            <span>Volumes</span>
           </button>
         </div>
       </div>
@@ -310,66 +389,154 @@ export const CategoryDistributionPieChart: React.FC<CategoryDistributionPieChart
 
       {/* Main Visual Layout: Pie Chart + Interactive Detailed Legend */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-        {/* Left: Recharts Pie Chart (with center holographic telemetry in donut mode) */}
+        {/* Left: Recharts Visual Area (PieChart or BarChart based on chartView) */}
         <div className="lg:col-span-6 relative flex flex-col items-center justify-center min-h-[320px]">
-          <div className="w-full h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Tooltip content={<CustomTooltip />} />
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={isDonut ? 75 : 0}
-                  outerRadius={120}
-                  paddingAngle={isDonut ? 3 : 1}
-                  {...({
-                    activeIndex: currentActiveIndex !== null ? currentActiveIndex : undefined,
-                    activeShape: renderActiveShape,
-                  } as any)}
-                  onMouseEnter={(_, index) => setActiveIndex(index)}
-                  onClick={(data, index) => {
-                    setActiveIndex(index);
-                    if (onSelectCategory && data?.name) {
-                      onSelectCategory(data.name);
+          {chartView === 'barPrices' ? (
+            <div className="w-full h-[320px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 15, right: 10, left: 0, bottom: 45 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#64748b"
+                    tick={{ fill: '#94a3b8', fontSize: 9 }}
+                    angle={-35}
+                    textAnchor="end"
+                    interval={0}
+                    height={50}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    tick={{ fill: '#94a3b8', fontSize: 10 }}
+                    tickFormatter={(val) =>
+                      val >= 1_000_000
+                        ? `${(val / 1_000_000).toFixed(1)}M`
+                        : val >= 1_000
+                        ? `${Math.round(val / 1_000)}k`
+                        : `${val}`
                     }
-                  }}
-                  cursor="pointer"
-                  animationDuration={800}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${entry.name}-${index}`}
-                      fill={entry.color}
-                      stroke="#030712"
-                      strokeWidth={2}
-                    />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Central Donut Readout */}
-          {isDonut && (
-            <div className="absolute pointer-events-none flex flex-col items-center justify-center text-center max-w-[130px]">
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest">
-                {activeSlice ? 'FOCUS' : 'CATALOGUE'}
-              </span>
-              <span className="text-xl font-extrabold text-white font-mono leading-tight tracking-tight drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]">
-                {activeSlice ? `${activeSlice.percentage}%` : totalItems.toLocaleString()}
-              </span>
-              <span className="text-[11px] font-bold text-emerald-400 truncate max-w-[120px] mt-0.5">
-                {activeSlice ? activeSlice.name : 'Articles scellés'}
-              </span>
-              {activeSlice && (
-                <span className="text-[9px] text-slate-400 mt-0.5">
-                  {activeSlice.value} annonce{activeSlice.value > 1 ? 's' : ''}
-                </span>
-              )}
+                  />
+                  <Tooltip content={<CustomBarPriceTooltip />} />
+                  <Bar
+                    dataKey="avgPrice"
+                    radius={[6, 6, 0, 0]}
+                    cursor="pointer"
+                    onClick={(data: any) => {
+                      if (data && onSelectCategory) {
+                        onSelectCategory(data.name);
+                      }
+                    }}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`bar-price-${index}`}
+                        fill={entry.color}
+                        opacity={currentActiveIndex === null || currentActiveIndex === index ? 1 : 0.6}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
+          ) : chartView === 'barVolumes' ? (
+            <div className="w-full h-[320px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 15, right: 10, left: 0, bottom: 45 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#64748b"
+                    tick={{ fill: '#94a3b8', fontSize: 9 }}
+                    angle={-35}
+                    textAnchor="end"
+                    interval={0}
+                    height={50}
+                  />
+                  <YAxis stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar
+                    dataKey="value"
+                    radius={[6, 6, 0, 0]}
+                    cursor="pointer"
+                    onClick={(data: any) => {
+                      if (data && onSelectCategory) {
+                        onSelectCategory(data.name);
+                      }
+                    }}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`bar-volume-${index}`}
+                        fill={entry.color}
+                        opacity={currentActiveIndex === null || currentActiveIndex === index ? 1 : 0.6}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <>
+              <div className="w-full h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Pie
+                      data={chartData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={isDonut ? 75 : 0}
+                      outerRadius={120}
+                      paddingAngle={isDonut ? 3 : 1}
+                      {...({
+                        activeIndex: currentActiveIndex !== null ? currentActiveIndex : undefined,
+                        activeShape: renderActiveShape,
+                      } as any)}
+                      onMouseEnter={(_, index) => setActiveIndex(index)}
+                      onClick={(data, index) => {
+                        setActiveIndex(index);
+                        if (onSelectCategory && data?.name) {
+                          onSelectCategory(data.name);
+                        }
+                      }}
+                      cursor="pointer"
+                      animationDuration={800}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${entry.name}-${index}`}
+                          fill={entry.color}
+                          stroke="#030712"
+                          strokeWidth={2}
+                        />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Central Donut Readout */}
+              {isDonut && (
+                <div className="absolute pointer-events-none flex flex-col items-center justify-center text-center max-w-[130px]">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-widest">
+                    {activeSlice ? 'FOCUS' : 'CATALOGUE'}
+                  </span>
+                  <span className="text-xl font-extrabold text-white font-mono leading-tight tracking-tight drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]">
+                    {activeSlice ? `${activeSlice.percentage}%` : totalItems.toLocaleString()}
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-400 truncate max-w-[120px] mt-0.5">
+                    {activeSlice ? activeSlice.name : 'Articles scellés'}
+                  </span>
+                  {activeSlice && (
+                    <span className="text-[9px] text-slate-400 mt-0.5">
+                      {activeSlice.value} annonce{activeSlice.value > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 

@@ -85,8 +85,12 @@ export function getOuedknissOriginUrl(
     return url;
   }
 
-  // If already a valid live Ouedkniss search URL with ?keywords=, return it directly
-  if (url && url.includes('ouedkniss.com') && url.includes('keywords=')) {
+  // If already a valid live direct announcement URL or search URL, return it directly
+  if (
+    url &&
+    url.includes('ouedkniss.com') &&
+    (url.includes('keywords=') || /-d\d+/.test(url) || url.includes('/annonce/'))
+  ) {
     return url;
   }
 

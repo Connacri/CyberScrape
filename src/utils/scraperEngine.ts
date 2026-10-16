@@ -154,20 +154,23 @@ export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultR
       : 'DA';
 
     let prodId = '';
-    if (item.productUrl) {
+    const dMatch = item.productUrl ? item.productUrl.match(/-d(\d+)/) : null;
+    if (dMatch) {
+      prodId = `prod_ouedkniss_${dMatch[1]}`;
+    } else if (item.productUrl) {
       try {
         const parsedUrl = new URL(item.productUrl);
         const cleanPath = parsedUrl.pathname.replace(/^\/+|\/+$/g, '').replace(/[^a-z0-9_-]/gi, '_');
         if (cleanPath.length > 2) {
-          prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_${cleanPath.slice(-42)}`;
+          prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${idx}_${cleanPath.slice(-32)}`;
         }
       } catch {
         // ignore
       }
     }
     if (!prodId) {
-      const cleanTitle = item.title.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 32);
-      prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${cleanTitle}`;
+      const cleanTitle = item.title.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 24);
+      prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${idx}_${cleanTitle}`;
     }
 
     const seller = isOuedkniss

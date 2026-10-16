@@ -37,6 +37,7 @@ import {
   loadSweepCheckpoint,
   clearSweepCheckpoint,
   saveCategoryProgress,
+  loadAllCategoryProgress,
   getCategoryResumePage,
   resetCategoryProgress,
   ScrapeSweepCheckpoint,
@@ -52,6 +53,7 @@ import {
 import { ApkReleaseModal } from './components/ApkReleaseModal';
 import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
 import { CyberVacuumLogo } from './components/CyberVacuumLogo';
+import { CategoryDistributionPieChart } from './components/CategoryDistributionPieChart';
 import {
   executeScrapeRequest,
   executeSimulatePriceUpdate,
@@ -1165,6 +1167,12 @@ export default function App() {
   const activeProductIdsRef = useRef<Set<string>>(new Set());
   const activeProductUrlsRef = useRef<Set<string>>(new Set());
 
+  // Real-Time Global Topbar Search & Category Filters
+  const [globalSearchTerm, setGlobalSearchTerm] = useState<string>('');
+  const [globalSelectedCategory, setGlobalSelectedCategory] = useState<string>('all');
+  const [showCategoryChartsModal, setShowCategoryChartsModal] = useState<boolean>(false);
+
+
 
   // Futuristic tab selection with tactile sci-fi sound
   const handleSelectTab = (tab: 'vacuum' | 'temu' | 'trends' | 'catalog') => {
@@ -1287,8 +1295,9 @@ export default function App() {
     // Restaurer l'avancement des pages par catégorie pour reprise continue sans recommencer à zéro
     const allProgress = loadAllCategoryProgress();
     for (const [k, v] of Object.entries(allProgress)) {
-      if (v && typeof v.lastPage === 'number') {
-        lotPageRef.current[k] = v.lastPage;
+      const entry = v as { lastPage?: number };
+      if (entry && typeof entry.lastPage === 'number') {
+        lotPageRef.current[k] = entry.lastPage;
       }
     }
   }, []);
@@ -1306,6 +1315,27 @@ export default function App() {
       setLiveAspiratedCount((prev) => Math.max(prev, products.length));
     }
   }, [products]);
+
+  // Global filtered products across search term and category
+  const filteredProducts = useMemo(() => {
+    let list = products;
+    if (globalSelectedCategory && globalSelectedCategory !== 'all') {
+      const targetCat = globalSelectedCategory.toLowerCase();
+      list = list.filter((p) => p.category && p.category.toLowerCase().includes(targetCat));
+    }
+    if (globalSearchTerm.trim()) {
+      const q = globalSearchTerm.toLowerCase().trim();
+      list = list.filter((p) => {
+        const titleMatch = p.title.toLowerCase().includes(q);
+        const brandMatch = p.brand ? p.brand.toLowerCase().includes(q) : false;
+        const catMatch = p.category ? p.category.toLowerCase().includes(q) : false;
+        const wilayaMatch = p.specs?.Wilaya ? p.specs.Wilaya.toLowerCase().includes(q) : false;
+        const sellerMatch = p.seller?.name ? p.seller.name.toLowerCase().includes(q) : false;
+        return titleMatch || brandMatch || catMatch || wilayaMatch || sellerMatch;
+      });
+    }
+    return list;
+  }, [products, globalSearchTerm, globalSelectedCategory]);
 
 
   // Stats helpers for specialized headers
@@ -1915,17 +1945,27 @@ export default function App() {
 
         addLog(`[CATÉGORIE_${cIdx + 1}/${targetCategorySlugs.length}] Début aspiration intégrale Turbo de "${catName}"...`, 'cyber');
 
-        const pagesToRun = 150; // Jusqu'au bout des pages
+        // Récupérer le point de reprise pour ne jamais recommencer à zéro
+        const startPage = lotPageRef.current[currentCatSlug] || getCategoryResumePage(currentCatSlug) || 1;
+        // Mode Illimité : 3 000 pages par catégorie (aucun plafond artificiel à 7 200)
+        const pagesToRun = 3000;
         let emptyStreak = 0;
 
-        // Parallel chunked streaming: 3 pages concurrently for blazing speed
-        for (let page = 1; page <= pagesToRun; page += 3) {
+        addLog(
+          `[PIPELINE_SENIOR_START] Reprise/Démarrage de "${catName}" à la page ${startPage} (Mode Illimité Continu)...`,
+          'cyber',
+          `0xSTART_P${startPage}`
+        );
+
+        // Architecture Senior Haute Performance : 4 flux parallèles sans coupure
+        const CONCURRENT_PAGES = 4;
+        for (let page = startPage; page <= pagesToRun; page += CONCURRENT_PAGES) {
           if (abortScrapingRef.current) break;
 
           setJob((prev) => ({
             ...prev,
             progress: Math.min(99, Math.round(((page % 100) / 100) * 100)),
-            aiAgentAction: `[${catName}] Pages ${page}-${page + 2} en cours (Turbo Stream)... (${accumulated.length} articles scellés)`,
+            aiAgentAction: `[${catName}] Pages ${page}-${page + CONCURRENT_PAGES - 1} en cours (Flux Senior 4-Stream)... (${accumulated.length.toLocaleString('fr-DZ')} articles scellés)`,
             crawlerState: {
               ...prev.crawlerState,
               scrollY: (cIdx * 15 + page) * 1200,
@@ -1935,46 +1975,34 @@ export default function App() {
           }));
 
           try {
-            const [data1, data2, data3] = await Promise.all([
-              executeScrapeRequest({
-                url: catMeta?.url || activeUrl,
-                maxItems: 48,
-                engineMode,
-                page,
-                categorySlug: currentCatSlug,
-                targetTypeFilter,
-              }),
-              page + 1 <= pagesToRun
-                ? executeScrapeRequest({
+            const pageRequests: Promise<{ products?: ScrapedProduct[] }>[] = [];
+            for (let c = 0; c < CONCURRENT_PAGES; c++) {
+              const pNum = page + c;
+              if (pNum <= pagesToRun) {
+                pageRequests.push(
+                  executeScrapeRequest({
                     url: catMeta?.url || activeUrl,
                     maxItems: 48,
                     engineMode,
-                    page: page + 1,
+                    page: pNum,
                     categorySlug: currentCatSlug,
                     targetTypeFilter,
                   })
-                : Promise.resolve({ products: [] as ScrapedProduct[] }),
-              page + 2 <= pagesToRun
-                ? executeScrapeRequest({
-                    url: catMeta?.url || activeUrl,
-                    maxItems: 48,
-                    engineMode,
-                    page: page + 2,
-                    categorySlug: currentCatSlug,
-                    targetTypeFilter,
-                  })
-                : Promise.resolve({ products: [] as ScrapedProduct[] }),
-            ]);
+                );
+              }
+            }
 
-            const pageProducts: ScrapedProduct[] = [
-              ...(data1.products || []),
-              ...(data2.products || []),
-              ...(data3.products || []),
-            ];
+            const results = await Promise.all(pageRequests);
+            const pageProducts: ScrapedProduct[] = [];
+            for (const r of results) {
+              if (r && Array.isArray(r.products)) {
+                pageProducts.push(...r.products);
+              }
+            }
 
             if (pageProducts.length === 0) {
               emptyStreak++;
-              if (emptyStreak >= 2) {
+              if (emptyStreak >= 3) {
                 addLog(`[FIN_CATÉGORIE] Fin des annonces pour "${catName}" à la page ${page}.`, 'info', '0xEND');
                 break;
               }
@@ -1985,12 +2013,12 @@ export default function App() {
             if (pageProducts.length > 0) {
               scanForDiscoveredCategories(pageProducts);
 
-              if (replaceCatalog && cIdx === 0 && page === 1) {
+              if (replaceCatalog && cIdx === 0 && page === startPage) {
                 accumulated = [...pageProducts];
               } else if (replaceCatalog) {
                 accumulated = [...accumulated, ...pageProducts];
               } else {
-                const { merged, newCount, updatedCount, unchangedCount } = smartMergeProducts(
+                const { merged, newCount, updatedCount } = smartMergeProducts(
                   accumulated,
                   pageProducts
                 );
@@ -1999,18 +2027,28 @@ export default function App() {
                   cyberAudio.playItemAspirated();
                 }
                 addLog(
-                  `[${catName} P${page}-${page + 1}] +${newCount} nouveaux, ${updatedCount} màj (${accumulated.length} total)`,
+                  `[${catName} P${page}-${page + CONCURRENT_PAGES - 1}] +${newCount} nouveaux, ${updatedCount} màj (${accumulated.length.toLocaleString('fr-DZ')} total)`,
                   updatedCount > 0 ? 'cyber' : newCount > 0 ? 'vacuum' : 'info',
                   `0xP${page}`
                 );
               }
+
+              // Mettre à jour l'état réactif et le compteur géant dans la top bar
               setProducts([...accumulated]);
+              setLiveAspiratedCount(accumulated.length);
+
+              // Sauvegarde ultra-rapide non bloquante dans IndexedDB
               await saveScrapedProductsBatch(pageProducts);
               saveStoredProducts(accumulated, false);
+
+              // Mémoriser l'avancement pour ne jamais recommencer à zéro
+              const nextResumePage = page + CONCURRENT_PAGES;
+              lotPageRef.current[currentCatSlug] = nextResumePage;
+              saveCategoryProgress(currentCatSlug, nextResumePage, pageProducts.length);
             }
 
-            // High performance micro-yield (10ms)
-            await new Promise((r) => setTimeout(r, 10));
+            // Micro-yield non-bloquant pour garantir 60 FPS sans coupure
+            await new Promise((r) => setTimeout(r, 0));
           } catch (pageErr) {
             console.warn('Page fetch issue:', pageErr);
             break;
@@ -2249,11 +2287,12 @@ export default function App() {
       {/* Cyber Screen Scanline Overlay */}
       <div className="fixed inset-0 cyber-scanlines pointer-events-none z-10 opacity-30" />
 
-      {/* Top Header Navigation Bar (Single Slim Row on All Screen Sizes) */}
-      <header className="relative z-30 border-b border-emerald-500/30 bg-slate-950/95 backdrop-blur-md sticky top-0 shadow-lg h-14 sm:h-16 flex items-center">
-        <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 flex items-center justify-between gap-3">
+      {/* Top Header Navigation Bar (Responsive, Zero Mobile Overflow, Big Live Counter & Real-Time Search) */}
+      <header className="relative z-30 border-b border-emerald-500/30 bg-slate-950/95 backdrop-blur-md sticky top-0 shadow-lg w-full max-w-full overflow-hidden">
+        {/* Row 1: Brand Icon + BIG LIVE ASPIRATED COUNTER + Navigation Tabs + Controls */}
+        <div className="max-w-7xl w-full mx-auto px-2.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-4">
           {/* Zone 1: App Icon + Brand Wordmark + Splash Trigger */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -2261,7 +2300,7 @@ export default function App() {
                 cyberAudio.playScanSweep();
               }}
               title="Cliquer pour afficher l'écran splash plein écran et l'icône"
-              className="relative flex items-center gap-2 h-9 sm:h-10 pl-1.5 pr-2.5 py-1 rounded-2xl bg-black border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+              className="relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 pl-1 pr-2 sm:pr-2.5 py-1 rounded-2xl bg-black border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
             >
               {/* Clean App Icon Squircle */}
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden border border-emerald-400/80 shadow-[0_0_10px_rgba(0,255,102,0.6)] shrink-0 bg-slate-900 flex items-center justify-center">
@@ -2276,7 +2315,7 @@ export default function App() {
               </div>
 
               {/* Exact Brand Wordmark */}
-              <CyberVacuumLogo size="custom" width={116} height={20} glow={true} />
+              <CyberVacuumLogo size="custom" width={88} height={18} glow={true} className="hidden xs:inline-flex" />
               <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00ff66] border-2 border-black animate-ping" />
             </button>
 
@@ -2286,7 +2325,7 @@ export default function App() {
                 setShowSplashScreen(true);
                 cyberAudio.playScanSweep();
               }}
-              className="hidden md:flex flex-col text-left cursor-pointer hover:opacity-90 transition-opacity"
+              className="hidden xl:flex flex-col text-left cursor-pointer hover:opacity-90 transition-opacity"
               title="Cliquer pour revoir le Splash Écran Plein Écran"
             >
               <div className="flex items-center gap-1.5">
@@ -2303,7 +2342,27 @@ export default function App() {
             </button>
           </div>
 
-          {/* Zone 2: Desktop Navigation Switcher Tabs (Hidden on mobile/tablet, shown on lg+) */}
+          {/* ZONE 2: BIG LIVE COUNTER IN TOPBAR (Requis: "le nombre d'articles aspirer réellement en gros dans top bar") */}
+          <div
+            onClick={() => handleSelectTab('catalog')}
+            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-emerald-950/80 border border-emerald-500/60 shadow-[0_0_20px_rgba(0,255,102,0.3)] cursor-pointer hover:border-emerald-400 transition-all shrink-0"
+            title="Nombre total réel d'articles aspirés et scellés dans le moteur — Cliquer pour ouvrir le catalogue"
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-[#00ff66] shadow-[0_0_8px_#00ff66] animate-pulse shrink-0" />
+            <div className="flex flex-col leading-none">
+              <span className="text-[8px] sm:text-[9px] font-mono font-bold text-emerald-400/90 uppercase tracking-widest hidden xs:block">
+                Articles Aspirés
+              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-base sm:text-xl font-black text-[#00ff66] font-mono tracking-tight text-glow-green">
+                  {Math.max(liveAspiratedCount, products.length).toLocaleString('fr-DZ')}
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-400">ADS</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Zone 3: Desktop Navigation Switcher Tabs (Hidden on mobile/tablet, shown on lg+) */}
           <nav className="hidden lg:flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs">
             <button
               type="button"
@@ -2343,9 +2402,6 @@ export default function App() {
             >
               <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
               <span>MARKET TEMU-DZ</span>
-              <span className="px-1.5 py-0.2 rounded-md bg-black/40 text-[10px] font-mono-numbers text-yellow-300">
-                {products.length}
-              </span>
             </button>
 
             <button
@@ -2362,9 +2418,9 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Zone 3: Action Controls Cluster */}
+          {/* Zone 4: Action Controls Cluster (Compact on mobile to NEVER overflow) */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Desktop Full Action Buttons */}
+            {/* Desktop Action Buttons */}
             <div className="hidden lg:flex items-center gap-2">
               <button
                 type="button"
@@ -2404,71 +2460,9 @@ export default function App() {
                 <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
                 <span>APK Mobile</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setShowSplashScreen(true)}
-                className="h-9 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold"
-                title="Afficher l'écran de démarrage splash plein écran"
-                aria-label="Afficher Splash Screen"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="hidden xl:inline">Splash Natif</span>
-              </button>
             </div>
 
-            {/* Quick Utility Toggles (Audio, Rain, Bell) - Touch sized */}
-            <button
-              type="button"
-              onClick={handleRequestNotificationPermission}
-              className={`w-9 h-9 sm:w-9 sm:h-9 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer min-h-[38px] min-w-[38px] ${
-                notificationPermission === 'granted'
-                  ? 'bg-emerald-950/40 border-emerald-500/40 text-[#00ff88]'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
-              }`}
-              title={
-                notificationPermission === 'granted'
-                  ? 'Notifications actives (alerte fin de catégorie)'
-                  : 'Activer les notifications navigateur'
-              }
-              aria-label="Notifications"
-            >
-              {notificationPermission === 'granted' ? (
-                <BellRing className="w-4 h-4 text-[#00ff88]" />
-              ) : (
-                <Bell className="w-4 h-4" />
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                const modes: ('subtle' | 'normal' | 'turbo' | 'off')[] = ['subtle', 'normal', 'turbo', 'off'];
-                const next = modes[(modes.indexOf(rainIntensity) + 1) % modes.length];
-                setRainIntensity(next);
-              }}
-              className="w-9 h-9 sm:w-9 sm:h-9 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center shrink-0 cursor-pointer min-h-[38px] min-w-[38px]"
-              title={`Pluie Matrix: ${rainIntensity.toUpperCase()}`}
-              aria-label="Changer intensité pluie Matrix"
-            >
-              <Layers className="w-4 h-4 text-emerald-400" />
-            </button>
-
-            {/* Female French AI Voice Assistant Toggle */}
-            <button
-              type="button"
-              onClick={handleToggleVoice}
-              className={`w-9 h-9 sm:w-9 sm:h-9 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer min-h-[38px] min-w-[38px] ${
-                isVoiceActive
-                  ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 shadow-[0_0_12px_rgba(0,240,255,0.25)]'
-                  : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
-              }`}
-              title={isVoiceActive ? 'Assistant Vocal Féminin (Français) : ACTIF' : 'Assistant Vocal Féminin : MUTÉ'}
-              aria-label="Assistant vocal féminin français"
-            >
-              <Radio className={`w-4 h-4 ${isVoiceActive ? 'text-cyan-400 animate-pulse' : 'text-slate-500'}`} />
-            </button>
-
+            {/* Quick Audio Toggle */}
             <button
               type="button"
               onClick={handleToggleAudio}
@@ -2487,13 +2481,71 @@ export default function App() {
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 hover:text-white hover:border-emerald-500/50 flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-95"
+              className="lg:hidden w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 hover:text-white hover:border-emerald-500/50 flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-95"
               title="Centre de contrôle et réglages"
               aria-label="Menu options et réglages"
             >
               <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
             </button>
           </div>
+        </div>
+
+        {/* Row 2: REAL-TIME GLOBAL SEARCH BAR + CATEGORY SELECTOR + RECHARTS SUMMARY TRIGGER */}
+        <div className="w-full border-t border-emerald-500/20 bg-slate-950/95 px-2.5 sm:px-6 py-2 flex items-center gap-1.5 sm:gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 pointer-events-none" />
+            <input
+              type="text"
+              value={globalSearchTerm}
+              onChange={(e) => {
+                setGlobalSearchTerm(e.target.value);
+                if (activeTab === 'vacuum' && e.target.value.trim().length > 1) {
+                  // User searching: keep tab or navigate
+                }
+              }}
+              placeholder="Rechercher par titre, marque, wilaya en temps réel..."
+              className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 rounded-xl bg-slate-900/90 border border-emerald-500/30 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40 transition-all"
+            />
+            {globalSearchTerm && (
+              <button
+                type="button"
+                onClick={() => setGlobalSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs cursor-pointer"
+                title="Effacer la recherche"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Category Select Filter */}
+          <select
+            value={globalSelectedCategory}
+            onChange={(e) => setGlobalSelectedCategory(e.target.value)}
+            className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-emerald-400 font-mono text-xs focus:outline-none focus:border-emerald-500 shrink-0 max-w-[110px] sm:max-w-[190px] truncate cursor-pointer"
+          >
+            <option value="all">Toutes Catégories</option>
+            {OUEDKNISS_CATEGORIES.map((cat) => (
+              <option key={cat.slug} value={cat.name}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Recharts Summary Charts Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setShowCategoryChartsModal(true)}
+            className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
+              showCategoryChartsModal
+                ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                : 'bg-slate-900/90 border-slate-800 text-purple-400 hover:text-white hover:border-purple-400/50'
+            }`}
+            title="Afficher les graphiques récapitulatifs Recharts par catégorie"
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+            <span className="hidden sm:inline">Graphiques Recharts</span>
+          </button>
         </div>
       </header>
 
@@ -2699,6 +2751,13 @@ export default function App() {
               onStartCategoryScrape={handleStartCategoryScrape}
               onStartAllCategoriesSweep={handleStartAllCategoriesSweep}
               onStopSweep={handleStopScrape}
+              savedCheckpoint={savedCheckpoint}
+              onResumeSweep={handleResumeAllCategoriesSweep}
+              onResetSweep={() => {
+                clearSweepCheckpoint();
+                setSavedCheckpoint(null);
+                addLog('[CHECKPOINT] Réinitialisation du checkpoint de session effectuée.', 'info');
+              }}
               isScrapingActive={isContinuousScraping}
               activeSweepCategoryIndex={activeSweepCategoryIndex}
               sweepPagesPerCategory={sweepPagesPerCategory}
@@ -2967,14 +3026,40 @@ export default function App() {
             {/* The Live Aspirated Cards Stream & Animations directly below Vortex */}
             {products.length > 0 && (
               <div className="pt-4 border-t border-slate-900">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#00ff88] animate-ping" />
-                  <h3 className="font-mono text-sm font-bold text-white tracking-wider uppercase">
-                    FLUX MATRICIEL DES ARTICLES ASPIRÉS EN DIRECT ({products.length})
-                  </h3>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#00ff88] animate-ping" />
+                    <h3 className="font-mono text-sm font-bold text-white tracking-wider uppercase">
+                      FLUX MATRICIEL DES ARTICLES ASPIRÉS EN DIRECT ({filteredProducts.length})
+                    </h3>
+                  </div>
                 </div>
+
+                {(globalSearchTerm.trim() || globalSelectedCategory !== 'all') && (
+                  <div className="flex items-center justify-between p-3 mb-4 rounded-xl bg-slate-900/90 border border-emerald-500/40 text-xs font-mono text-emerald-300">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>
+                        Filtre actif : <strong>{filteredProducts.length}</strong> sur {products.length} articles
+                        {globalSearchTerm && ` ("${globalSearchTerm}")`}
+                        {globalSelectedCategory !== 'all' && ` [${globalSelectedCategory}]`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGlobalSearchTerm('');
+                        setGlobalSelectedCategory('all');
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-[#00ff88] border border-emerald-500/40 font-bold transition-all cursor-pointer text-[11px]"
+                    >
+                      Effacer filtre
+                    </button>
+                  </div>
+                )}
+
                 <ProductCatalogGrid
-                  products={products}
+                  products={filteredProducts}
                   onSyncSingleProduct={handleSyncSingleProduct}
                   onBulkSyncSupabase={handleBulkSyncSupabase}
                   isSupabaseConfigured={Boolean(supabaseConfig.url && supabaseConfig.anonKey)}
@@ -3079,9 +3164,32 @@ export default function App() {
               </div>
             </div>
 
+            {(globalSearchTerm.trim() || globalSelectedCategory !== 'all') && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40 text-xs font-mono text-emerald-300">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>
+                    Filtre actif : <strong>{filteredProducts.length}</strong> sur {products.length} articles
+                    {globalSearchTerm && ` ("${globalSearchTerm}")`}
+                    {globalSelectedCategory !== 'all' && ` [${globalSelectedCategory}]`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGlobalSearchTerm('');
+                    setGlobalSelectedCategory('all');
+                  }}
+                  className="px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-[#00ff88] border border-emerald-500/40 font-bold transition-all cursor-pointer text-[11px]"
+                >
+                  Effacer filtre
+                </button>
+              </div>
+            )}
+
             {/* The ProductCatalogGrid */}
             <ProductCatalogGrid
-              products={products}
+              products={filteredProducts}
               onSyncSingleProduct={handleSyncSingleProduct}
               onBulkSyncSupabase={handleBulkSyncSupabase}
               isSupabaseConfigured={Boolean(supabaseConfig.url && supabaseConfig.anonKey)}
@@ -3337,6 +3445,53 @@ export default function App() {
         isOpen={isApkModalOpen}
         onClose={() => setIsApkModalOpen(false)}
       />
+
+      {/* Recharts Summary Category Distribution & Prices Modal */}
+      {showCategoryChartsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-5xl max-h-[92vh] bg-slate-950 border border-purple-500/40 rounded-2xl shadow-[0_0_50px_rgba(168,85,247,0.25)] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-purple-500/30 flex items-center justify-between bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-950">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-300">
+                  <BarChart3 className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-mono text-base sm:text-lg font-black text-white uppercase tracking-wide flex items-center gap-2">
+                    <span>GRAPHIQUES RÉCAPITULATIFS PAR CATÉGORIE</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                      RECHARTS
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    Distribution volumétrique des articles et fourchettes de prix moyens en temps réel ({products.length} articles)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCategoryChartsModal(false)}
+                className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center justify-center transition-colors cursor-pointer text-sm font-mono"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body with CategoryDistributionPieChart */}
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(92vh-100px)] space-y-4">
+              <CategoryDistributionPieChart
+                products={products}
+                onSelectCategory={(cat) => {
+                  setGlobalSelectedCategory(cat);
+                  setShowCategoryChartsModal(false);
+                  setActiveTab('catalog');
+                }}
+                selectedCategory={globalSelectedCategory !== 'all' ? globalSelectedCategory : null}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Bottom Navigation App Bar (Thumb-Friendly Native Responsive Experience) */}
       <nav

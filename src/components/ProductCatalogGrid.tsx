@@ -30,11 +30,13 @@ import {
   MessageCircle,
   Eye,
   ShieldCheck,
+  BarChart3,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
 import { ProductDetailModal } from './ProductDetailModal';
 import { PriceRangeFilter, CatalogSortOption } from './PriceRangeFilter';
+import { CategoryDistributionPieChart } from './CategoryDistributionPieChart';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ensureProductDetails,
@@ -101,6 +103,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   const [selectedItemType, setSelectedItemType] = useState<'all' | 'boutique' | 'annonce' | 'pub'>('all');
   const [minPrice, setMinPrice] = useState<number | ''>('');
   const [maxPrice, setMaxPrice] = useState<number | ''>('');
+  const [showCategoryCharts, setShowCategoryCharts] = useState<boolean>(false);
 
   const handleResetPriceFilter = useCallback(() => {
     setMinPrice('');
@@ -795,13 +798,13 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             </button>
           </div>
 
-          {/* Action Buttons: Export & Sync (Clean wrap on mobile) */}
-          <div className="flex items-center justify-between sm:justify-end gap-1.5 font-mono text-xs w-full sm:w-auto">
+          {/* Action Buttons: Export & Sync (Clean wrap on mobile without squishing) */}
+          <div className="flex flex-wrap items-center justify-start sm:justify-end gap-1.5 font-mono text-xs w-full sm:w-auto">
             <button
               type="button"
               onClick={() => handleExportCsv(filteredProducts)}
               disabled={products.length === 0}
-              className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+              className="flex-1 sm:flex-none min-w-[72px] px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
               title="Exporter les résultats en CSV"
             >
               <Download className="w-3.5 h-3.5 text-cyan-400" />
@@ -812,7 +815,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
               type="button"
               onClick={handleExportJson}
               disabled={products.length === 0}
-              className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+              className="flex-1 sm:flex-none min-w-[72px] px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
               title="Exporter les résultats en JSON"
             >
               <Code className="w-3.5 h-3.5 text-emerald-400" />
@@ -821,9 +824,23 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
             <button
               type="button"
+              onClick={() => setShowCategoryCharts(!showCategoryCharts)}
+              className={`flex-1 sm:flex-none min-w-[110px] px-2.5 sm:px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer min-h-[38px] ${
+                showCategoryCharts
+                  ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                  : 'bg-slate-900 border-slate-800 text-purple-400 hover:text-purple-300 hover:border-purple-400/50'
+              }`}
+              title="Afficher/masquer les graphiques récapitulatifs Recharts par catégorie"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span>{showCategoryCharts ? 'Masquer' : 'Graphiques Recharts'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={onBulkSyncSupabase}
               disabled={products.length === 0}
-              className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-500/30 flex items-center justify-center gap-1.5 font-bold transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+              className="flex-1 sm:flex-none min-w-[90px] px-3 sm:px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-500/30 flex items-center justify-center gap-1.5 font-bold transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
               title="Synchroniser le catalogue complet sur Supabase"
             >
               <Database className="w-3.5 h-3.5" />
@@ -867,6 +884,19 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         minDiscountPercent={minDiscountPercent}
         onChangeMinDiscountPercent={setMinDiscountPercent}
       />
+
+      {/* ============================================================== */}
+      {/* 2.6 RECHARTS SUMMARY CATEGORY CHARTS (DISTRIBUTION & PRIX)    */}
+      {/* ============================================================== */}
+      {showCategoryCharts && (
+        <div className="animate-fadeIn">
+          <CategoryDistributionPieChart
+            products={products}
+            selectedCategory={selectedCategory !== 'all' ? selectedCategory : null}
+            onSelectCategory={(catName) => setSelectedCategory(catName)}
+          />
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* 3. TELEMETRY BAR & LAZY BUFFER COUNTER */}

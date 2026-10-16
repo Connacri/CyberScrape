@@ -9,6 +9,8 @@ export interface SellerInfo {
   type: 'Particulier' | 'Boutique / Store Certifié' | 'Agence Immobilière' | 'Showroom Auto';
   phone: string; // Formatted Algerian number, e.g. "0550 12 34 56"
   phoneClean: string; // e.g. "0550123456" for direct tel:
+  phone2?: string; // 2nd phone number (e.g. "0661 98 76 54")
+  phone2Clean?: string; // e.g. "0661987654" for direct tel:
   whatsappClean: string; // e.g. "213550123456" for https://wa.me/213550123456
   wilaya: string;
   commune?: string;
@@ -20,6 +22,7 @@ export interface SellerInfo {
   avatarUrl?: string;
   storeName?: string;
   operator?: 'Mobilis' | 'Djezzy' | 'Ooredoo';
+  operator2?: 'Mobilis' | 'Djezzy' | 'Ooredoo' | 'Fixe';
 }
 
 export interface ScrapedProduct {
