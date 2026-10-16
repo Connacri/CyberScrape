@@ -1228,7 +1228,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-900">
                 <AnimatePresence mode="popLayout">
-                  {lazyProducts.map((p, index) => {
+                  {displayedProducts.map((p, index) => {
                     const det = ensureProductDetails(p);
                     const seller = det.seller!;
                     const tel = buildTelLink(seller);
@@ -1370,7 +1370,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         /* ============================================================ */
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
-            {lazyProducts.map((product, index) => renderProductListRow(product, index))}
+            {displayedProducts.map((product, index) => renderProductListRow(product, index))}
           </AnimatePresence>
         </div>
       ) : (
@@ -1379,7 +1379,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         /* ============================================================ */
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <AnimatePresence mode="popLayout">
-            {lazyProducts.map((product, index) => renderProductCard(product, index))}
+            {displayedProducts.map((product, index) => renderProductCard(product, index))}
           </AnimatePresence>
         </div>
       )}

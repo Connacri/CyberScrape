@@ -301,22 +301,34 @@ export async function scrapeOuedknissLiveAnnouncements(
       const storePhone = item.store?.id ? storePhoneCache.get(item.store.id) : null;
       const realPhone = storePhone?.phone || generateConsistentAlgerianPhone(item.id);
 
+      const cleanPhone = realPhone.replace(/\D/g, '');
+      const operator: 'Mobilis' | 'Djezzy' | 'Ooredoo' = realPhone.startsWith('05')
+        ? 'Ooredoo'
+        : realPhone.startsWith('06')
+        ? 'Mobilis'
+        : 'Djezzy';
+      const sellerType: 'Particulier' | 'Boutique / Store Certifié' = item.isFromStore
+        ? 'Boutique / Store Certifié'
+        : 'Particulier';
+
       const seller: SellerInfo = {
-        id: item.store?.id ? `store_${item.store.id}` : `user_${item.id}`,
         name: item.store?.name || (item.isFromStore ? 'Boutique Certifiée' : `Vendeur Particulier (${cityName})`),
-        type: item.isFromStore ? 'Boutique Officielle' : 'Particulier',
+        type: sellerType,
         phone: realPhone,
+        phoneClean: cleanPhone,
+        whatsappClean: `213${cleanPhone.replace(/^0/, '')}`,
         wilaya: `${wilayaName} - ${cityName}`,
+        commune: cityName,
         memberSince: 'Membre depuis 2021',
         rating: 4.8,
         reviewsCount: item.isFromStore ? 84 : 19,
-        verifiedBadge: true,
+        verified: true,
         responseTime: '< 15 minutes',
-        activeListingsCount: item.isFromStore ? 45 : 3,
         avatarUrl:
           item.store?.imageUrl ||
           `https://api.dicebear.com/7.x/identicon/svg?seed=${item.id}&backgroundColor=0f172a`,
-        operator: realPhone.startsWith('05') ? 'Ooredoo 5G' : realPhone.startsWith('06') ? 'Mobilis 4G+' : 'Djezzy Fast',
+        storeName: item.store?.name,
+        operator,
       };
 
       const rawItem: ScrapedRawItem = {
