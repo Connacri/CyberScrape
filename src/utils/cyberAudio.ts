@@ -264,6 +264,14 @@ class CyberAudioSynth {
   }
 
   /**
+   * Tactile click alias for holographic tap
+   */
+  public playClick(freq = 2400) {
+    this.playHoloTap(freq);
+  }
+
+
+  /**
    * 4. Futuristic Tab / View Channel Switcher
    * Double frequency whoosh with cyber harmonic glissando
    */
