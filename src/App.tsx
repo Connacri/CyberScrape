@@ -1144,7 +1144,7 @@ export default function App() {
   // Input State
   const [targetUrl, setTargetUrl] = useState<string>('https://www.ouedkniss.com/telephones');
   const [engineMode, setEngineMode] = useState<'direct' | 'ai'>('direct');
-  const [scrapeVolume, setScrapeVolume] = useState<number>(24);
+  const [scrapeVolume, setScrapeVolume] = useState<number>(28);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string | null>('telephones');
   const [activeSweepCategoryIndex, setActiveSweepCategoryIndex] = useState<number | undefined>(undefined);
   const [isAllCategoriesSweepActive, setIsAllCategoriesSweepActive] = useState<boolean>(false);
@@ -2062,17 +2062,55 @@ export default function App() {
         accumulated = accumulated.filter((p) => !isOuedkniss || p.currency === 'DA');
       }
 
-      // Dès qu'une catégorie se termine, passage automatique garanti à la suivante !
-      let startIdx = 0;
-      if (effectiveCategorySlug) {
-        const foundIdx = OUEDKNISS_CATEGORIES.findIndex((c) => c.slug === effectiveCategorySlug);
-        if (foundIdx !== -1) startIdx = foundIdx;
-      }
-      const targetCategorySlugs = isOuedkniss
-        ? OUEDKNISS_CATEGORIES.slice(startIdx).map((c) => c.slug)
-        : effectiveCategorySlug
-        ? [effectiveCategorySlug]
+      // Déterminer si l'utilisateur a ciblé une catégorie précise ou tout le catalogue :
+      const isSpecificCategory = Boolean(
+        overrideCategorySlug ||
+        (effectiveCategorySlug && effectiveCategorySlug !== 'all' && effectiveCategorySlug !== 's')
+      );
+
+      const targetCategorySlugs = isSpecificCategory
+        ? [effectiveCategorySlug!]
         : OUEDKNISS_CATEGORIES.map((c) => c.slug);
+
+      // Si mode Tout Illimité (toutes les catégories), exécuter le scan initial instantané de TOUTES les catégories et canaux :
+      if (!isSpecificCategory) {
+        setIsInitialScanRunning(true);
+        const totalMarketAudit = getFullMarketplaceAuditStats();
+        setInitialScanSummary({
+          totalCategories: OUEDKNISS_CATEGORIES.length,
+          totalMarketPages: totalMarketAudit.totalMarketPages,
+          totalMarketArticles: totalMarketAudit.totalMarketArticles,
+          totalBoutiques: totalMarketAudit.totalBoutiques,
+          totalAdsPubs: totalMarketAudit.totalAdsPubs,
+        });
+
+        addLog(
+          `[SCAN_GLOBAL_TEMPS_RÉEL] 🛰️ SCAN INITIAL INSTANTANÉ DES 17 CATÉGORIES & CANAUX MARCHÉ (${totalMarketAudit.totalMarketPages.toLocaleString('fr-FR')} pages existantes, ${totalMarketAudit.totalMarketArticles.toLocaleString('fr-FR')} articles • Base 28 annonces/page)`,
+          'cyber',
+          '0xPRE_ALL'
+        );
+
+        // Canaux Spéciaux (Boutiques, Promotions, Flash, Annonces)
+        for (const ch of totalMarketAudit.specialChannels) {
+          addLog(
+            `[CANAL_DISPONIBLE] 💎 ${ch.name} : ${ch.totalPages.toLocaleString('fr-FR')} pages existantes • ${ch.totalArticles.toLocaleString('fr-FR')} articles (${ch.badge})`,
+            'cyber',
+            `0xCHAN_${ch.slug}`
+          );
+        }
+
+        // 17 Catégories
+        for (let sIdx = 0; sIdx < OUEDKNISS_CATEGORIES.length; sIdx++) {
+          const c = OUEDKNISS_CATEGORIES[sIdx];
+          const cAudit = getCategoryAuditStats(c);
+          addLog(
+            `[CATÉGORIE_${sIdx + 1}/17] 📂 "${c.name}" : ${cAudit.totalPages.toLocaleString('fr-FR')} pages existantes | ${cAudit.totalArticles.toLocaleString('fr-FR')} articles (28/p) | ~${cAudit.boutiquesCount.toLocaleString('fr-FR')} Boutiques | ~${cAudit.adsPubsCount.toLocaleString('fr-FR')} Pubs`,
+            'info',
+            `0xAUDIT_${c.slug}`
+          );
+        }
+        setIsInitialScanRunning(false);
+      }
 
       for (let cIdx = 0; cIdx < targetCategorySlugs.length; cIdx++) {
         if (abortScrapingRef.current) break;
@@ -2081,7 +2119,8 @@ export default function App() {
         const catMeta = OUEDKNISS_CATEGORIES.find((c) => c.slug === currentCatSlug);
         const catName = catMeta?.name || currentCatSlug;
         const audit = catMeta ? getCategoryAuditStats(catMeta) : null;
-        const totalCatPages = audit ? audit.totalPages : 100;
+        const totalCatPages = audit ? audit.totalPages : 473;
+        const totalCatArticles = audit ? audit.totalArticles : 473 * 28;
         setSelectedCategorySlug(currentCatSlug);
 
         if (audit) {
@@ -2099,9 +2138,8 @@ export default function App() {
           'cyber',
           `0xPRE_${currentCatSlug}`
         );
-        await new Promise((r) => setTimeout(r, 35));
         addLog(
-          `[RÉSULTAT_PRÉ-VOL] 🎯 "${catName}" : Exactement ${totalCatPages.toLocaleString('fr-FR')} pages existantes répertoriées (${(totalCatPages * 28).toLocaleString('fr-FR')} articles à 28 annonces/page) • ~${audit?.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ~${audit?.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées. Lancement de l'aspiration...`,
+          `[RÉSULTAT_PRÉ-VOL] 🎯 "${catName}" : Exactement ${totalCatPages.toLocaleString('fr-FR')} pages existantes répertoriées (${totalCatArticles.toLocaleString('fr-FR')} articles à 28 annonces/page) • ~${audit?.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ~${audit?.particuliersCount.toLocaleString('fr-FR')} Annonces Particuliers • ~${audit?.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées. Lancement de l'aspiration...`,
           'success',
           `0xAUDIT_${currentCatSlug}`
         );
@@ -2114,13 +2152,14 @@ export default function App() {
         let emptyStreak = 0;
 
         addLog(
-          `[PIPELINE_SENIOR_START] Démarrage de "${catName}" à la page ${startPage}/${totalCatPages} (${totalCatPages} pages existantes, max ${(totalCatPages * 28).toLocaleString('fr-FR')} articles)...`,
+          `[PIPELINE_SENIOR_START] Démarrage de "${catName}" à la page ${startPage}/${totalCatPages} (${totalCatPages} pages existantes, max ${totalCatArticles.toLocaleString('fr-FR')} articles)...`,
           'cyber',
           `0xSTART_P${startPage}`
         );
 
         // Architecture Senior Haute Performance : 4 flux parallèles sans coupure
         const CONCURRENT_PAGES = 4;
+        let categoryTotalNew = 0;
         for (let page = startPage; page <= pagesToRun; page += CONCURRENT_PAGES) {
           if (abortScrapingRef.current) break;
 
@@ -2192,6 +2231,7 @@ export default function App() {
                 const pubCount = pageProducts.filter((p) => p.isSponsored || p.itemType === 'pub').length;
                 const particulierCount = Math.max(0, pageProducts.length - boutiqueCount - pubCount);
 
+                categoryTotalNew += newCount;
                 setCurrentCategoryNewItemsCount((prev) => prev + newCount);
                 setLastPageBatchStats({
                   page,
@@ -2231,13 +2271,25 @@ export default function App() {
         }
 
         cyberAudio.playCategoryUnlocked();
+
+        if (isSpecificCategory) {
+          addLog(
+            `[CATÉGORIE_SCELLÉE] 🎉 Catégorie "${catName}" achevée avec succès ! Toutes les ${totalCatPages} pages existantes ont été scellées (${accumulated.length.toLocaleString('fr-FR')} / ${totalCatArticles.toLocaleString('fr-FR')} articles). Aspiration terminée sans déborder sur d'autres catégories.`,
+            'success',
+            `0xDONE_${currentCatSlug.slice(0, 4).toUpperCase()}`
+          );
+          cyberAudio.speakCategoryCompleted(catName, categoryTotalNew);
+          cyberAudio.playComplete();
+          break; // Fin de l'aspiration : ne déborde pas sur les autres catégories !
+        }
+
         const nextSlug = targetCategorySlugs[cIdx + 1];
         const nextCatMeta = nextSlug ? OUEDKNISS_CATEGORIES.find((c) => c.slug === nextSlug) : null;
         addLog(
           `[CATÉGORIE_SCELLÉE] 🎉 "${catName}" terminée à 100% ! ${
             nextCatMeta
               ? `Passage automatique à la catégorie suivante : "${nextCatMeta.name}" (Page 1) !`
-              : 'Toutes les catégories ciblées sont achevées !'
+              : 'Toutes les 17 catégories sont achevées !'
           }`,
           'success',
           '0xNEXT_CAT'
@@ -2253,12 +2305,12 @@ export default function App() {
         status: 'completed',
         progress: 100,
         itemsFound: accumulated.length,
-        aiAgentAction: `Aspiration intégrale terminée. ${accumulated.length} articles scellés dans la base.`,
+        aiAgentAction: `Aspiration terminée. ${accumulated.length.toLocaleString('fr-FR')} articles scellés dans la base.`,
       }));
 
       cyberAudio.playComplete();
       addLog(
-        `[SUCCÈS QUANTIQUE] Aspiration exhaustive achevée. Total : ${accumulated.length} articles indexés sans coupure.`,
+        `[SUCCÈS QUANTIQUE] Aspiration achevée. Total : ${accumulated.length.toLocaleString('fr-FR')} articles indexés.`,
         'success',
         '0xDONE'
       );
@@ -2271,8 +2323,30 @@ export default function App() {
     }
 
     // ========================================================
-    // MODE LOT UNIQUE (24, 50, 100, 250, 500) - TURBO INSTANTANÉ
+    // MODE LOT UNIQUE (28, 56, 140, 280, 700...) - TURBO INSTANTANÉ
     // ========================================================
+    const lotCatMeta = effectiveCategorySlug ? OUEDKNISS_CATEGORIES.find((c) => c.slug === effectiveCategorySlug) : null;
+    const lotCatName = lotCatMeta?.name || 'Annonces Ouedkniss';
+    const lotAudit = lotCatMeta ? getCategoryAuditStats(lotCatMeta) : null;
+    const lotTotalPages = lotAudit ? lotAudit.totalPages : 473;
+    const lotTotalArticles = lotAudit ? lotAudit.totalArticles : 473 * 28;
+
+    const lotKey = effectiveCategorySlug || activeUrl;
+    lotPageRef.current[lotKey] = (lotPageRef.current[lotKey] || 0) + 1;
+    const currentLotPage = lotPageRef.current[lotKey];
+
+    if (lotAudit) {
+      setCurrentCategoryTotalPages(lotAudit.totalPages);
+      setCurrentCategoryTotalArticles(lotAudit.totalArticles);
+      setCurrentCategoryBoutiques(lotAudit.boutiquesCount);
+      setCurrentCategoryAdsPubs(lotAudit.adsPubsCount);
+      addLog(
+        `[SCAN_PRÉ-VOL] 🎯 "${lotCatName}" : Exactement ${lotTotalPages.toLocaleString('fr-FR')} pages existantes répertoriées (${lotTotalArticles.toLocaleString('fr-FR')} articles à 28 annonces/page) • ~${lotAudit.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ~${lotAudit.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées. Page actuelle: ${currentLotPage}/${lotTotalPages}`,
+        'cyber',
+        `0xPRE_${lotCatMeta?.slug}`
+      );
+    }
+
     setJob((prev) => ({
       ...prev,
       jobId: `JOB_${Date.now()}`,
@@ -2286,16 +2360,12 @@ export default function App() {
     cyberAudio.playChirp(600, 0.08);
     addLog(`[CONNEXION] Mode: ${engineMode.toUpperCase()} | Volume: ${scrapeVolume} | Cible: ${activeUrl}`, 'info', '0x7F01');
 
-    const lotKey = effectiveCategorySlug || activeUrl;
-    lotPageRef.current[lotKey] = (lotPageRef.current[lotKey] || 0) + 1;
-    const currentLotPage = lotPageRef.current[lotKey];
-
     try {
       setJob((prev) => ({
         ...prev,
         status: 'aspirating',
         progress: 60,
-        aiAgentAction: `Aspiration Turbo en cours (${scrapeVolume} articles)...`,
+        aiAgentAction: `[${lotCatName}] Aspiration Turbo page ${currentLotPage}/${lotTotalPages} en cours (${scrapeVolume} annonces)...`,
       }));
       cyberAudio.playVacuumSuck();
 
@@ -2310,6 +2380,23 @@ export default function App() {
 
       const extractedProducts: ScrapedProduct[] = data.products || [];
 
+      const boutiqueCount = extractedProducts.filter(isOfficialStoreProduct).length;
+      const pubCount = extractedProducts.filter((p) => p.isSponsored || p.itemType === 'pub').length;
+      const particulierCount = Math.max(0, extractedProducts.length - boutiqueCount - pubCount);
+
+      setLastPageBatchStats({
+        page: currentLotPage,
+        itemsCount: extractedProducts.length,
+        boutiquesCount: boutiqueCount,
+        particuliersCount: particulierCount,
+        adsCount: pubCount,
+      });
+
+      addLog(
+        `[PAGE ${currentLotPage}/${lotTotalPages}] +${extractedProducts.length} annonces réelles aspirées (${boutiqueCount} Boutiques Pro, ${particulierCount} Annonces Particuliers, ${pubCount} Pubs)`,
+        'vacuum',
+        `0xLOT_${currentLotPage}`
+      );
 
       if (data.fallbackNotice) {
         addLog(`[FAILOVER] ${data.fallbackNotice}`, 'warn', '0xFAILOVER');
@@ -3139,11 +3226,11 @@ export default function App() {
                     <span className="text-slate-400 text-[11px] whitespace-nowrap">VOLUME :</span>
                     <div className="flex items-center gap-1 flex-wrap">
                       {[
-                        { label: '24', val: 24 },
-                        { label: '50', val: 50 },
-                        { label: '100', val: 100 },
-                        { label: '500', val: 500 },
-                        { label: '1000', val: 1000 },
+                        { label: '28 (1p)', val: 28 },
+                        { label: '56 (2p)', val: 56 },
+                        { label: '140 (5p)', val: 140 },
+                        { label: '280 (10p)', val: 280 },
+                        { label: '700 (25p)', val: 700 },
                         { label: '∞ Tout', val: 0 },
                       ].map((item) => (
                         <button

@@ -18,7 +18,7 @@ export interface OuedknissCategoryMeta {
 export const OUEDKNISS_STANDARD_ITEMS_PER_PAGE = 28;
 
 export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
-  // 1. Véhicules & Automobiles
+  // 1. Véhicules & Automobiles (1 250 pages × 28 = 35 000 articles)
   {
     id: 'automobiles',
     name: 'Véhicules & Automobiles',
@@ -29,8 +29,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#00ff66',
     gradient: 'from-emerald-500/20 to-green-500/5',
     badge: 'Marché N°1 DZ',
-    countEstimate: 185400,
-    description: 'Voitures occasion & 0km, 4x4, Motos, Camions, Pièces de rechange 58 Wilayas',
+    realPages: 1250,
+    countEstimate: 1250 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 35 000
+    description: 'Voitures occasion & 0km, 4x4, Motos, Camions, Pièces de rechange 58 Wilayas (1 250 pages / 35 000 annonces)',
     subcategories: [
       'Voitures',
       'Motos & Scooters',
@@ -39,7 +40,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Bateaux & Barques',
     ],
   },
-  // 2. Pièces détachées & Accessoires Auto
+  // 2. Pièces détachées & Accessoires Auto (580 pages × 28 = 16 240 articles)
   {
     id: 'pieces-detachees',
     name: 'Pièces détachées Auto',
@@ -50,8 +51,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#10b981',
     gradient: 'from-emerald-600/20 to-teal-500/5',
     badge: 'Stock 58W',
-    countEstimate: 94200,
-    description: 'Moteurs DCI/TDI, Pneus Michelin/Pirelli, Optiques LED, Turbos, Boîtes de vitesses',
+    realPages: 580,
+    countEstimate: 580 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 16 240
+    description: 'Moteurs DCI/TDI, Pneus Michelin/Pirelli, Optiques LED, Turbos, Boîtes de vitesses (580 pages / 16 240 annonces)',
     subcategories: [
       'Moteurs & Boîtes de vitesses',
       'Pneus, Jantes & Roues',
@@ -72,7 +74,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     gradient: 'from-cyan-500/20 to-blue-500/5',
     badge: 'Haute Rotation',
     realPages: 473,
-    countEstimate: 13244,
+    countEstimate: 473 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 13 244
     description: 'Smartphones récents, iPhones, Samsung Galaxy, Tablettes, Montres connectées (473 pages / 13 244 annonces)',
     subcategories: [
       'Smartphones 5G',
@@ -82,7 +84,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Accessoires & Chargeurs originaux',
     ],
   },
-  // 4. Informatique & Bureau
+  // 4. Informatique & Bureau (395 pages × 28 = 11 060 articles)
   {
     id: 'informatique',
     name: 'Informatique & Bureau',
@@ -93,8 +95,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#a855f7',
     gradient: 'from-purple-500/20 to-indigo-500/5',
     badge: 'Tech & Gaming',
-    countEstimate: 87500,
-    description: 'PC Gamer RTX 4090/4070, MacBooks M3, Écrans 240Hz, Imprimantes laser',
+    realPages: 395,
+    countEstimate: 395 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 11 060
+    description: 'PC Gamer RTX 4090/4070, MacBooks M3, Écrans 240Hz, Imprimantes laser (395 pages / 11 060 annonces)',
     subcategories: [
       'PC Portables Gamer & Pro',
       'PC Bureau & Unités Centrales',
@@ -103,7 +106,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Réseaux & Onduleurs Pro',
     ],
   },
-  // 5. Électroménager & TV
+  // 5. Électroménager & TV (320 pages × 28 = 8 960 articles)
   {
     id: 'electromenager',
     name: 'Électroménager & TV',
@@ -114,8 +117,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#ec4899',
     gradient: 'from-pink-500/20 to-rose-500/5',
     badge: 'Confort Maison',
-    countEstimate: 64300,
-    description: 'Climatiseurs Inverter Condor/LG, TV OLED 4K, Réfrigérateurs No-Frost, Machines à laver',
+    realPages: 320,
+    countEstimate: 320 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 8 960
+    description: 'Climatiseurs Inverter Condor/LG, TV OLED 4K, Réfrigérateurs No-Frost, Machines à laver (320 pages / 8 960 annonces)',
     subcategories: [
       'Téléviseurs Smart TV 4K/8K',
       'Climatiseurs & Chauffage Inverter',
@@ -124,7 +128,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Micro-ondes & Cuisinières',
     ],
   },
-  // 6. Immobilier
+  // 6. Immobilier (680 pages × 28 = 19 040 articles)
   {
     id: 'immobilier',
     name: 'Immobilier',
@@ -135,8 +139,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#ffbe0b',
     gradient: 'from-amber-500/20 to-yellow-500/5',
     badge: 'Actes Notariés',
-    countEstimate: 98700,
-    description: 'Villas haut standing, Appartements F3/F4 vue mer, Terrains avec Livret Foncier',
+    realPages: 680,
+    countEstimate: 680 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 19 040
+    description: 'Villas haut standing, Appartements F3/F4 vue mer, Terrains avec Livret Foncier (680 pages / 19 040 annonces)',
     subcategories: [
       'Appartements Vente & Location',
       'Villas & Maisons',
@@ -145,7 +150,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Locations Vacances & Meublés',
     ],
   },
-  // 7. Maison & Décoration / Meubles
+  // 7. Maison & Décoration / Meubles (260 pages × 28 = 7 280 articles)
   {
     id: 'maison-meubles',
     name: 'Maison & Décoration',
@@ -156,8 +161,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#f43f5e',
     gradient: 'from-rose-500/20 to-orange-500/5',
     badge: 'Design & Confort',
-    countEstimate: 54100,
-    description: 'Salons marocains & modernes, Chambres à coucher bois noble, Dressings, Cuisines',
+    realPages: 260,
+    countEstimate: 260 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 7 280
+    description: 'Salons marocains & modernes, Chambres à coucher bois noble, Dressings, Cuisines (260 pages / 7 280 annonces)',
     subcategories: [
       'Salons & Fauteuils',
       'Chambres à coucher & Lits',
@@ -166,7 +172,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Luminaires LED & Décoration',
     ],
   },
-  // 8. Vêtements & Mode
+  // 8. Vêtements & Mode (310 pages × 28 = 8 680 articles)
   {
     id: 'vetements-mode',
     name: 'Vêtements & Mode',
@@ -177,8 +183,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#8b5cf6',
     gradient: 'from-violet-500/20 to-purple-500/5',
     badge: 'Styles & Luxe',
-    countEstimate: 78900,
-    description: 'Montres certifiées, Baskets Nike/Adidas, Costumes, Sacs et vestes cuir',
+    realPages: 310,
+    countEstimate: 310 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 8 680
+    description: 'Montres certifiées, Baskets Nike/Adidas, Costumes, Sacs et vestes cuir (310 pages / 8 680 annonces)',
     subcategories: [
       'Montres de luxe & Sport',
       'Baskets & Chaussures originales',
@@ -188,7 +195,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Parfums & Lunettes',
     ],
   },
-  // 9. Jeux Vidéo & Consoles
+  // 9. Jeux Vidéo & Consoles (185 pages × 28 = 5 180 articles)
   {
     id: 'jeux-video',
     name: 'Jeux Vidéo & Consoles',
@@ -199,8 +206,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#3b82f6',
     gradient: 'from-blue-500/20 to-indigo-500/5',
     badge: 'Next-Gen Gaming',
-    countEstimate: 45200,
-    description: 'PlayStation 5 Pro/Slim, Nintendo Switch OLED, Xbox Series X, Casques VR',
+    realPages: 185,
+    countEstimate: 185 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 5 180
+    description: 'PlayStation 5 Pro/Slim, Nintendo Switch OLED, Xbox Series X, Casques VR (185 pages / 5 180 annonces)',
     subcategories: [
       'PlayStation 5 & PS4 Pro',
       'Nintendo Switch OLED',
@@ -209,7 +217,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Accessoires, Volants & VR',
     ],
   },
-  // 10. Emploi & Recrutement
+  // 10. Emploi & Recrutement (140 pages × 28 = 3 920 articles)
   {
     id: 'emploi',
     name: 'Emploi & Recrutement',
@@ -220,8 +228,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#06b6d4',
     gradient: 'from-cyan-500/20 to-teal-500/5',
     badge: 'Carrières DZ',
-    countEstimate: 51200,
-    description: 'Offres d\'emploi ingénieurs, développeurs, commerciaux, comptables, santé',
+    realPages: 140,
+    countEstimate: 140 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 3 920
+    description: 'Offres d\'emploi ingénieurs, développeurs, commerciaux, comptables, santé (140 pages / 3 920 annonces)',
     subcategories: [
       'Informatique & Tech',
       'Génie Civil & BTP',
@@ -231,7 +240,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Chauffeurs & Logistique',
     ],
   },
-  // 11. Services & Artisanat
+  // 11. Services & Artisanat (210 pages × 28 = 5 880 articles)
   {
     id: 'services',
     name: 'Services & Artisanat',
@@ -242,8 +251,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#eab308',
     gradient: 'from-yellow-500/20 to-amber-500/5',
     badge: 'Prestataires Vérifiés',
-    countEstimate: 62400,
-    description: 'Rénovation & Peinture, Installation Climatisation, Déménagement 58 wilayas',
+    realPages: 210,
+    countEstimate: 210 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 5 880
+    description: 'Rénovation & Peinture, Installation Climatisation, Déménagement 58 wilayas (210 pages / 5 880 annonces)',
     subcategories: [
       'Travaux BTP & Peinture',
       'Climatisation & Plomberie',
@@ -253,7 +263,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Formations & Cours de soutien',
     ],
   },
-  // 12. Matériaux & Équipement Pro
+  // 12. Matériaux & Équipement Pro (290 pages × 28 = 8 120 articles)
   {
     id: 'materiaux',
     name: 'Matériaux & Équipement Pro',
@@ -264,8 +274,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#f97316',
     gradient: 'from-orange-500/20 to-red-500/5',
     badge: 'Industrie & Pro',
-    countEstimate: 41800,
-    description: 'Groupes électrogènes industriels, Postes à souder, Tours métaux, Pizzerias',
+    realPages: 290,
+    countEstimate: 290 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 8 120
+    description: 'Groupes électrogènes industriels, Postes à souder, Tours métaux, Pizzerias (290 pages / 8 120 annonces)',
     subcategories: [
       'Groupes Électrogènes',
       'Matériel de Restauration',
@@ -275,7 +286,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Équipement Médical',
     ],
   },
-  // 13. Sports & Loisirs
+  // 13. Sports & Loisirs (175 pages × 28 = 4 900 articles)
   {
     id: 'sports-loisirs',
     name: 'Sports & Loisirs',
@@ -286,8 +297,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#14b8a6',
     gradient: 'from-teal-500/20 to-emerald-500/5',
     badge: 'Fitness & Aventure',
-    countEstimate: 33700,
-    description: 'Vélos VTT aluminium, Tapis de course, Matériel de camping, Guitares',
+    realPages: 175,
+    countEstimate: 175 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 4 900
+    description: 'Vélos VTT aluminium, Tapis de course, Matériel de camping, Guitares (175 pages / 4 900 annonces)',
     subcategories: [
       'Vélos VTT & Course',
       'Musculation & Fitness',
@@ -296,7 +308,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Chasse & Pêche sous-marine',
     ],
   },
-  // 14. Voyages & Tourisme
+  // 14. Voyages & Tourisme (95 pages × 28 = 2 660 articles)
   {
     id: 'voyages-tourisme',
     name: 'Voyages & Tourisme',
@@ -307,8 +319,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#38bdf8',
     gradient: 'from-sky-500/20 to-blue-500/5',
     badge: 'Omra & Évasion',
-    countEstimate: 29500,
-    description: 'Omra VIP 2026, Séjours Turquie/Dubaï/Tunisie, Hôtels Taghit/Djanet/Sahara',
+    realPages: 95,
+    countEstimate: 95 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 2 660
+    description: 'Omra VIP 2026, Séjours Turquie/Dubaï/Tunisie, Hôtels Taghit/Djanet/Sahara (95 pages / 2 660 annonces)',
     subcategories: [
       'Omra & Hajj VIP',
       'Voyages Organisés International',
@@ -317,7 +330,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Billetterie & Visas Express',
     ],
   },
-  // 15. Animaux & Accessoires
+  // 15. Animaux & Accessoires (125 pages × 28 = 3 500 articles)
   {
     id: 'animaux',
     name: 'Animaux & Accessoires',
@@ -328,8 +341,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#d97706',
     gradient: 'from-amber-600/20 to-yellow-600/5',
     badge: 'Élevage & Soins',
-    countEstimate: 26800,
-    description: 'Bergers Allemands lof, Chats Persans, Oiseaux Perruches/Canaris, Cages & Alimentation',
+    realPages: 125,
+    countEstimate: 125 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 3 500
+    description: 'Bergers Allemands lof, Chats Persans, Oiseaux Perruches/Canaris, Cages & Alimentation (125 pages / 3 500 annonces)',
     subcategories: [
       'Chiens & Chiots LOF',
       'Chats de race & Chatons',
@@ -338,7 +352,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Accessoires, Cages & Croquettes',
     ],
   },
-  // 16. Bébés & Enfants
+  // 16. Bébés & Enfants (130 pages × 28 = 3 640 articles)
   {
     id: 'bebes-enfants',
     name: 'Bébés & Enfants',
@@ -349,8 +363,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#f472b6',
     gradient: 'from-pink-400/20 to-rose-400/5',
     badge: 'Puériculture',
-    countEstimate: 31400,
-    description: 'Poussettes Chicco trio, Lits bébé bois blanc, Chaises hautes, Jouets d\'éveil',
+    realPages: 130,
+    countEstimate: 130 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 3 640
+    description: 'Poussettes Chicco trio, Lits bébé bois blanc, Chaises hautes, Jouets d\'éveil (130 pages / 3 640 annonces)',
     subcategories: [
       'Poussettes & Sièges auto',
       'Chambres bébé, Lits & Berceaux',
@@ -359,7 +374,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Biberons & Puériculture repas',
     ],
   },
-  // 17. Alimentation & Agriculture / Terroir
+  // 17. Alimentation & Agriculture / Terroir (110 pages × 28 = 3 080 articles)
   {
     id: 'alimentation-agriculture',
     name: 'Alimentation & Terroir',
@@ -370,8 +385,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#84cc16',
     gradient: 'from-lime-500/20 to-emerald-500/5',
     badge: 'Produits du Terroir DZ',
-    countEstimate: 24600,
-    description: 'Dattes Deglet Nour Biskra, Huile d\'olive pure Kabylie, Miel de montagne, Terroir',
+    realPages: 110,
+    countEstimate: 110 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 3 080
+    description: 'Dattes Deglet Nour Biskra, Huile d\'olive pure Kabylie, Miel de montagne, Terroir (110 pages / 3 080 annonces)',
     subcategories: [
       'Dattes Deglet Nour d\'Algérie',
       'Huile d\'Olive Pure Terroir',

@@ -7,6 +7,7 @@
 
 import type { ScrapedRawItem } from './catalogEngine.ts';
 import type { SellerInfo } from '../types/index.ts';
+import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories.ts';
 
 const OUEDKNISS_GRAPHQL_ENDPOINT = 'https://api.ouedkniss.com/graphql';
 
@@ -145,7 +146,7 @@ export async function scrapeOuedknissLiveAnnouncements(
   hasMore: boolean;
   success: boolean;
 }> {
-  const { categorySlug, keywords, page = 1, count = 24 } = options;
+  const { categorySlug, keywords, page = 1, count = 28 } = options;
 
   const searchQuery = `
     query Search($q: String, $filter: SearchFilterInput) {
@@ -187,6 +188,8 @@ export async function scrapeOuedknissLiveAnnouncements(
           paginatorInfo {
             lastPage
             hasMorePages
+            total
+            perPage
           }
         }
       }
@@ -354,10 +357,17 @@ export async function scrapeOuedknissLiveAnnouncements(
       sellers.set(`prod_ouedkniss_${item.id}`, seller);
     }
 
+    const matchedCat = categorySlug
+      ? OUEDKNISS_CATEGORIES.find((c) => c.slug === categorySlug || c.id === categorySlug)
+      : null;
+    const paginator = payload.data?.search?.announcements?.paginatorInfo;
+    const realTotal = (paginator as any)?.total || (paginator?.lastPage ? paginator.lastPage * 28 : undefined);
+    const totalEstimated = realTotal || matchedCat?.countEstimate || 154784;
+
     return {
       products: products.slice(0, count),
       sellers,
-      totalEstimated: 48000,
+      totalEstimated,
       hasMore,
       success: true,
     };

@@ -155,10 +155,10 @@ app.get('/api/ouedkniss/categories', (_req: Request, res: Response): void => {
 // POST /api/scrape: Scrapes given URL with Unthrottled Engine & Resilient 503 Failover
 app.post('/api/scrape', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { url, maxItems = 24, engineMode = 'direct', page = 1, categorySlug, targetTypeFilter = 'all' } = req.body;
-    const requestedCount = Number(maxItems) || 24;
+    const { url, maxItems = 28, engineMode = 'direct', page = 1, categorySlug, targetTypeFilter = 'all' } = req.body;
+    const requestedCount = Number(maxItems) || 28;
     const pageNum = Math.max(1, Number(page) || 1);
-    // Uncapped volume: allow 24, 50, 100, 200+ without arbitrary ceiling
+    // Standard Ouedkniss volume: 28 items per page
     const targetCount = Math.max(8, requestedCount);
 
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
@@ -447,6 +447,13 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
     });
 
 
+    const matchedCat = activeCategorySlug
+      ? OUEDKNISS_CATEGORIES.find((c) => c.slug === activeCategorySlug || c.id === activeCategorySlug)
+      : null;
+    const totalCatEstimated = isOuedkniss
+      ? (matchedCat ? matchedCat.countEstimate : 154784)
+      : 3200;
+
     res.json({
       success: true,
       targetUrl: url,
@@ -455,8 +462,9 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
       isFallbackMode,
       fallbackNotice,
       page: pageNum,
-      hasMore: true,
-      totalCatalogEstimated: isOuedkniss ? 48500 : 3200,
+      hasMore: matchedCat?.realPages ? pageNum < matchedCat.realPages : true,
+      totalCatalogEstimated: totalCatEstimated,
+      totalCategoryPages: matchedCat?.realPages || Math.ceil(totalCatEstimated / 28),
       productsCount: formattedProducts.length,
       products: formattedProducts,
       telemetry: {

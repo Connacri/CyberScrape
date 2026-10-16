@@ -69,9 +69,10 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Strict deduplication to guarantee zero repetitive items in TEMU storefront
+  // Strict multi-factor deduplication to guarantee 100% unique items in TEMU storefront
   const uniqueProducts = useMemo(() => {
     const seenIds = new Set<string>();
+    const seenUrls = new Set<string>();
     const seenKeys = new Set<string>();
     const seenImages = new Set<string>();
     const result: ScrapedProduct[] = [];
@@ -79,25 +80,30 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       if (!p) continue;
-      const idKey = p.id || '';
-      
+      const idKey = (p.id || '').trim();
+      const urlKey = (p.productUrl || '').trim().toLowerCase().split('?')[0];
+
       // Clean base title (remove suffixes like "Année 2022...", "Neuf sous blister...", etc.)
       const rawTitle = (p.title || '').trim().toLowerCase();
       const normTitle = rawTitle
-        .replace(/\b(neuf|scellé|blister|garantie|facture|boîte|safia|retouche|peinture)\b.*$/i, '')
+        .replace(/\b(neuf|scellé|blister|garantie|facture|boîte|safia|retouche|peinture|sous carton)\b.*$/i, '')
         .trim()
         .replace(/\s+/g, ' ');
 
       const brandKey = (p.brand || '').trim().toLowerCase();
-      const combinedKey = `${brandKey}:::${normTitle.slice(0, 36)}`;
+      const combinedKey = `${brandKey}:::${normTitle.slice(0, 32)}`;
       const imgKey = p.imageUrl ? p.imageUrl.split('?')[0] : '';
 
+      // Skip duplicates based on ID, URL, or identical title & brand
       if (idKey && seenIds.has(idKey)) continue;
-      // If we already have this exact brand and model in view, avoid repetitive cards
-      if (normTitle && seenKeys.has(combinedKey)) continue;
+      if (urlKey && seenUrls.has(urlKey)) continue;
+      if (combinedKey && seenKeys.has(combinedKey)) continue;
+      // Skip if exact same photo has already appeared in another card to prevent visual repetition
+      if (imgKey && seenImages.has(imgKey) && !imgKey.includes('dicebear')) continue;
 
       if (idKey) seenIds.add(idKey);
-      if (normTitle) seenKeys.add(combinedKey);
+      if (urlKey) seenUrls.add(urlKey);
+      if (combinedKey) seenKeys.add(combinedKey);
       if (imgKey) seenImages.add(imgKey);
       result.push(p);
     }

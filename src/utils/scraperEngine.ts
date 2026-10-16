@@ -10,6 +10,7 @@ import {
 } from '../server/catalogEngine';
 import {
   detectOuedknissCategory,
+  OUEDKNISS_CATEGORIES,
 } from '../data/ouedknissCategories';
 import {
   generateSellerForProduct,
@@ -100,8 +101,8 @@ function getApiEndpoint(route: string): string {
  * deployed to static hosting environments like GitHub Pages (where no Node.js backend exists).
  */
 export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultResponse {
-  const { url, maxItems = 24, page = 1, categorySlug, targetTypeFilter = 'all' } = params;
-  const requestedCount = Number(maxItems) || 24;
+  const { url, maxItems = 28, page = 1, categorySlug, targetTypeFilter = 'all' } = params;
+  const requestedCount = Number(maxItems) || 28;
   const pageNum = Math.max(1, Number(page) || 1);
   const targetCount = Math.max(8, requestedCount);
 
@@ -251,6 +252,13 @@ export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultR
   });
 
 
+  const matchedCat = activeCategorySlug
+    ? OUEDKNISS_CATEGORIES.find((c) => c.slug === activeCategorySlug || c.id === activeCategorySlug)
+    : null;
+  const totalCatEstimated = isOuedkniss
+    ? (matchedCat ? matchedCat.countEstimate : 154784)
+    : 3200;
+
   return {
     success: true,
     targetUrl: url,
@@ -261,8 +269,8 @@ export function runClientSideScraper(params: ScrapeRequestParams): ScrapeResultR
     fallbackNotice:
       'Mode autonome client actif : extraction complète à 100% exécutée directement dans le navigateur.',
     page: pageNum,
-    hasMore: true,
-    totalCatalogEstimated: isOuedkniss ? 48500 : 3200,
+    hasMore: matchedCat?.realPages ? pageNum < matchedCat.realPages : true,
+    totalCatalogEstimated: totalCatEstimated,
     productsCount: formattedProducts.length,
     products: formattedProducts,
     telemetry: {

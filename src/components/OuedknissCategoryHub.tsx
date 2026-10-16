@@ -80,12 +80,12 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
 };
 
 const DEPTH_PRESETS = [
-  { val: 10, label: '10p', count: '480 ads' },
-  { val: 25, label: '25p', count: '1.2k ads' },
-  { val: 50, label: '50p', count: '2.4k ads' },
-  { val: 100, label: '100p', count: '4.8k ads' },
-  { val: 250, label: '250p', count: '12k ads' },
-  { val: 0, label: '∞ Illimité', count: 'Sans limite (+50k ads)' },
+  { val: 10, label: '10p', count: '280 annonces' },
+  { val: 25, label: '25p', count: '700 annonces' },
+  { val: 50, label: '50p', count: '1 400 annonces' },
+  { val: 100, label: '100p', count: '2 800 annonces' },
+  { val: 250, label: '250p', count: '7 000 annonces' },
+  { val: 0, label: '∞ Illimité', count: 'Jusqu\'au dernier article réel (28/p)' },
 ];
 
 export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
