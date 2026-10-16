@@ -133,7 +133,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         cyberAudio.playClick();
       } else {
         next.add(productId);
-        cyberAudio.playSuccess();
+        cyberAudio.playCategoryUnlocked();
       }
       try {
         localStorage.setItem('cyber_vacuum_favorites', JSON.stringify(Array.from(next)));
