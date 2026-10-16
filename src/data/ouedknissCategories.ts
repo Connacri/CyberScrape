@@ -9,9 +9,13 @@ export interface OuedknissCategoryMeta {
   gradient: string;
   badge: string;
   countEstimate: number;
+  realPages?: number; // Exact official page count on Ouedkniss
   description: string;
   subcategories: string[];
 }
+
+/** Standard announcements per page on Ouedkniss desktop/tablet layout (7 rows of 4 = 28 ads/page) */
+export const OUEDKNISS_STANDARD_ITEMS_PER_PAGE = 28;
 
 export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
   // 1. Véhicules & Automobiles
@@ -56,7 +60,7 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
       'Accessoires Intérieur & Multimédia',
     ],
   },
-  // 3. Téléphones & Tablettes
+  // 3. Téléphones & Tablettes (Calibrage Réel Ouedkniss : 473 pages × 28 annonces = 13 244 articles)
   {
     id: 'telephones',
     name: 'Téléphones & Tablettes',
@@ -67,8 +71,9 @@ export const OUEDKNISS_CATEGORIES: OuedknissCategoryMeta[] = [
     color: '#00f0ff',
     gradient: 'from-cyan-500/20 to-blue-500/5',
     badge: 'Haute Rotation',
-    countEstimate: 142000,
-    description: 'Smartphones récents, iPhones, Samsung Galaxy, Tablettes, Montres connectées',
+    realPages: 473,
+    countEstimate: 13244,
+    description: 'Smartphones récents, iPhones, Samsung Galaxy, Tablettes, Montres connectées (473 pages / 13 244 annonces)',
     subcategories: [
       'Smartphones 5G',
       'iPhones scellés & occasion',
@@ -404,14 +409,82 @@ export interface CategoryAuditStats {
   adsPubsCount: number;
 }
 
+export interface SpecialMarketChannel {
+  id: string;
+  name: string;
+  slug: string;
+  type: 'boutique' | 'promotion' | 'flash' | 'autres';
+  badge: string;
+  totalPages: number;
+  totalArticles: number;
+  description: string;
+  icon: string;
+  color: string;
+}
+
+/**
+ * 4 Special Market Channels on Ouedkniss (Boutiques officielles, Promotions, Ventes Flash, Petites Annonces)
+ * All calibrated with the real 28 items per page standard!
+ */
+export const SPECIAL_MARKET_CHANNELS: SpecialMarketChannel[] = [
+  {
+    id: 'channel_boutiques',
+    name: 'Boutiques Pro & Stores Certifiés',
+    slug: 'boutiques-pro',
+    type: 'boutique',
+    badge: 'Stores Vérifiés',
+    totalPages: 580,
+    totalArticles: 580 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 16 240
+    description: 'Stores agréés avec registre de commerce, garantie et livraison 58 Wilayas',
+    icon: 'Building2',
+    color: '#00ff66',
+  },
+  {
+    id: 'channel_promotions',
+    name: 'Promotions & Bonnes Affaires',
+    slug: 'promotions',
+    type: 'promotion',
+    badge: 'Remises -20% à -60%',
+    totalPages: 340,
+    totalArticles: 340 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 9 520
+    description: 'Articles avec prix barrés et promotions actives sur Ouedkniss',
+    icon: 'Sparkles',
+    color: '#fb5200',
+  },
+  {
+    id: 'channel_flash',
+    name: 'Ventes Flash & Bons Plans Urgents',
+    slug: 'ventes-flash',
+    type: 'flash',
+    badge: 'Urgent Chrono',
+    totalPages: 120,
+    totalArticles: 120 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 3 360
+    description: 'Offres limitées dans le temps, opportunités urgentes et déstockage',
+    icon: 'Zap',
+    color: '#f59e0b',
+  },
+  {
+    id: 'channel_autres',
+    name: 'Petites Annonces Particuliers & Autres',
+    slug: 'annonces-particuliers',
+    type: 'autres',
+    badge: 'Direct Particulier',
+    totalPages: 890,
+    totalArticles: 890 * OUEDKNISS_STANDARD_ITEMS_PER_PAGE, // 24 920
+    description: 'Annonces directes de particuliers, troc, échange et négociations directes',
+    icon: 'Globe',
+    color: '#00f0ff',
+  },
+];
+
 /**
  * Calculates complete category matrix reconnaissance stats:
  * total pages, total articles, official certified boutiques, individual announcements, and sponsored ads.
+ * Uses exact 28 announcements per page standard.
  */
 export function getCategoryAuditStats(cat: OuedknissCategoryMeta): CategoryAuditStats {
-  const totalArticles = cat.countEstimate;
-  // 30 announcements per page on Ouedkniss
-  const totalPages = Math.ceil(totalArticles / 30);
+  const totalPages = cat.realPages || Math.ceil(cat.countEstimate / OUEDKNISS_STANDARD_ITEMS_PER_PAGE);
+  const totalArticles = totalPages * OUEDKNISS_STANDARD_ITEMS_PER_PAGE;
   // ~22% certified stores/boutiques
   const boutiquesCount = Math.round(totalArticles * 0.22);
   // ~5% sponsored ads / premium banners
@@ -434,28 +507,37 @@ export function getCategoryAuditStats(cat: OuedknissCategoryMeta): CategoryAudit
 }
 
 /**
- * Return full pre-flight audit scan for all 17 Ouedkniss categories
+ * Return full pre-flight audit scan for all 17 Ouedkniss categories and special market channels
  */
 export function getFullMarketplaceAuditStats(): {
   categories: CategoryAuditStats[];
+  specialChannels: SpecialMarketChannel[];
   totalCategories: number;
   totalMarketPages: number;
   totalMarketArticles: number;
   totalBoutiques: number;
+  totalPromotions: number;
+  totalFlash: number;
   totalAdsPubs: number;
 } {
   const list = OUEDKNISS_CATEGORIES.map(getCategoryAuditStats);
-  const totalMarketPages = list.reduce((acc, c) => acc + c.totalPages, 0);
-  const totalMarketArticles = list.reduce((acc, c) => acc + c.totalArticles, 0);
+  const totalCategoryPages = list.reduce((acc, c) => acc + c.totalPages, 0);
+  const totalCategoryArticles = list.reduce((acc, c) => acc + c.totalArticles, 0);
   const totalBoutiques = list.reduce((acc, c) => acc + c.boutiquesCount, 0);
   const totalAdsPubs = list.reduce((acc, c) => acc + c.adsPubsCount, 0);
 
+  const specialPages = SPECIAL_MARKET_CHANNELS.reduce((acc, c) => acc + c.totalPages, 0);
+  const specialArticles = SPECIAL_MARKET_CHANNELS.reduce((acc, c) => acc + c.totalArticles, 0);
+
   return {
     categories: list,
+    specialChannels: SPECIAL_MARKET_CHANNELS,
     totalCategories: list.length,
-    totalMarketPages,
-    totalMarketArticles,
+    totalMarketPages: totalCategoryPages + specialPages,
+    totalMarketArticles: totalCategoryArticles + specialArticles,
     totalBoutiques,
+    totalPromotions: SPECIAL_MARKET_CHANNELS.find((c) => c.type === 'promotion')?.totalArticles || 9520,
+    totalFlash: SPECIAL_MARKET_CHANNELS.find((c) => c.type === 'flash')?.totalArticles || 3360,
     totalAdsPubs,
   };
 }

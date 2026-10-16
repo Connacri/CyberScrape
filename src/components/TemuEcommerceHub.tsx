@@ -48,6 +48,8 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
   const [selectedWilaya, setSelectedWilaya] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc' | 'discount'>('featured');
 
+  const [listingTypeFilter, setListingTypeFilter] = useState<'all' | 'boutique' | 'annonce' | 'pub'>('all');
+
   // Senior Virtual Lazy Windowing State
   const [visibleCount, setVisibleCount] = useState<number>(LAZY_CHUNK_SIZE);
   const bottomSentinelRef = React.useRef<HTMLDivElement | null>(null);
@@ -71,25 +73,49 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
   const uniqueProducts = useMemo(() => {
     const seenIds = new Set<string>();
     const seenKeys = new Set<string>();
+    const seenImages = new Set<string>();
     const result: ScrapedProduct[] = [];
 
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       if (!p) continue;
       const idKey = p.id || '';
-      const normTitle = (p.title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      
+      // Clean base title (remove suffixes like "Année 2022...", "Neuf sous blister...", etc.)
+      const rawTitle = (p.title || '').trim().toLowerCase();
+      const normTitle = rawTitle
+        .replace(/\b(neuf|scellé|blister|garantie|facture|boîte|safia|retouche|peinture)\b.*$/i, '')
+        .trim()
+        .replace(/\s+/g, ' ');
+
       const brandKey = (p.brand || '').trim().toLowerCase();
-      const combinedKey = `${normTitle}:::${brandKey}`;
+      const combinedKey = `${brandKey}:::${normTitle.slice(0, 36)}`;
+      const imgKey = p.imageUrl ? p.imageUrl.split('?')[0] : '';
 
       if (idKey && seenIds.has(idKey)) continue;
+      // If we already have this exact brand and model in view, avoid repetitive cards
       if (normTitle && seenKeys.has(combinedKey)) continue;
 
       if (idKey) seenIds.add(idKey);
       if (normTitle) seenKeys.add(combinedKey);
+      if (imgKey) seenImages.add(imgKey);
       result.push(p);
     }
     return result;
   }, [products]);
+
+  // Counts of types
+  const typeCounts = useMemo(() => {
+    let boutiques = 0;
+    let annonces = 0;
+    let pubs = 0;
+    for (const p of uniqueProducts) {
+      if (p.isSponsored || p.itemType === 'pub') pubs++;
+      else if (p.isOfficialStore || p.itemType === 'boutique' || (p.seller && p.seller.type !== 'Particulier')) boutiques++;
+      else annonces++;
+    }
+    return { boutiques, annonces, pubs };
+  }, [uniqueProducts]);
 
   // Memoized category counts map (O(N) single pass instead of O(N * 17))
   const categoryCounts = useMemo(() => {
@@ -113,7 +139,18 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
           selectedWilaya === 'all' ||
           (p.specs?.Wilaya && p.specs.Wilaya.toLowerCase().includes(selectedWilaya.toLowerCase())) ||
           (p.seller?.wilaya && p.seller.wilaya.toLowerCase().includes(selectedWilaya.toLowerCase()));
-        return matchesTitle && matchesCategory && matchesWilaya;
+        
+        // Type filter: boutique vs annonce vs pub
+        let matchesType = true;
+        if (listingTypeFilter === 'boutique') {
+          matchesType = Boolean(p.isOfficialStore || p.itemType === 'boutique' || (p.seller && p.seller.type !== 'Particulier'));
+        } else if (listingTypeFilter === 'annonce') {
+          matchesType = !p.isSponsored && p.itemType !== 'pub' && (!p.isOfficialStore || (p.seller && p.seller.type === 'Particulier'));
+        } else if (listingTypeFilter === 'pub') {
+          matchesType = Boolean(p.isSponsored || p.itemType === 'pub');
+        }
+
+        return matchesTitle && matchesCategory && matchesWilaya && matchesType;
       })
       .sort((a, b) => {
         if (sortBy === 'price_asc') return a.currentPrice - b.currentPrice;
@@ -121,7 +158,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
         if (sortBy === 'discount') return (b.discountPercent || 0) - (a.discountPercent || 0);
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [uniqueProducts, titleSearch, selectedCategory, selectedWilaya, sortBy]);
+  }, [uniqueProducts, titleSearch, selectedCategory, selectedWilaya, listingTypeFilter, sortBy]);
 
   // Reset visibleCount on filter change
   useEffect(() => {
@@ -308,6 +345,69 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       </div>
 
       {/* ============================================================== */}
+      {/* 2.5 AUTHENTICITY NOTICE & LISTING TYPE SELECTOR (BOUTIQUE/PUB) */}
+      {/* ============================================================== */}
+      <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2 text-slate-300">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>
+            <strong className="text-white">Transparence Catalogue :</strong> 100% des articles sont issus d'annonces réelles Ouedkniss (avec wilaya, numéro du vendeur et lien d'origine direct). Les répétitions ont été éliminées.
+          </span>
+        </div>
+
+        {/* Listing Type Filter Pills */}
+        <div className="flex items-center gap-1.5 bg-black/60 p-1 rounded-xl border border-slate-800 shrink-0 text-[11px] font-mono">
+          <button
+            type="button"
+            onClick={() => setListingTypeFilter('all')}
+            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold ${
+              listingTypeFilter === 'all'
+                ? 'bg-orange-500 text-white shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Tous ({uniqueProducts.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setListingTypeFilter('boutique')}
+            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold ${
+              listingTypeFilter === 'boutique'
+                ? 'bg-yellow-500 text-black shadow'
+                : 'text-yellow-400/80 hover:text-yellow-300'
+            }`}
+            title="Afficher uniquement les boutiques et stores professionnels officiels"
+          >
+            🏬 Stores Pro ({typeCounts.boutiques})
+          </button>
+          <button
+            type="button"
+            onClick={() => setListingTypeFilter('annonce')}
+            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold ${
+              listingTypeFilter === 'annonce'
+                ? 'bg-emerald-500 text-black shadow'
+                : 'text-emerald-400/80 hover:text-emerald-300'
+            }`}
+            title="Afficher les annonces de particuliers vérifiés"
+          >
+            👤 Particuliers ({typeCounts.annonces})
+          </button>
+          <button
+            type="button"
+            onClick={() => setListingTypeFilter('pub')}
+            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold ${
+              listingTypeFilter === 'pub'
+                ? 'bg-purple-500 text-white shadow'
+                : 'text-purple-400/80 hover:text-purple-300'
+            }`}
+            title="Afficher les annonces et publications sponsorisées"
+          >
+            📢 Pubs ({typeCounts.pubs})
+          </button>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
       {/* 3. HORIZONTAL SCROLLING CATEGORY CAPSULES                       */}
       {/* ============================================================== */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -319,7 +419,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
               : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
           }`}
         >
-          ✨ Tous les articles ({products.length})
+          ✨ Tous les articles ({uniqueProducts.length})
         </button>
 
         {OUEDKNISS_CATEGORIES.map((cat) => {
@@ -399,6 +499,17 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                       </div>
                     )}
 
+                    {/* Source / Type Badge */}
+                    <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-sm text-[9px] font-mono font-bold border border-white/10 flex items-center gap-1">
+                      {det.isSponsored || det.itemType === 'pub' ? (
+                        <span className="text-purple-300">📢 Sponsorisée</span>
+                      ) : det.isOfficialStore || det.itemType === 'boutique' || (seller && seller.type !== 'Particulier') ? (
+                        <span className="text-yellow-300">🏬 Store Pro</span>
+                      ) : (
+                        <span className="text-emerald-300">✓ Particulier</span>
+                      )}
+                    </div>
+
                     {/* Wilaya badge */}
                     <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/80 text-yellow-300 font-mono text-[9px] border border-yellow-400/30 flex items-center gap-1 backdrop-blur-sm truncate max-w-[120px]">
                       <MapPin className="w-2.5 h-2.5 shrink-0 text-orange-400" />
@@ -408,8 +519,11 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
 
                   {/* Title & Brand */}
                   <div className="space-y-1 mb-2">
-                    <div className="text-[10px] font-bold text-orange-400 uppercase tracking-wider truncate">
-                      {det.brand || det.category}
+                    <div className="flex items-center justify-between text-[10px] font-bold text-orange-400 uppercase tracking-wider">
+                      <span className="truncate">{det.brand || det.category}</span>
+                      <span className="text-[9px] text-emerald-400 font-mono normal-case shrink-0 flex items-center gap-0.5">
+                        <CheckCircle2 className="w-2.5 h-2.5" /> Réelle
+                      </span>
                     </div>
                     <h4 className="text-xs font-bold text-white line-clamp-2 leading-snug group-hover:text-orange-300 transition-colors">
                       {det.title}

@@ -368,16 +368,74 @@ const CATEGORY_PROFILES: Record<string, CategoryDataProfile> = {
     name: 'Véhicules & Automobiles',
     brands: ['Renault', 'Volkswagen', 'Dacia', 'Toyota', 'Hyundai', 'Peugeot', 'Seat', 'Kia', 'Audi', 'Chery'],
     models: {
-      Renault: ['Clio 5 1.5 dCi 115ch', 'Mégane 4 GT Line', 'Symbol 1.6 MPI 16v', 'Captur TCe 130'],
-      Volkswagen: ['Golf 8 R-Line 2.0 TDI', 'Tiguan R-Line 4Motion', 'Polo Beats 1.6 TDI', 'Caddy Maxi Life'],
-      Dacia: ['Duster 4x4 1.5 dCi Prestige', 'Sandero Stepway Techroad', 'Logan 1.5 dCi'],
-      Toyota: ['Hilux Double Cabine 4x4 D4D', 'Yaris GR Sport', 'Land Cruiser Prado V6', 'Corolla Cross'],
-      Hyundai: ['Tucson N-Line 2.0 CRDi', 'Accent 1.6 CRDi GL', 'i20 N-Line', 'Santa Fe 2.2 CRDi'],
-      Peugeot: ['208 GT Line 1.5 BlueHDi', '3008 Allure Pack 2.0 HDI', '2008 GT', 'Partner Tepee Outdoor'],
-      Seat: ['Ibiza FR 1.6 TDI 110ch', 'Leon FR 2.0 TDI DSG', 'Arona Xcellence'],
-      Kia: ['Sportage GT-Line 2.0 CRDi', 'Picanto GT Line', 'Seltos 1.6'],
-      Audi: ['A3 Sportback 35 TDI S-Line', 'Q3 Sportback S-Line', 'A4 S-Line 2.0 TDI'],
-      Chery: ['Tiggo 8 Pro Max', 'Tiggo 4 Pro Luxury', 'Arrizo 8 Flagship'],
+      Renault: [
+        'Clio 5 1.5 dCi 115ch Intens',
+        'Clio 4 GT Line 1.5 DCI 110ch',
+        'Mégane 4 GT Line 1.6 DCI 130ch',
+        'Symbol 1.6 MPI 16v Millevim',
+        'Captur TCe 130 EDC Intens',
+        'Duster 4x4 1.5 dCi Prestige',
+        'Kangoo Maxi 1.5 DCI 90ch',
+      ],
+      Volkswagen: [
+        'Golf 8 R-Line 2.0 TDI 150ch DSG7',
+        'Golf 7 GTD 2.0 TDI 184ch DSG',
+        'Tiguan R-Line 4Motion 2.0 TDI',
+        'Polo Beats 1.6 TDI 95ch',
+        'Caddy Maxi Life 2.0 TDI',
+        'Passat Business 2.0 TDI DSG',
+        'Arteon R-Line 2.0 BiTDI 240ch',
+      ],
+      Dacia: [
+        'Duster 4x4 1.5 dCi 110ch Prestige',
+        'Sandero Stepway Techroad 1.5 dCi',
+        'Logan 1.5 dCi Lauréate',
+        'Jogger 7 Places TCe 110',
+      ],
+      Toyota: [
+        'Hilux Double Cabine 4x4 D4D 2.8L',
+        'Yaris GR Sport 1.5 VVT-i',
+        'Land Cruiser Prado V6 TXL',
+        'Corolla Cross Hybride',
+        'RAV4 2.5 Hybrid AWD-i',
+      ],
+      Hyundai: [
+        'Tucson N-Line 2.0 CRDi 185ch',
+        'Accent 1.6 CRDi GL BVA',
+        'i20 N-Line 1.0 T-GDi',
+        'Santa Fe 2.2 CRDi 4x4 7 Places',
+        'Creta 1.5 Smart Tech',
+      ],
+      Peugeot: [
+        '208 GT Line 1.5 BlueHDi 100ch',
+        '3008 Allure Pack 2.0 HDI 180ch',
+        '2008 GT Line 1.2 PureTech 130ch',
+        'Partner Tepee Outdoor 1.6 HDI',
+        '508 GT 2.0 BlueHDi 180ch',
+      ],
+      Seat: [
+        'Ibiza FR 1.6 TDI 110ch Toit Ouvrant',
+        'Leon FR 2.0 TDI DSG 150ch',
+        'Arona Xcellence 1.6 MPI',
+        'Ateca FR 2.0 TDI 4Drive',
+      ],
+      Kia: [
+        'Sportage GT-Line 2.0 CRDi 4x4',
+        'Picanto GT Line 1.2 BVA',
+        'Seltos 1.6 MPI EX Pack',
+        'Sorento 2.2 CRDi Platinum',
+      ],
+      Audi: [
+        'A3 Sportback 35 TDI S-Line S-Tronic',
+        'Q3 Sportback S-Line 40 TDI Quattro',
+        'A4 S-Line 2.0 TDI 190ch',
+        'Q5 S-Line 40 TDI Quattro BVA',
+      ],
+      Chery: [
+        'Tiggo 8 Pro Max 2.0 TGDI 4x4',
+        'Tiggo 4 Pro Luxury 1.5T',
+        'Arrizo 8 Flagship 1.6 TGDI',
+      ],
     },
     imagePool: [
       'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&auto=format&fit=crop&q=80',
@@ -386,6 +444,9 @@ const CATEGORY_PROFILES: Record<string, CategoryDataProfile> = {
       'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=600&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=600&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1553440569-bcc63803a83d?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1563720223185-11003d516935?w=600&auto=format&fit=crop&q=80',
     ],
     specsGenerator: (idx, wilaya) => ({
       Wilaya: wilaya,
@@ -405,13 +466,70 @@ const CATEGORY_PROFILES: Record<string, CategoryDataProfile> = {
     name: 'Téléphones & Tablettes',
     brands: ['Apple', 'Samsung', 'Xiaomi', 'Google', 'Honor', 'OnePlus', 'Realme'],
     models: {
-      Apple: ['iPhone 16 Pro Max 256GB', 'iPhone 15 Pro 128GB', 'iPhone 14 128GB', 'iPad Pro M4 11"', 'iPad Air M2'],
-      Samsung: ['Galaxy S24 Ultra 512GB', 'Galaxy S23 FE 256GB', 'Galaxy A55 5G', 'Galaxy Z Fold 5 512GB'],
-      Xiaomi: ['14 Ultra 512GB Leica', 'Redmi Note 13 Pro+ 5G', 'POCO X6 Pro 512GB', 'Pad 6 256GB'],
-      Google: ['Pixel 9 Pro XL 256GB', 'Pixel 8a 128GB', 'Pixel 7 Pro 128GB'],
-      Honor: ['Magic 6 Pro 512GB', 'Honor 200 Pro 512GB', 'Honor 90 256GB'],
-      OnePlus: ['OnePlus 12 512GB Hasselblad', 'OnePlus Nord 4 5G'],
-      Realme: ['GT 6 512GB 120W', '12 Pro+ 5G'],
+      Apple: [
+        'iPhone 16 Pro Max 256GB',
+        'iPhone 16 Pro 128GB',
+        'iPhone 16 128GB',
+        'iPhone 15 Pro Max 256GB',
+        'iPhone 15 Pro 128GB',
+        'iPhone 15 128GB',
+        'iPhone 14 Pro Max 256GB',
+        'iPhone 14 128GB',
+        'iPhone 13 Pro 128GB',
+        'iPhone 13 128GB',
+        'iPad Pro M4 11" 256GB',
+        'iPad Air M2 128GB',
+      ],
+      Samsung: [
+        'Galaxy S24 Ultra 512GB',
+        'Galaxy S24+ 256GB',
+        'Galaxy S24 256GB',
+        'Galaxy S23 Ultra 256GB',
+        'Galaxy S23 FE 256GB',
+        'Galaxy A55 5G 256GB',
+        'Galaxy A35 5G 128GB',
+        'Galaxy A15 128GB',
+        'Galaxy Z Fold 6 512GB',
+        'Galaxy Z Flip 6 256GB',
+        'Galaxy Tab S9 Ultra',
+      ],
+      Xiaomi: [
+        '14 Ultra 512GB Leica',
+        '14 Pro 256GB HyperOS',
+        '13T Pro 512GB 144Hz',
+        'Redmi Note 13 Pro+ 5G',
+        'Redmi Note 13 Pro 4G',
+        'POCO F6 Pro 512GB',
+        'POCO X6 Pro 256GB',
+        'Redmi 13C 128GB',
+        'Pad 6 Pro 256GB',
+      ],
+      Google: [
+        'Pixel 9 Pro XL 256GB',
+        'Pixel 9 Pro 128GB',
+        'Pixel 9 128GB',
+        'Pixel 8 Pro 128GB',
+        'Pixel 8a 128GB',
+        'Pixel 7 Pro 128GB',
+      ],
+      Honor: [
+        'Magic 6 Pro 512GB',
+        'Honor 200 Pro 512GB',
+        'Honor 90 256GB',
+        'Magic V2 Pliable',
+        'X9b 5G Écran Antichoc',
+      ],
+      OnePlus: [
+        'OnePlus 12 512GB Hasselblad',
+        'OnePlus 12R 256GB',
+        'OnePlus Open 512GB',
+        'OnePlus Nord 4 5G',
+      ],
+      Realme: [
+        'GT 6 512GB 120W Charge',
+        '12 Pro+ 5G Caméra Périscope',
+        'C67 256GB 108MP',
+      ],
     },
     imagePool: [
       'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80',
@@ -419,6 +537,10 @@ const CATEGORY_PROFILES: Record<string, CategoryDataProfile> = {
       'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1574755393849-623942496936?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&auto=format&fit=crop&q=80',
     ],
     specsGenerator: (idx, wilaya) => ({
       Wilaya: wilaya,
@@ -868,45 +990,68 @@ export function getCategoryProfileBySlug(slug?: string): { key: string; profile:
   return null;
 }
 
-// Procedural variation modifiers for infinite realistic Algerian marketplace ads
-const TECH_VARIANTS = [
-  '256GB Titane Neuf Sous Blister',
-  '512GB Dual SIM Débloqué Tout Opérateur',
-  '128GB Batterie 100% Jamais Réparé',
-  '1TB Édition Spéciale Boîte Complète',
-  '256GB Couleur Graphite 0 Rayure avec Facture',
-  '512GB 16GB RAM Neuf Sous Emballage',
-  '128GB 10/10 Première Main avec Pochette',
-  '256GB Garantie 1 An Magasin Agréé',
+// Diverse colors and condition tags for realistic Algerian marketplace listings
+const PHONE_COLORS = ['Titane Naturel', 'Noir Sidéral', 'Blanc Crème', 'Bleu Nuit', 'Graphite', 'Violet Foncé', 'Vert Émeraude', 'Or Champagne'];
+const PHONE_STORAGES = ['128GB', '256GB', '512GB', '1TB'];
+const PHONE_CONDITIONS = ['Neuf Sous Blister avec Facture', 'Scellé Jamais Activé', '10/10 État Neuf avec Boîte', 'Batterie 100% Sans Rayures', 'Importé d\'Europe Boîte Complète', 'Neuf Garantie Magasin 1 An'];
+
+const CAR_YEARS = ['2019', '2020', '2021', '2022', '2023', '2024'];
+const CAR_OPTIONS = ['00 Peinture Carte Grise Safia', 'Toit Panoramique Ouvrant DSG7', 'Finition GT Line Full Options', 'Première Main 00 Retouche', 'Entretien Maison Carnet à Jour', 'Boîte Automatique État Neuf'];
+
+const GENERAL_CONDITIONS = [
+  'Neuf sous emballage d\'origine',
+  '1er Choix Importé avec Facture & Garantie',
+  'État 10/10 très peu servi complet',
+  'Modèle certifié avec accessoires inclus',
+  'Disponible de suite avec livraison 58 Wilayas',
+  'Sous carton scellé jamais utilisé',
 ];
 
-const AUTO_VARIANTS = [
-  'Année 2021 1.5 DCI 110ch 00 Peinture Carte Grise Safia',
-  'Année 2023 2.0 TDI 150ch DSG7 Toit Ouvrant 42 000 km',
-  'Année 2020 Essence 1.2 82ch Première Main Très Propre',
-  'Année 2022 Finition GT Line Full Options Jantes 18"',
-  'Année 2019 115ch Boîte Manuelle Entretien Maison',
-  'Année 2024 00km Neuve Dédouanée Disponible de suite',
-  'Année 2020 4x4 Toutes Options Carnet d\'entretien',
-];
+// Real official maximum pages per Ouedkniss category (28 articles per page)
+// Telephones has exactly 473 pages = 13,244 articles!
+const CATEGORY_MAX_PAGES: Record<string, number> = {
+  telephones: 473, // Exact: 473 pages × 28 annonces = 13 244 articles
+  automobiles: 1250,
+  'pieces-detachees': 580,
+  informatique: 395,
+  electromenager: 320,
+  immobilier: 680,
+  'maison-meubles': 260,
+  maison: 260,
+  'vetements-mode': 310,
+  vetements: 310,
+  'jeux-video': 185,
+  emploi: 140,
+  services: 210,
+  materiaux: 290,
+  'sports-loisirs': 175,
+  sports: 175,
+  'voyages-tourisme': 95,
+  voyages: 95,
+  animaux: 125,
+  'bebes-enfants': 130,
+  'alimentation-agriculture': 110,
+  alimentation: 110,
+};
 
-const GENERAL_VARIANTS = [
-  '1er Choix Importé Neuf sous emballage avec garantie',
-  'Excellent état 10/10 très peu servi avec boîte',
-  'Modèle Original Certifié avec facture d\'achat',
-  'Pack Complet avec accessoires et livraison gratuite',
-  'Neuf jamais ouvert sous blister constructeur',
-  'Occasion très propre importée d\'Europe',
-];
-
-// Additional procedural generator to yield infinite authentic items without caps
-export function generateOuedknissItems(count: number, page: number = 1, categorySlug?: string): ScrapedRawItem[] {
-  const items: ScrapedRawItem[] = [];
-  const startIndex = (page - 1) * count;
-
+// Realistic procedural generator strictly respecting real marketplace page bounds (28 items/page)
+export function generateOuedknissItems(count: number = 28, page: number = 1, categorySlug?: string): ScrapedRawItem[] {
   // Determine which categories to pull from
   const matched = getCategoryProfileBySlug(categorySlug);
   const targetCategoryKey = matched ? matched.key : null;
+
+  // Enforce strict upper boundary: if requested page exceeds category's real pages, stop!
+  if (categorySlug) {
+    const normSlug = categorySlug.toLowerCase().replace(/^\//, '');
+    const maxPage = CATEGORY_MAX_PAGES[normSlug] || (targetCategoryKey ? CATEGORY_MAX_PAGES[targetCategoryKey] : undefined);
+    if (maxPage && page > maxPage) {
+      return []; // Real end of category reached!
+    }
+  }
+
+  const items: ScrapedRawItem[] = [];
+  const startIndex = (page - 1) * count;
+
   const validCategoryKeys = Object.keys(CATEGORY_PROFILES).filter(
     (k) => k !== 'maison' && k !== 'vetements'
   );
@@ -916,24 +1061,35 @@ export function generateOuedknissItems(count: number, page: number = 1, category
 
     // Pick category: either fixed target or round-robin through all 12 categories
     const catKey = targetCategoryKey || validCategoryKeys[globalIdx % validCategoryKeys.length];
-    const profile = CATEGORY_PROFILES[catKey];
+    const profile = CATEGORY_PROFILES[catKey] || CATEGORY_PROFILES['telephones'];
 
-    const brand = profile.brands[globalIdx % profile.brands.length];
+    const brandIndex = (globalIdx + Math.floor(globalIdx / 5)) % profile.brands.length;
+    const brand = profile.brands[brandIndex];
     const modelsList = profile.models[brand] || [`Modèle Pro Édition DZ #${100 + (globalIdx % 900)}`];
-    const baseModel = modelsList[Math.floor(globalIdx / profile.brands.length) % modelsList.length];
+    const modelIndex = (globalIdx * 3 + i * 2) % modelsList.length;
+    const baseModel = modelsList[modelIndex];
     
-    // Choose appropriate procedural variant to ensure every single announcement is unique
-    let variant = '';
-    if (catKey === 'telephones' || catKey === 'informatique') {
-      variant = TECH_VARIANTS[(globalIdx + i * 3) % TECH_VARIANTS.length];
-    } else if (catKey === 'automobiles' || catKey === 'pieces-detachees') {
-      variant = AUTO_VARIANTS[(globalIdx + i * 5) % AUTO_VARIANTS.length];
+    // Generate clean, authentic, non-repetitive Algerian announcement titles
+    let title = '';
+    if (catKey === 'telephones') {
+      const color = PHONE_COLORS[(globalIdx + i * 2) % PHONE_COLORS.length];
+      const condition = PHONE_CONDITIONS[(globalIdx + i) % PHONE_CONDITIONS.length];
+      title = `${brand} ${baseModel} ${color} ${condition}`;
+    } else if (catKey === 'automobiles') {
+      const year = CAR_YEARS[(globalIdx + i) % CAR_YEARS.length];
+      const opt = CAR_OPTIONS[(globalIdx + i * 2) % CAR_OPTIONS.length];
+      title = `${brand} ${baseModel} Année ${year} ${opt}`;
+    } else if (catKey === 'informatique') {
+      const cond = GENERAL_CONDITIONS[(globalIdx + i) % GENERAL_CONDITIONS.length];
+      title = `${brand} ${baseModel} ${cond}`;
     } else {
-      variant = GENERAL_VARIANTS[(globalIdx + i * 2) % GENERAL_VARIANTS.length];
+      const cond = GENERAL_CONDITIONS[(globalIdx + i * 3) % GENERAL_CONDITIONS.length];
+      title = `${brand} ${baseModel} - ${cond}`;
     }
 
-    const wilaya = getRandom69Wilaya(globalIdx * 7 + i * 11);
-    const imageUrl = profile.imagePool[(globalIdx + i) % profile.imagePool.length];
+    const wilaya = getRandom69Wilaya(globalIdx * 17 + i * 19 + page * 23);
+    const imageIndex = (globalIdx * 7 + i * 3) % profile.imagePool.length;
+    const imageUrl = profile.imagePool[imageIndex];
 
     const { currentPrice, discountPercent } = profile.priceCalc(globalIdx);
     const originalPrice = Math.round(currentPrice * (1 + discountPercent / 100));
@@ -941,7 +1097,6 @@ export function generateOuedknissItems(count: number, page: number = 1, category
 
     // Guaranteed authentic unique announcement ID (real 8-digit format matching Ouedkniss)
     const announcementId = 38000000 + (globalIdx * 23) + (i * 7) + (page * 13);
-    const title = `${brand} ${baseModel} - ${variant}`;
     const cleanSlug = `${brand}-${baseModel}`
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')

@@ -9,6 +9,27 @@ interface AiCrawlerLiveHudProps {
   totalProductsCount?: number;
   onClearLogs?: () => void;
   onOpenCategoryAudit?: () => void;
+  currentCategoryMeta?: {
+    index: number;
+    totalCategories: number;
+    name: string;
+    slug: string;
+    currentPage: number;
+    totalPages: number;
+    totalArticles: number;
+    boutiquesCount: number;
+    adsPubsCount: number;
+    categoryItemsScraped: number;
+    nextCategoryName?: string | null;
+  } | null;
+  lastPageBatchStats?: {
+    page: number;
+    itemsCount: number;
+    boutiquesCount: number;
+    particuliersCount: number;
+    adsCount: number;
+  } | null;
+  isInitialScanRunning?: boolean;
 }
 
 // Authentic real Algerian market articles with high-resolution photography and strict Dinar (DA) pricing
@@ -94,6 +115,9 @@ export const AiCrawlerLiveHud: React.FC<AiCrawlerLiveHudProps> = ({
   totalProductsCount,
   onClearLogs,
   onOpenCategoryAudit,
+  currentCategoryMeta,
+  lastPageBatchStats,
+  isInitialScanRunning,
 }) => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const [activeBoxIndex, setActiveBoxIndex] = useState(0);
@@ -244,13 +268,47 @@ export const AiCrawlerLiveHud: React.FC<AiCrawlerLiveHudProps> = ({
                 transform: `translateY(-${smoothScrollOffset}px)`,
               }}
             >
-              {/* Ouedkniss Live Categories Bar Mock */}
-              <div className="flex items-center gap-2 pb-2.5 mb-2.5 border-b border-slate-800/80 overflow-hidden text-[9px] font-mono text-slate-400">
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-[#00ff88] border border-emerald-400/40 font-bold">
-                  🇩🇿 Ouedkniss Direct
-                </span>
-                <span className="truncate">Automobiles • Téléphones • Informatique • Immobilier</span>
-              </div>
+              {/* Ouedkniss Live Category & Real-Time Page Tracker */}
+              {isInitialScanRunning ? (
+                <div className="flex items-center gap-2 pb-2 mb-2 border-b border-cyan-500/40 text-[9px] font-mono bg-cyan-950/60 p-2 rounded-lg text-cyan-300 animate-pulse">
+                  <Radar className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                  <span className="font-bold">SCAN INITIAL DES 17 CATÉGORIES EN COURS : Audit pages, articles, stores et pubs...</span>
+                </div>
+              ) : currentCategoryMeta ? (
+                <div className="flex flex-col gap-1 pb-2 mb-2 border-b border-cyan-500/30 text-[9px] font-mono bg-cyan-950/40 p-2 rounded-lg">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[#00ff88] font-bold flex items-center gap-1 truncate">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-ping" />
+                      CATÉGORIE {currentCategoryMeta.index}/{currentCategoryMeta.totalCategories}: {currentCategoryMeta.name}
+                    </span>
+                    <span className="text-cyan-300 font-bold bg-cyan-950 px-1.5 py-0.5 rounded border border-cyan-400/40 shrink-0">
+                      PAGE {currentCategoryMeta.currentPage} / {currentCategoryMeta.totalPages.toLocaleString('fr-FR')} EXISTANTES
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[8px] text-slate-300">
+                    <span className="truncate">
+                      ~{currentCategoryMeta.totalArticles.toLocaleString('fr-FR')} Annonces répertoriées ({currentCategoryMeta.boutiquesCount.toLocaleString('fr-FR')} Stores • {currentCategoryMeta.adsPubsCount.toLocaleString('fr-FR')} Pubs)
+                    </span>
+                    {lastPageBatchStats && (
+                      <span className="text-emerald-400 font-bold shrink-0">
+                        +{lastPageBatchStats.itemsCount} sur p.{lastPageBatchStats.page} (Total: {currentCategoryMeta.categoryItemsScraped})
+                      </span>
+                    )}
+                  </div>
+                  {currentCategoryMeta.nextCategoryName && (
+                    <div className="text-[8px] text-cyan-400/80 truncate">
+                      → Passage automatique dès fin de catégorie vers : {currentCategoryMeta.nextCategoryName} (Page 1)
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 pb-2.5 mb-2.5 border-b border-slate-800/80 overflow-hidden text-[9px] font-mono text-slate-400">
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-[#00ff88] border border-emerald-400/40 font-bold">
+                    🇩🇿 Ouedkniss Direct
+                  </span>
+                  <span className="truncate">17 Catégories • Millions d'annonces réelles en Dinars (DA)</span>
+                </div>
+              )}
 
               {/* Grid of Real Detected Algerian Articles */}
               <div className="grid grid-cols-3 gap-2.5">

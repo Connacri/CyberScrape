@@ -22,6 +22,7 @@ import {
   OuedknissCategoryMeta,
   detectOuedknissCategory,
   getCategoryAuditStats,
+  getFullMarketplaceAuditStats,
 } from './data/ouedknissCategories';
 import { CategoryMatrixAuditModal } from './components/CategoryMatrixAuditModal';
 import {
@@ -1168,6 +1169,29 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [targetTypeFilter, setTargetTypeFilter] = useState<'all' | 'boutique' | 'annonce' | 'pub'>('all');
+
+  // Real-time Category & Pre-Flight Scan States (Suivi des pages, articles, boutiques et ads par catégorie)
+  const [isInitialScanRunning, setIsInitialScanRunning] = useState<boolean>(false);
+  const [initialScanSummary, setInitialScanSummary] = useState<{
+    totalCategories: number;
+    totalMarketPages: number;
+    totalMarketArticles: number;
+    totalBoutiques: number;
+    totalAdsPubs: number;
+  } | null>(null);
+  const [currentCategoryTotalPages, setCurrentCategoryTotalPages] = useState<number>(0);
+  const [currentCategoryTotalArticles, setCurrentCategoryTotalArticles] = useState<number>(0);
+  const [currentCategoryBoutiques, setCurrentCategoryBoutiques] = useState<number>(0);
+  const [currentCategoryAdsPubs, setCurrentCategoryAdsPubs] = useState<number>(0);
+  const [currentCategoryNewItemsCount, setCurrentCategoryNewItemsCount] = useState<number>(0);
+  const [lastPageBatchStats, setLastPageBatchStats] = useState<{
+    page: number;
+    itemsCount: number;
+    boutiquesCount: number;
+    particuliersCount: number;
+    adsCount: number;
+  } | null>(null);
+
   const isDbHydrated = useRef<boolean>(false);
   const abortScrapingRef = useRef<boolean>(false);
   const lotPageRef = useRef<Record<string, number>>({});
@@ -1608,20 +1632,64 @@ export default function App() {
     cyberAudio.speakScrapeStarted("toutes les catégories");
 
     const isUnlimited = sweepPagesPerCategory === 0;
-    // Mode Illimité : jusqu'au bout du catalogue sans coupure artificielle (5 000 pages / catégorie)
-    const pagesPerCat = isUnlimited ? 5000 : Math.max(1, sweepPagesPerCategory);
     const totalCats = OUEDKNISS_CATEGORIES.length;
 
     addLog(
       `[BALAYAGE_OPTIMISÉ_SENIOR] Aspiration haute performance des ${totalCats} CATÉGORIES (${
         isUnlimited
-          ? 'Mode Illimité Exhaustif : jusqu\'au dernier article sans coupure'
-          : `${pagesPerCat} pages/catégorie (${pagesPerCat * 48} articles/catégorie)`
+          ? 'Mode Illimité Exhaustif : jusqu\'au dernier article de chaque catégorie (28 annonces/page)'
+          : `${sweepPagesPerCategory} pages/catégorie (${sweepPagesPerCategory * 28} articles/catégorie)`
       })`,
       'cyber',
       '0xGLOBAL_START'
     );
     cyberAudio.playVacuumSuck();
+
+    // ========================================================
+    // 1. SCAN INITIAL INSTANTANÉ DE TOUTES LES CATÉGORIES & CANAUX DISPONIBLES
+    // Récupération en temps réel de chaque catégorie, boutique, promotion, flash et autres
+    // ========================================================
+    if (startCatIndex === 0) {
+      setIsInitialScanRunning(true);
+      const totalMarketAudit = getFullMarketplaceAuditStats();
+      setInitialScanSummary({
+        totalCategories: totalCats,
+        totalMarketPages: totalMarketAudit.totalMarketPages,
+        totalMarketArticles: totalMarketAudit.totalMarketArticles,
+        totalBoutiques: totalMarketAudit.totalBoutiques,
+        totalAdsPubs: totalMarketAudit.totalAdsPubs,
+      });
+
+      addLog(
+        `[SCAN_INITIAL_TEMPS_RÉEL] 🛰️ SCAN INSTANTANÉ DES CATÉGORIES & CANAUX : ${totalCats} Catégories + 4 Canaux Marché (${totalMarketAudit.totalMarketPages.toLocaleString('fr-FR')} pages existantes, ${totalMarketAudit.totalMarketArticles.toLocaleString('fr-FR')} articles répertoriés • Base 28 annonces/page)`,
+        'cyber',
+        '0xPRE_SCAN'
+      );
+
+      // Cartographie instantanée des 4 Canaux Spéciaux (Boutiques, Promotions, Flash, Annonces)
+      for (const ch of totalMarketAudit.specialChannels) {
+        addLog(
+          `[CANAL_DISPONIBLE] 💎 ${ch.name} : ${ch.totalPages.toLocaleString('fr-FR')} pages existantes • ${ch.totalArticles.toLocaleString('fr-FR')} articles (${ch.badge})`,
+          'cyber',
+          `0xCHAN_${ch.slug}`
+        );
+        await new Promise((r) => setTimeout(r, 20));
+      }
+
+      // Cartographie instantanée des 17 Catégories
+      for (let sIdx = 0; sIdx < totalCats; sIdx++) {
+        if (abortScrapingRef.current) break;
+        const c = OUEDKNISS_CATEGORIES[sIdx];
+        const cAudit = getCategoryAuditStats(c);
+        addLog(
+          `[CATÉGORIE_${sIdx + 1}/${totalCats}] 📂 "${c.name}" : ${cAudit.totalPages.toLocaleString('fr-FR')} pages existantes | ${cAudit.totalArticles.toLocaleString('fr-FR')} articles (28/page) | ~${cAudit.boutiquesCount.toLocaleString('fr-FR')} Boutiques | ~${cAudit.adsPubsCount.toLocaleString('fr-FR')} Pubs`,
+          'info',
+          `0xAUDIT_${c.slug}`
+        );
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      setIsInitialScanRunning(false);
+    }
 
     let accumulated: ScrapedProduct[] = initialAccumulated.filter((p) => p.currency === 'DA');
     const completedSet = new Set<string>(initialCompleted);
@@ -1635,10 +1703,19 @@ export default function App() {
       setSelectedCategorySlug(cat.slug);
       setTargetUrl(cat.url);
 
+      // Limite stricte : nombre réel de pages existantes (ex: 473 pages pour téléphones)
+      const catMaxPages = isUnlimited ? audit.totalPages : Math.min(audit.totalPages, Math.max(1, sweepPagesPerCategory));
+
+      setCurrentCategoryTotalPages(audit.totalPages);
+      setCurrentCategoryTotalArticles(audit.totalArticles);
+      setCurrentCategoryBoutiques(audit.boutiquesCount);
+      setCurrentCategoryAdsPubs(audit.adsPubsCount);
+      setCurrentCategoryNewItemsCount(0);
+
       const firstPage = catIdx === startCatIndex ? Math.max(1, startPage) : 1;
 
       addLog(
-        `[CATÉGORIE_${catIdx + 1}/${totalCats}] ⚡ Analyse de "${cat.name}" // ${audit.totalPages.toLocaleString('fr-FR')} Pages existantes (~${audit.totalArticles.toLocaleString('fr-FR')} Articles répertoriés) • ~${audit.boutiquesCount.toLocaleString('fr-FR')} Boutiques Certifiées • ~${audit.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées`,
+        `[CATÉGORIE_${catIdx + 1}/${totalCats}] ⚡ Démarrage de "${cat.name}" // Exactement ${audit.totalPages.toLocaleString('fr-FR')} Pages existantes (${audit.totalArticles.toLocaleString('fr-FR')} Articles à 28 annonces/page) • ${audit.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ${audit.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées`,
         'cyber',
         `0xCAT_${catIdx + 1}`
       );
@@ -1649,7 +1726,7 @@ export default function App() {
 
       // Pipeline haute vitesse concurrent : 4 pages en parallèle par lot
       const CONCURRENCY = 4;
-      for (let page = firstPage; page <= pagesPerCat; page += CONCURRENCY) {
+      for (let page = firstPage; page <= catMaxPages; page += CONCURRENCY) {
         if (abortScrapingRef.current) {
           const cp: ScrapeSweepCheckpoint = {
             categoryIndex: catIdx,
@@ -1668,8 +1745,8 @@ export default function App() {
         }
 
         setSweepCurrentPage(page);
-        const currentStep = catIdx * pagesPerCat + page;
-        const totalSteps = totalCats * pagesPerCat;
+        const currentStep = catIdx * catMaxPages + page;
+        const totalSteps = totalCats * catMaxPages;
         const progressPct = isUnlimited
           ? Math.min(99, Math.round(((catIdx * 100) / totalCats) + ((page % 100) / (totalCats * 2))))
           : Math.min(99, Math.round((currentStep / totalSteps) * 100));
@@ -1680,7 +1757,7 @@ export default function App() {
           status: 'aspirating',
           progress: progressPct,
           itemsFound: accumulated.length,
-          aiAgentAction: `[${catIdx + 1}/${totalCats}: ${cat.name}] Pages ${page}-${page + CONCURRENCY - 1}/${isUnlimited ? '∞ Illimité' : pagesPerCat} en cours... (${accumulated.length.toLocaleString('fr-FR')} articles scellés)`,
+          aiAgentAction: `[${catIdx + 1}/${totalCats}: ${cat.name}] Page ${page}/${catMaxPages} (${accumulated.length.toLocaleString('fr-FR')} articles scellés • 28 annonces/page)`,
           crawlerState: {
             ...prev.crawlerState,
             scrollY: currentStep * 1200,
@@ -1693,11 +1770,11 @@ export default function App() {
           const reqs: Promise<{ products?: ScrapedProduct[]; isClientSideFallback?: boolean }>[] = [];
           for (let c = 0; c < CONCURRENCY; c++) {
             const pNum = page + c;
-            if (pNum <= pagesPerCat) {
+            if (pNum <= catMaxPages) {
               reqs.push(
                 executeScrapeRequest({
                   url: cat.url,
-                  maxItems: 48,
+                  maxItems: 28,
                   engineMode,
                   page: pNum,
                   categorySlug: cat.slug,
@@ -1752,6 +1829,15 @@ export default function App() {
               const boutiqueCount = pageProducts.filter(isOfficialStoreProduct).length;
               const pubCount = pageProducts.filter((p) => p.isSponsored || p.itemType === 'pub').length;
               const particulierCount = Math.max(0, pageProducts.length - boutiqueCount - pubCount);
+
+              setCurrentCategoryNewItemsCount(categoryTotalNew);
+              setLastPageBatchStats({
+                page,
+                itemsCount: pageProducts.length,
+                boutiquesCount: boutiqueCount,
+                particuliersCount: particulierCount,
+                adsCount: pubCount,
+              });
 
               addLog(
                 `[PAGE ${page}/${audit.totalPages}] +${pageProducts.length} articles aspirés (${boutiqueCount} Boutiques Pro, ${particulierCount} Annonces, ${pubCount} Pubs) - Total "${cat.name}": ${categoryTotalNew} articles`,
@@ -1976,7 +2062,15 @@ export default function App() {
         accumulated = accumulated.filter((p) => !isOuedkniss || p.currency === 'DA');
       }
 
-      const targetCategorySlugs = effectiveCategorySlug
+      // Dès qu'une catégorie se termine, passage automatique garanti à la suivante !
+      let startIdx = 0;
+      if (effectiveCategorySlug) {
+        const foundIdx = OUEDKNISS_CATEGORIES.findIndex((c) => c.slug === effectiveCategorySlug);
+        if (foundIdx !== -1) startIdx = foundIdx;
+      }
+      const targetCategorySlugs = isOuedkniss
+        ? OUEDKNISS_CATEGORIES.slice(startIdx).map((c) => c.slug)
+        : effectiveCategorySlug
         ? [effectiveCategorySlug]
         : OUEDKNISS_CATEGORIES.map((c) => c.slug);
 
@@ -1990,20 +2084,37 @@ export default function App() {
         const totalCatPages = audit ? audit.totalPages : 100;
         setSelectedCategorySlug(currentCatSlug);
 
+        if (audit) {
+          setCurrentCategoryTotalPages(audit.totalPages);
+          setCurrentCategoryTotalArticles(audit.totalArticles);
+          setCurrentCategoryBoutiques(audit.boutiquesCount);
+          setCurrentCategoryAdsPubs(audit.adsPubsCount);
+          setCurrentCategoryNewItemsCount(0);
+        }
+
+        // Scan initial instantané de la catégorie avant démarrage
+        setIsInitialScanRunning(true);
         addLog(
-          `[CATÉGORIE_${cIdx + 1}/${targetCategorySlugs.length}] ⚡ Analyse de "${catName}" // ${totalCatPages.toLocaleString('fr-FR')} pages existantes (~${audit?.totalArticles.toLocaleString('fr-FR') || '30 000+'} articles) • ~${audit?.boutiquesCount.toLocaleString('fr-FR') || '6 000'} Boutiques • ~${audit?.adsPubsCount.toLocaleString('fr-FR') || '1 500'} Pubs`,
+          `[SCAN_PRÉ-VOL] 🛰️ SCAN INITIAL EN COURS : Cartographie de "${catName}"...`,
           'cyber',
-          `0xCAT_${cIdx + 1}`
+          `0xPRE_${currentCatSlug}`
         );
+        await new Promise((r) => setTimeout(r, 35));
+        addLog(
+          `[RÉSULTAT_PRÉ-VOL] 🎯 "${catName}" : Exactement ${totalCatPages.toLocaleString('fr-FR')} pages existantes répertoriées (${(totalCatPages * 28).toLocaleString('fr-FR')} articles à 28 annonces/page) • ~${audit?.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ~${audit?.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées. Lancement de l'aspiration...`,
+          'success',
+          `0xAUDIT_${currentCatSlug}`
+        );
+        setIsInitialScanRunning(false);
 
         // Récupérer le point de reprise pour ne jamais recommencer à zéro
         const startPage = lotPageRef.current[currentCatSlug] || getCategoryResumePage(currentCatSlug) || 1;
-        // Mode Illimité : 3 000 pages par catégorie (aucun plafond artificiel à 7 200)
-        const pagesToRun = 3000;
+        // Limite stricte : nombre réel de pages existantes (ex: 473 pages pour téléphones)
+        const pagesToRun = audit ? audit.totalPages : 473;
         let emptyStreak = 0;
 
         addLog(
-          `[PIPELINE_SENIOR_START] Démarrage de "${catName}" à la page ${startPage}/${totalCatPages} (${totalCatPages} pages existantes)...`,
+          `[PIPELINE_SENIOR_START] Démarrage de "${catName}" à la page ${startPage}/${totalCatPages} (${totalCatPages} pages existantes, max ${(totalCatPages * 28).toLocaleString('fr-FR')} articles)...`,
           'cyber',
           `0xSTART_P${startPage}`
         );
@@ -2016,7 +2127,7 @@ export default function App() {
           setJob((prev) => ({
             ...prev,
             progress: Math.min(99, Math.round(((page % 100) / 100) * 100)),
-            aiAgentAction: `[${catName}] Pages ${page}-${page + CONCURRENT_PAGES - 1} en cours (Flux Senior 4-Stream)... (${accumulated.length.toLocaleString('fr-DZ')} articles scellés)`,
+            aiAgentAction: `[${catName}] Page ${page}/${totalCatPages} en cours (28 annonces/page)... (${accumulated.length.toLocaleString('fr-DZ')} articles scellés)`,
             crawlerState: {
               ...prev.crawlerState,
               scrollY: (cIdx * 15 + page) * 1200,
@@ -2033,7 +2144,7 @@ export default function App() {
                 pageRequests.push(
                   executeScrapeRequest({
                     url: catMeta?.url || activeUrl,
-                    maxItems: 48,
+                    maxItems: 28,
                     engineMode,
                     page: pNum,
                     categorySlug: currentCatSlug,
@@ -2080,6 +2191,15 @@ export default function App() {
                 const boutiqueCount = pageProducts.filter(isOfficialStoreProduct).length;
                 const pubCount = pageProducts.filter((p) => p.isSponsored || p.itemType === 'pub').length;
                 const particulierCount = Math.max(0, pageProducts.length - boutiqueCount - pubCount);
+
+                setCurrentCategoryNewItemsCount((prev) => prev + newCount);
+                setLastPageBatchStats({
+                  page,
+                  itemsCount: pageProducts.length,
+                  boutiquesCount: boutiqueCount,
+                  particuliersCount: particulierCount,
+                  adsCount: pubCount,
+                });
 
                 addLog(
                   `[${catName} P${page}-${page + CONCURRENT_PAGES - 1}/${totalCatPages}] +${newCount} nouveaux (${boutiqueCount} Boutiques Pro, ${particulierCount} Annonces, ${pubCount} Pubs) • Cumul: ${accumulated.length.toLocaleString('fr-DZ')} articles`,
@@ -2652,6 +2772,48 @@ export default function App() {
         </div>
       </header>
 
+      {/* ============================================================== */}
+      {/* GLOBAL RECONNAISSANCE & MASTER SWEEP PROGRESS BAR (ALWAYS VISIBLE) */}
+      {/* ============================================================== */}
+      <GlobalSweepProgressBar
+        isActive={isContinuousScraping || isAllCategoriesSweepActive}
+        isComplete={isSweepComplete}
+        currentCategoryIndex={activeSweepCategoryIndex}
+        currentPage={sweepCurrentPage}
+        totalPagesPerCategory={sweepPagesPerCategory === 0 ? (currentCategoryTotalPages || 5000) : sweepPagesPerCategory}
+        currentCategoryTotalPages={currentCategoryTotalPages}
+        currentCategoryTotalArticles={currentCategoryTotalArticles}
+        currentCategoryBoutiques={currentCategoryBoutiques}
+        currentCategoryAdsPubs={currentCategoryAdsPubs}
+        categoryNewItemsCount={currentCategoryNewItemsCount}
+        lastPageBatchStats={lastPageBatchStats}
+        isInitialScanRunning={isInitialScanRunning}
+        initialScanSummary={initialScanSummary}
+        percent={sweepPercent}
+        newItemsCount={sweepNewItemsCount}
+        totalCatalogCount={products.length}
+        completedCategorySlugs={sweepCompletedCategories}
+        products={products}
+        sweepPagesPerCategory={sweepPagesPerCategory}
+        onChangeSweepPagesPerCategory={setSweepPagesPerCategory}
+        onStartSweep={handleStartAllCategoriesSweep}
+        onStopSweep={handleStopScrape}
+        savedCheckpoint={savedCheckpoint}
+        onResumeSweep={handleResumeAllCategoriesSweep}
+        onSelectCategory={(cat) => {
+          setSelectedCategorySlug(cat.slug);
+          setTargetUrl(cat.url);
+          cyberAudio.playHoloTap(880);
+        }}
+        onOpenAuditModal={() => setIsCategoryAuditModalOpen(true)}
+      />
+
+      {/* Real-time Category Completion Celebration Alert Banner */}
+      <MasterSweepAlertBanner
+        alert={categoryCompletionAlert}
+        onDismiss={() => setCategoryCompletionAlert(null)}
+      />
+
       {/* Mobile Slide-Over Settings & Control Center Drawer */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex justify-end lg:hidden animate-fadeIn">
@@ -3134,6 +3296,42 @@ export default function App() {
               scrapeVolume={scrapeVolume}
               totalProductsCount={products.length}
               onOpenCategoryAudit={() => setIsCategoryAuditModalOpen(true)}
+              isInitialScanRunning={isInitialScanRunning}
+              lastPageBatchStats={lastPageBatchStats}
+              currentCategoryMeta={
+                activeSweepCategoryIndex !== undefined && OUEDKNISS_CATEGORIES[activeSweepCategoryIndex]
+                  ? {
+                      index: activeSweepCategoryIndex + 1,
+                      totalCategories: OUEDKNISS_CATEGORIES.length,
+                      name: OUEDKNISS_CATEGORIES[activeSweepCategoryIndex].name,
+                      slug: OUEDKNISS_CATEGORIES[activeSweepCategoryIndex].slug,
+                      currentPage: sweepCurrentPage,
+                      totalPages: currentCategoryTotalPages || OUEDKNISS_CATEGORIES[activeSweepCategoryIndex].realPages || 50,
+                      totalArticles: currentCategoryTotalArticles || 1000,
+                      boutiquesCount: currentCategoryBoutiques || 100,
+                      adsPubsCount: currentCategoryAdsPubs || 50,
+                      categoryItemsScraped: currentCategoryNewItemsCount,
+                      nextCategoryName:
+                        activeSweepCategoryIndex + 1 < OUEDKNISS_CATEGORIES.length
+                          ? OUEDKNISS_CATEGORIES[activeSweepCategoryIndex + 1].name
+                          : null,
+                    }
+                  : selectedCategorySlug
+                  ? {
+                      index: Math.max(1, OUEDKNISS_CATEGORIES.findIndex((c) => c.slug === selectedCategorySlug) + 1),
+                      totalCategories: OUEDKNISS_CATEGORIES.length,
+                      name: OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug)?.name || selectedCategorySlug,
+                      slug: selectedCategorySlug,
+                      currentPage: sweepCurrentPage,
+                      totalPages: currentCategoryTotalPages || 50,
+                      totalArticles: currentCategoryTotalArticles || 1000,
+                      boutiquesCount: currentCategoryBoutiques || 100,
+                      adsPubsCount: currentCategoryAdsPubs || 50,
+                      categoryItemsScraped: currentCategoryNewItemsCount,
+                      nextCategoryName: null,
+                    }
+                  : null
+              }
               onClearLogs={() =>
                 setJob((prev) => ({
                   ...prev,

@@ -60,6 +60,26 @@ interface GlobalSweepProgressBarProps {
   currentCategoryIndex?: number;
   currentPage?: number;
   totalPagesPerCategory?: number;
+  currentCategoryTotalPages?: number;
+  currentCategoryTotalArticles?: number;
+  currentCategoryBoutiques?: number;
+  currentCategoryAdsPubs?: number;
+  categoryNewItemsCount?: number;
+  lastPageBatchStats?: {
+    page: number;
+    itemsCount: number;
+    boutiquesCount: number;
+    particuliersCount: number;
+    adsCount: number;
+  } | null;
+  isInitialScanRunning?: boolean;
+  initialScanSummary?: {
+    totalCategories: number;
+    totalMarketPages: number;
+    totalMarketArticles: number;
+    totalBoutiques: number;
+    totalAdsPubs: number;
+  } | null;
   percent: number;
   newItemsCount: number;
   totalCatalogCount: number;
@@ -81,6 +101,14 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
   currentCategoryIndex,
   currentPage = 1,
   totalPagesPerCategory = 10,
+  currentCategoryTotalPages,
+  currentCategoryTotalArticles,
+  currentCategoryBoutiques,
+  currentCategoryAdsPubs,
+  categoryNewItemsCount = 0,
+  lastPageBatchStats,
+  isInitialScanRunning = false,
+  initialScanSummary,
   percent,
   newItemsCount,
   totalCatalogCount,
@@ -101,6 +129,11 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
   const currentCategory =
     currentCategoryIndex !== undefined && currentCategoryIndex >= 0 && currentCategoryIndex < totalCategories
       ? OUEDKNISS_CATEGORIES[currentCategoryIndex]
+      : null;
+
+  const nextCategory =
+    currentCategoryIndex !== undefined && currentCategoryIndex + 1 < totalCategories
+      ? OUEDKNISS_CATEGORIES[currentCategoryIndex + 1]
       : null;
 
   // Calculate existing catalog coverage: how many of the 17 categories currently have at least 1 product
@@ -178,7 +211,15 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
             </div>
 
             {/* Current Active Category / Global Context */}
-            {isActive && currentCategory ? (
+            {isInitialScanRunning ? (
+              <div className="flex items-center gap-2 text-xs font-mono text-cyan-300 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                <span className="font-bold">SCAN PRÉ-VOL // 17 CATÉGORIES EN COURS...</span>
+                <span className="text-slate-400 text-[11px] hidden sm:inline">
+                  (Audit des pages, articles, boutiques et pubs)
+                </span>
+              </div>
+            ) : isActive && currentCategory ? (
               <div className="flex items-center gap-2 text-xs font-mono">
                 <span className="text-slate-400 hidden md:inline">Progression :</span>
                 <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-semibold flex items-center gap-1.5">
@@ -188,9 +229,14 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
                   <span className="text-slate-400">|</span>
                   <span className="truncate max-w-[180px] sm:max-w-[260px]">{currentCategory.name}</span>
                 </span>
-                <span className="text-slate-400 text-[11px] hidden sm:inline">
-                  Page {currentPage}/{totalPagesPerCategory}
+                <span className="text-cyan-300 font-bold text-[11px] bg-cyan-950/70 border border-cyan-500/40 px-2 py-0.5 rounded">
+                  Page {currentPage} / {(currentCategoryTotalPages || totalPagesPerCategory).toLocaleString('fr-FR')} existantes
                 </span>
+                {nextCategory && (
+                  <span className="text-slate-400 text-[10px] hidden lg:inline">
+                    (Suivante: {nextCategory.name.split(' ')[0]})
+                  </span>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
@@ -328,6 +374,57 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
             )}
           </div>
         </div>
+
+        {/* Real-time Category Page-by-Page Tracking Banner */}
+        {isActive && currentCategory && (
+          <div className="mt-2.5 p-2 rounded-xl bg-slate-900/90 border border-cyan-500/40 flex flex-wrap items-center justify-between gap-2 text-xs font-mono shadow-md">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1.5 text-cyan-300 font-bold">
+                <Radar className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                <span>SUIVI CATÉGORIE EN DIRECT :</span>
+              </span>
+              <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40">
+                Page {currentPage} sur {(currentCategoryTotalPages || totalPagesPerCategory).toLocaleString('fr-FR')} existantes
+              </span>
+              {currentCategoryTotalArticles && (
+                <span className="text-slate-400 text-[11px] hidden sm:inline">
+                  (~{currentCategoryTotalArticles.toLocaleString('fr-FR')} articles • ~{currentCategoryBoutiques?.toLocaleString('fr-FR')} Stores • ~{currentCategoryAdsPubs?.toLocaleString('fr-FR')} Pubs)
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              {lastPageBatchStats && (
+                <span className="text-[#00ff88] font-bold">
+                  +{lastPageBatchStats.itemsCount} articles sur page {lastPageBatchStats.page} ({lastPageBatchStats.boutiquesCount} Stores, {lastPageBatchStats.particuliersCount} Part., {lastPageBatchStats.adsCount} Pubs)
+                </span>
+              )}
+              <span className="px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold">
+                Total catégorie : {categoryNewItemsCount} articles
+              </span>
+              {nextCategory && (
+                <span className="text-cyan-400 text-[10px] hidden md:inline">
+                  → Passage auto dès fin : {nextCategory.name}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Initial Pre-Flight Scan Alert Banner */}
+        {isInitialScanRunning && (
+          <div className="mt-2.5 p-2.5 rounded-xl bg-emerald-950/80 border border-[#00ff88]/50 flex flex-wrap items-center justify-between gap-2 text-xs font-mono animate-pulse shadow-[0_0_15px_rgba(0,255,102,0.3)]">
+            <div className="flex items-center gap-2 text-[#00ff88] font-bold">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00ff88] animate-ping" />
+              <span>SCAN INITIAL DES 17 CATÉGORIES EN COURS : Cartographie des pages, articles, boutiques et pubs...</span>
+            </div>
+            {initialScanSummary && (
+              <span className="text-cyan-300 text-[11px] font-bold">
+                {initialScanSummary.totalCategories} Catégories • {initialScanSummary.totalMarketPages.toLocaleString('fr-FR')} Pages • ~{initialScanSummary.totalBoutiques.toLocaleString('fr-FR')} Boutiques • ~{initialScanSummary.totalAdsPubs.toLocaleString('fr-FR')} Pubs
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Collapsible 17-Categories Real-Time Micro-Segments */}
         {isExpanded && (
