@@ -3,9 +3,20 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
+const getBaseUrl = () => {
+  const url = process.env.VITE_BASE_URL;
+  if (!url || url.startsWith('postgres:') || url.startsWith('postgresql:')) {
+    return '/';
+  }
+  if (url.startsWith('/')) {
+    return url.endsWith('/') ? url : `${url}/`;
+  }
+  return '/';
+};
+
 export default defineConfig(() => {
   return {
-    base: process.env.VITE_BASE_URL || './',
+    base: getBaseUrl(),
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

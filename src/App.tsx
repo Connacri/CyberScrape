@@ -2725,46 +2725,33 @@ export default function App() {
       <header className="relative z-30 border-b border-emerald-500/30 bg-slate-950/95 backdrop-blur-md sticky top-0 shadow-lg w-full max-w-full overflow-hidden">
         {/* Row 1: Brand Icon + BIG LIVE ASPIRATED COUNTER + Navigation Tabs + Controls */}
         <div className="max-w-7xl w-full mx-auto px-2.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-4">
-          {/* Zone 1: App Icon + Brand Wordmark + Splash Trigger */}
+          {/* Zone 1: App Icon + Brand Wordmark + Home Navigation */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* Logo brand button with exact App Icon & Wordmark */}
             <button
               type="button"
               onClick={() => {
-                setShowSplashScreen(true);
-                cyberAudio.playScanSweep();
+                handleSelectTab('vacuum');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                cyberAudio.playTabSwitch();
               }}
-              title="Cliquer pour afficher l'écran splash plein écran et l'icône"
-              className="relative flex items-center gap-2 h-9 sm:h-10 pl-1 pr-2.5 py-1 rounded-2xl bg-black/90 border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+              title="Retour à l'accueil Vortex & IA"
+              className="relative flex items-center gap-2 h-9 sm:h-10 px-2 sm:px-2.5 rounded-xl bg-black/90 border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.35)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
             >
-              {/* Exact App Icon Squircle matching the brand logo */}
-              <CyberVacuumAppIcon size={32} glow={true} roundedClass="rounded-xl" />
-
-              {/* Exact Brand Wordmark */}
-              <CyberVacuumLogo size="custom" width={84} height={18} glow={true} className="inline-flex" />
-              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00ff66] border-2 border-black animate-ping" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setShowSplashScreen(true);
-                cyberAudio.playScanSweep();
-              }}
-              className="hidden sm:flex flex-col text-left cursor-pointer hover:opacity-90 transition-opacity"
-              title="Cliquer pour revoir le Splash Écran Plein Écran"
-            >
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-black tracking-widest text-white font-mono whitespace-nowrap">
-                  CYBER-VACUUM
-                </span>
-                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88]">
-                  MK-IV
+              <CyberVacuumAppIcon size={30} glow={true} roundedClass="rounded-lg" />
+              <div className="flex flex-col text-left">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs sm:text-sm font-black tracking-widest text-white font-mono whitespace-nowrap">
+                    CYBER-VACUUM
+                  </span>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88]">
+                    MK-IV
+                  </span>
+                </div>
+                <span className="text-[8px] text-[#00ff66]/80 font-mono tracking-wider font-semibold hidden xs:block">
+                  AI MATRIX ENGINE
                 </span>
               </div>
-              <span className="text-[8px] text-[#00ff66]/80 font-mono tracking-wider font-semibold">
-                AI MATRIX ENGINE
-              </span>
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00ff66] border-2 border-black animate-ping" />
             </button>
           </div>
 
@@ -2789,12 +2776,12 @@ export default function App() {
             onClick={() => handleSelectTab('catalog')}
           />
 
-          {/* Zone 3: Desktop Navigation Switcher Tabs (Hidden on mobile/tablet, shown on lg+) */}
-          <nav className="hidden lg:flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs">
+          {/* Zone 3: Navigation Switcher Tabs (Visible from md: upwards for responsive tablet/desktop access) */}
+          <nav className="hidden md:flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs">
             <button
               type="button"
               onClick={() => handleSelectTab('vacuum')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-2.5 lg:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'vacuum'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -2807,7 +2794,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => handleSelectTab('catalog')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-2.5 lg:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'catalog'
                   ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -2823,14 +2810,14 @@ export default function App() {
             <button
               type="button"
               onClick={() => handleSelectTab('temu')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-2.5 lg:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'temu'
                   ? 'bg-gradient-to-r from-[#fb5200] to-[#ff7300] text-white shadow-[0_0_12px_rgba(251,82,0,0.4)]'
                   : 'text-orange-400 hover:text-orange-200 hover:bg-orange-950/30'
               }`}
             >
               <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
-              <span>MARKET TEMU-DZ</span>
+              <span>TEMU-DZ</span>
               {supabaseConfig.url && supabaseConfig.anonKey && supabaseTotalCount > 0 && (
                 <span className="text-[10px] bg-black/40 px-1.5 py-0.5 rounded text-white font-mono">
                   ({supabaseTotalCount.toLocaleString('fr-FR')})
@@ -2841,7 +2828,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => handleSelectTab('trends')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+              className={`px-2.5 lg:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'trends'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
                   : 'text-slate-400 hover:text-slate-200'
@@ -2888,23 +2875,6 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={() => setIsSupabaseModalOpen(true)}
-                className={`h-9 px-3 rounded-xl border text-xs flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
-                  supabaseConfig.url && supabaseConfig.anonKey
-                    ? 'bg-emerald-950/60 border-emerald-400/50 text-[#00ff88] hover:bg-emerald-900/40'
-                    : 'bg-slate-900 border-slate-800 text-amber-400 hover:border-amber-400/50'
-                }`}
-                title="Configurer la base de données Supabase"
-                aria-label="Configurer Supabase"
-              >
-                <Database className="w-3.5 h-3.5" />
-                <span className="font-mono">
-                  {supabaseConfig.url && supabaseConfig.anonKey ? 'Supabase' : 'Lier DB'}
-                </span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setIsCategoryAuditModalOpen(true)}
                 className="h-9 px-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]"
                 title="Scanner & Auditer les 17 Catégories Ouedkniss (Pages, Articles, Stores, Pubs)"
@@ -2936,6 +2906,24 @@ export default function App() {
                 <span>APK Mobile</span>
               </button>
             </div>
+
+            {/* Quick Supabase status button (Always visible on sm: screens and up) */}
+            <button
+              type="button"
+              onClick={() => setIsSupabaseModalOpen(true)}
+              className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+                supabaseConfig.url && supabaseConfig.anonKey
+                  ? 'bg-emerald-950/60 border-emerald-400/50 text-[#00ff88] hover:bg-emerald-900/40 shadow-[0_0_10px_rgba(0,255,102,0.2)]'
+                  : 'bg-slate-900 border-slate-800 text-amber-400 hover:border-amber-400/50'
+              }`}
+              title="Configurer la base de données Supabase"
+              aria-label="Configurer Supabase"
+            >
+              <Database className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="font-mono hidden sm:inline">
+                {supabaseConfig.url && supabaseConfig.anonKey ? 'Supabase' : 'Lier DB'}
+              </span>
+            </button>
 
             {/* Quick Audio Toggle */}
             <button

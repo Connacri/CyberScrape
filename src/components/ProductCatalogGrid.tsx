@@ -508,7 +508,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         }
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [products, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, onlyDiscounted, minDiscountPercent, selectedItemType, onlyFavorites, favorites]);
+  }, [activeProducts, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, onlyDiscounted, minDiscountPercent, selectedItemType, onlyFavorites, favorites]);
 
   // Grouped products for "Vue Groupée" (either by Category or by Wilaya)
   const groupedProducts = useMemo(() => {

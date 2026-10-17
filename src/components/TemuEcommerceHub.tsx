@@ -141,16 +141,14 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Strict multi-factor deduplication to guarantee 100% unique items in TEMU storefront (from Supabase Cloud)
+  // Accurate deduplication: drops true duplicate IDs or URLs, preserving all 300+ unique listings from Supabase
   const uniqueProducts = useMemo(() => {
     const seenIds = new Set<string>();
     const seenUrls = new Set<string>();
-    const seenKeys = new Set<string>();
-    const seenImages = new Set<string>();
     const result: ScrapedProduct[] = [];
 
-    // STRICT REQUIREMENT: Only display items from Supabase Cloud (not from local cache)
-    const sourceProducts = cloudProducts;
+    // Display items from Supabase Cloud (with fallback to props if Cloud is hydrating)
+    const sourceProducts = cloudProducts.length > 0 ? cloudProducts : products;
 
     for (let i = 0; i < sourceProducts.length; i++) {
       const p = sourceProducts[i];
@@ -158,31 +156,16 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       const idKey = (p.id || '').trim();
       const urlKey = (p.productUrl || '').trim().toLowerCase().split('?')[0];
 
-      // Clean base title (remove suffixes like "Année 2022...", "Neuf sous blister...", etc.)
-      const rawTitle = (p.title || '').trim().toLowerCase();
-      const normTitle = rawTitle
-        .replace(/\b(neuf|scellé|blister|garantie|facture|boîte|safia|retouche|peinture|sous carton)\b.*$/i, '')
-        .trim()
-        .replace(/\s+/g, ' ');
-
-      const brandKey = (p.brand || '').trim().toLowerCase();
-      const combinedKey = `${brandKey}:::${normTitle.slice(0, 32)}`;
-      const imgKey = p.imageUrl ? p.imageUrl.split('?')[0] : '';
-
-      // Skip duplicates based on ID, URL, or identical title & brand
+      // Skip duplicates based on identical ID or exact URL
       if (idKey && seenIds.has(idKey)) continue;
       if (urlKey && seenUrls.has(urlKey)) continue;
-      if (combinedKey && seenKeys.has(combinedKey)) continue;
-      if (imgKey && seenImages.has(imgKey) && !imgKey.includes('dicebear')) continue;
 
       if (idKey) seenIds.add(idKey);
       if (urlKey) seenUrls.add(urlKey);
-      if (combinedKey) seenKeys.add(combinedKey);
-      if (imgKey) seenImages.add(imgKey);
       result.push(p);
     }
     return result;
-  }, [cloudProducts]);
+  }, [cloudProducts, products]);
 
   // Counts of types
   const typeCounts = useMemo(() => {
