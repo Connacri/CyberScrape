@@ -38,7 +38,7 @@ import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
 import { ProductDetailModal } from './ProductDetailModal';
 import { PriceRangeFilter, CatalogSortOption } from './PriceRangeFilter';
 import { CategoryDistributionPieChart } from './CategoryDistributionPieChart';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   ensureProductDetails,
   buildTelLink,
@@ -62,6 +62,93 @@ interface ProductCatalogGridProps {
 }
 
 const CHUNK_SIZE = 36; // 36 items per lazy-load chunk for buttery smooth 60fps
+
+// Framer-Motion staggered animation variants for fluid wave fade-in during initial load or filtering
+const catalogContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.035, // 35ms wave progression between cards
+      delayChildren: 0.02,
+    },
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.15 },
+  },
+};
+
+const catalogCardVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 18,
+    scale: 0.94,
+  },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: 'spring',
+      stiffness: 340,
+      damping: 26,
+      mass: 0.8,
+    },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.92,
+    y: -10,
+    transition: { duration: 0.18 },
+  },
+};
+
+const catalogListRowVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    x: -16,
+    y: 6,
+  },
+  show: {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 340,
+      damping: 26,
+      mass: 0.8,
+    },
+  },
+  exit: {
+    opacity: 0,
+    x: 16,
+    transition: { duration: 0.16 },
+  },
+};
+
+const catalogTableRowVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 10,
+  },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 350,
+      damping: 28,
+      mass: 0.8,
+    },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.98,
+    transition: { duration: 0.14 },
+  },
+};
 
 export function extractWilaya(product: ScrapedProduct): string {
   const raw =
@@ -397,6 +484,41 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     }
     return filteredProducts.slice(0, visibleCount);
   }, [filteredProducts, displayMode, currentPage, pageSize, visibleCount]);
+
+  // Key to trigger staggered fade-in wave animations on initial load & whenever filters/sort/search change
+  const filterTransitionKey = useMemo(() => {
+    return [
+      selectedCategory,
+      selectedWilaya,
+      selectedCurrency,
+      selectedItemType,
+      sortBy,
+      currentPage,
+      minPrice,
+      maxPrice,
+      onlyDiscounted,
+      minDiscountPercent,
+      onlyFavorites,
+      searchTerm.trim(),
+      titleFilter.trim(),
+      displayMode,
+    ].join('|');
+  }, [
+    selectedCategory,
+    selectedWilaya,
+    selectedCurrency,
+    selectedItemType,
+    sortBy,
+    currentPage,
+    minPrice,
+    maxPrice,
+    onlyDiscounted,
+    minDiscountPercent,
+    onlyFavorites,
+    searchTerm,
+    titleFilter,
+    displayMode,
+  ]);
 
   // IntersectionObserver for buttery smooth infinite scrolling (active in stream mode)
   const handleObserver = useCallback(
@@ -1239,13 +1361,19 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                   </div>
                 </div>
 
-                {/* Dossier Items Grid */}
+                {/* Dossier Items Grid with Staggered Fade-In */}
                 {!isCollapsed && (
-                  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                  <motion.div
+                    key={`${catName}_${filterTransitionKey}`}
+                    variants={catalogContainerVariants}
+                    initial="hidden"
+                    animate="show"
+                    className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5"
+                  >
                     <AnimatePresence mode="popLayout">
                       {catItems.map((product, index) => renderProductCard(product, index))}
                     </AnimatePresence>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             );
@@ -1270,7 +1398,13 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                   <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-900">
+              <motion.tbody
+                key={filterTransitionKey}
+                variants={catalogContainerVariants}
+                initial="hidden"
+                animate="show"
+                className="divide-y divide-slate-900"
+              >
                 <AnimatePresence mode="popLayout">
                   {displayedProducts.map((p, index) => {
                     const det = ensureProductDetails(p);
@@ -1283,25 +1417,12 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                       const diff = Date.now() - new Date(p.scrapedAt).getTime();
                       return diff >= 0 && diff < 60000;
                     })();
-                    const staggerDelay = Math.min((index % 12) * 0.025, 0.25);
 
                     return (
                       <motion.tr
                         key={p.id}
                         layout
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.15 } }}
-                        transition={{
-                          layout: {
-                            type: 'spring',
-                            stiffness: 350,
-                            damping: 30,
-                            mass: 0.8,
-                          },
-                          opacity: { duration: 0.25, delay: staggerDelay },
-                          y: { type: 'spring', stiffness: 320, damping: 25, delay: staggerDelay },
-                        }}
+                        variants={catalogTableRowVariants}
                         className={`transition-colors cursor-pointer group ${
                           isRecentlyScraped
                             ? 'bg-emerald-950/25 hover:bg-emerald-950/45'
@@ -1429,7 +1550,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                     );
                   })}
                 </AnimatePresence>
-              </tbody>
+              </motion.tbody>
             </table>
           </div>
         </div>
@@ -1437,20 +1558,32 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         /* ============================================================ */
         /* VUE LISTE COMPACTE & ERGONOMIQUE                             */
         /* ============================================================ */
-        <div className="space-y-3">
+        <motion.div
+          key={filterTransitionKey}
+          variants={catalogContainerVariants}
+          initial="hidden"
+          animate="show"
+          className="space-y-3"
+        >
           <AnimatePresence mode="popLayout">
             {displayedProducts.map((product, index) => renderProductListRow(product, index))}
           </AnimatePresence>
-        </div>
+        </motion.div>
       ) : (
         /* ============================================================ */
         /* VUE GRILLE LAZY INFINIE OPTIMISÉE 60 FPS                     */
         /* ============================================================ */
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <motion.div
+          key={filterTransitionKey}
+          variants={catalogContainerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+        >
           <AnimatePresence mode="popLayout">
             {displayedProducts.map((product, index) => renderProductCard(product, index))}
           </AnimatePresence>
-        </div>
+        </motion.div>
       )}
 
       {/* ============================================================== */}
