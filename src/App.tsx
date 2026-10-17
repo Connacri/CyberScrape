@@ -44,6 +44,8 @@ import {
   getCategoryResumePage,
   resetCategoryProgress,
   ScrapeSweepCheckpoint,
+  markCategoryAsScraped,
+  markCategoriesBatchAsScraped,
 } from './utils/scrapeCheckpoint';
 import { cyberAudio } from './utils/cyberAudio';
 import { backgroundScraper } from './utils/backgroundScraperWorker';
@@ -55,7 +57,7 @@ import {
 } from './components/MasterSweepAlertBanner';
 import { ApkReleaseModal } from './components/ApkReleaseModal';
 import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
-import { CyberVacuumLogo } from './components/CyberVacuumLogo';
+import { CyberVacuumLogo, CyberVacuumAppIcon } from './components/CyberVacuumLogo';
 import { CategoryDistributionPieChart } from './components/CategoryDistributionPieChart';
 import { AnimatedAspirationCounter } from './components/AnimatedAspirationCounter';
 import { MasterQuantumScraperDeck } from './components/MasterQuantumScraperDeck';
@@ -104,6 +106,7 @@ import {
   Copy,
   Check,
   Search,
+  Cloud,
   BarChart3,
 } from 'lucide-react';
 
@@ -2591,6 +2594,69 @@ export default function App() {
     }
   };
 
+  // SEND ALL PRODUCTS TO SUPABASE & PURGE LOCAL MEMORY/INDEXEDDB TO LIGHTEN PAGE
+  const [isSyncingAndClearing, setIsSyncingAndClearing] = useState<boolean>(false);
+  const [temuRefreshTrigger, setTemuRefreshTrigger] = useState<number>(0);
+  const [syncNotice, setSyncNotice] = useState<{ message: string; type: 'success' | 'warn'; count?: number } | null>(null);
+
+  const handleSendToSupabaseAndClearMemory = async () => {
+    if (products.length === 0) {
+      addLog("Aucun article en mémoire locale à envoyer.", 'warn');
+      setSyncNotice({ message: "Aucun article en mémoire locale à envoyer vers Supabase.", type: 'warn' });
+      setTimeout(() => setSyncNotice(null), 4000);
+      return;
+    }
+
+    if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+      addLog("Veuillez d'abord configurer votre URL et clé anonyme Supabase.", 'warn');
+      setIsSupabaseModalOpen(true);
+      return;
+    }
+
+    const count = products.length;
+
+    // Permanently register all scraped categories so they stay GREEN forever in the Hub even after memory purge
+    const catIdentifiers: string[] = [];
+    products.forEach((p) => {
+      if (p.category) catIdentifiers.push(p.category);
+    });
+    markCategoriesBatchAsScraped(catIdentifiers);
+
+    setIsSyncingAndClearing(true);
+    addLog(`[SUPABASE] Envoi groupé de ${count} articles vers Supabase et purge mémoire...`, 'info');
+
+    try {
+      const res = await syncProductsToSupabase(products, supabaseConfig);
+      if (res.success) {
+        // Clear local storage and IndexedDB to lighten page
+        clearStoredProducts();
+        // Clear React in-memory state
+        setProducts([]);
+        setLiveAspiratedCount(0);
+        cyberAudio.playComplete();
+
+        // Increment trigger to notify Temu to reload fresh data directly from Supabase Cloud
+        setTemuRefreshTrigger((prev) => prev + 1);
+
+        addLog(`[PURGE RAM & SUPABASE] ${res.count} articles envoyés à Supabase avec succès ! Mémoire RAM & IndexedDB libérées à 100%.`, 'success');
+        setSyncNotice({
+          message: `${res.count} articles sauvegardés avec succès dans Supabase ! Mémoire vive de la page libérée à 100%.`,
+          type: 'success',
+          count: res.count,
+        });
+      } else {
+        addLog(`[SUPABASE ERREUR] ${res.error}`, 'warn');
+        setSyncNotice({ message: `Erreur Supabase: ${res.error}`, type: 'warn' });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      addLog(`[SUPABASE ERREUR] ${msg}`, 'warn');
+      setSyncNotice({ message: `Erreur inattendue: ${msg}`, type: 'warn' });
+    } finally {
+      setIsSyncingAndClearing(false);
+    }
+  };
+
   return (
     <div className="relative min-h-screen text-slate-100 font-mono flex flex-col selection:bg-[#00ff66]/30 selection:text-[#00ff88]">
       {/* Matrix Falling Rain Canvas Background */}
@@ -2613,6 +2679,7 @@ export default function App() {
         <div className="max-w-7xl w-full mx-auto px-2.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-4">
           {/* Zone 1: App Icon + Brand Wordmark + Splash Trigger */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Logo brand button with exact App Icon & Wordmark */}
             <button
               type="button"
               onClick={() => {
@@ -2620,22 +2687,13 @@ export default function App() {
                 cyberAudio.playScanSweep();
               }}
               title="Cliquer pour afficher l'écran splash plein écran et l'icône"
-              className="relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 pl-1 pr-2 sm:pr-2.5 py-1 rounded-2xl bg-black border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+              className="relative flex items-center gap-2 h-9 sm:h-10 pl-1 pr-2.5 py-1 rounded-2xl bg-black/90 border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.4)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
             >
-              {/* Clean App Icon Squircle */}
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden border border-emerald-400/80 shadow-[0_0_10px_rgba(0,255,102,0.6)] shrink-0 bg-slate-900 flex items-center justify-center">
-                <img
-                  src="/app-icon.png"
-                  alt="CYBER-VACUUM Icon"
-                  className="w-full h-full object-cover rounded-lg group-hover:scale-110 transition-transform duration-300"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/icon.png';
-                  }}
-                />
-              </div>
+              {/* Exact App Icon Squircle matching the brand logo */}
+              <CyberVacuumAppIcon size={32} glow={true} roundedClass="rounded-xl" />
 
               {/* Exact Brand Wordmark */}
-              <CyberVacuumLogo size="custom" width={88} height={18} glow={true} className="hidden xs:inline-flex" />
+              <CyberVacuumLogo size="custom" width={84} height={18} glow={true} className="inline-flex" />
               <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00ff66] border-2 border-black animate-ping" />
             </button>
 
@@ -2645,19 +2703,19 @@ export default function App() {
                 setShowSplashScreen(true);
                 cyberAudio.playScanSweep();
               }}
-              className="hidden xl:flex flex-col text-left cursor-pointer hover:opacity-90 transition-opacity"
+              className="hidden sm:flex flex-col text-left cursor-pointer hover:opacity-90 transition-opacity"
               title="Cliquer pour revoir le Splash Écran Plein Écran"
             >
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-black tracking-widest text-white font-mono whitespace-nowrap">
                   CYBER-VACUUM
                 </span>
-                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[#00ff66]">
-                  PRO
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88]">
+                  MK-IV
                 </span>
               </div>
-              <span className="text-[9px] text-[#00ff66]/80 font-mono tracking-wider font-semibold">
-                AI MATRIX DATA ENGINE
+              <span className="text-[8px] text-[#00ff66]/80 font-mono tracking-wider font-semibold">
+                AI MATRIX ENGINE
               </span>
             </button>
           </div>
@@ -2729,6 +2787,25 @@ export default function App() {
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Desktop Action Buttons */}
             <div className="hidden lg:flex items-center gap-2">
+              {/* BOUTON ENVOYER VERS SUPABASE & VIDER LA MÉMOIRE */}
+              <button
+                type="button"
+                onClick={handleSendToSupabaseAndClearMemory}
+                disabled={products.length === 0 || isSyncingAndClearing}
+                className="h-9 px-3 rounded-xl bg-gradient-to-r from-emerald-500/25 via-cyan-500/20 to-[#00ff88]/20 border border-emerald-400/60 text-[#00ff88] hover:bg-emerald-500/35 hover:border-emerald-300 transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold shadow-[0_0_15px_rgba(0,255,102,0.25)] disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
+                title="Envoyer tous les articles aspirés vers Supabase et vider la mémoire locale de la page pour l'alléger"
+                aria-label="Envoyer vers Supabase et vider la mémoire"
+              >
+                {isSyncingAndClearing ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
+                ) : (
+                  <Cloud className="w-3.5 h-3.5 text-cyan-300" />
+                )}
+                <span className="font-mono">
+                  {isSyncingAndClearing ? 'Transfert...' : `Envoyer à Supabase & Vider (${products.length})`}
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleClearAllProducts}
@@ -3061,6 +3138,25 @@ export default function App() {
                     <span>{supabaseConfig.url ? 'Gérer Supabase' : 'Lier Supabase DB'}</span>
                   </div>
                   <span className="text-[10px] text-slate-400">Cloud Sync</span>
+                </button>
+
+                {/* Mobile Button: Envoyer vers Supabase et Vider la mémoire */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSendToSupabaseAndClearMemory();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  disabled={products.length === 0 || isSyncingAndClearing}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-gradient-to-r from-emerald-950/70 to-cyan-950/70 border border-emerald-400/50 text-[#00ff88] hover:bg-emerald-900/40 flex items-center justify-between font-bold cursor-pointer transition-all active:scale-98 disabled:opacity-40"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Cloud className="w-4 h-4 text-cyan-400" />
+                    <span>Envoyer à Supabase & Vider</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-[#00ff88] font-bold">
+                    {products.length}
+                  </span>
                 </button>
 
                 <button
@@ -3398,6 +3494,7 @@ export default function App() {
                   products={filteredProducts}
                   onSyncSingleProduct={handleSyncSingleProduct}
                   onBulkSyncSupabase={handleBulkSyncSupabase}
+                  onSendToSupabaseAndClearMemory={handleSendToSupabaseAndClearMemory}
                   isSupabaseConfigured={Boolean(supabaseConfig.url && supabaseConfig.anonKey)}
                   onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
                   onRemoveCurrency={handleRemoveCurrency}
@@ -3534,6 +3631,7 @@ export default function App() {
               products={filteredProducts}
               onSyncSingleProduct={handleSyncSingleProduct}
               onBulkSyncSupabase={handleBulkSyncSupabase}
+              onSendToSupabaseAndClearMemory={handleSendToSupabaseAndClearMemory}
               isSupabaseConfigured={Boolean(supabaseConfig.url && supabaseConfig.anonKey)}
               onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
               onRemoveCurrency={handleRemoveCurrency}
@@ -3626,10 +3724,13 @@ export default function App() {
               </div>
             </div>
 
-            {/* The full Temu storefront component */}
+            {/* The full Temu storefront component (Reads directly from Supabase Cloud) */}
             <TemuEcommerceHub
               products={products}
+              supabaseConfig={supabaseConfig}
               onSelectProduct={(p) => setSelectedModalProduct(p)}
+              onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+              refreshTrigger={temuRefreshTrigger}
             />
           </div>
         )}

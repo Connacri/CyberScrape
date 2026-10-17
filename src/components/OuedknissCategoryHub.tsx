@@ -36,7 +36,11 @@ import {
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES, OuedknissCategoryMeta } from '../data/ouedknissCategories';
 import { ScrapedProduct } from '../types';
-import { ScrapeSweepCheckpoint } from '../utils/scrapeCheckpoint';
+import {
+  ScrapeSweepCheckpoint,
+  getScrapedCategoriesRegistry,
+  markCategoryAsScraped,
+} from '../utils/scrapeCheckpoint';
 
 interface OuedknissCategoryHubProps {
   products: ScrapedProduct[];
@@ -124,6 +128,25 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
       }
     });
     return counts;
+  }, [products]);
+
+  // Persistent registry of scraped categories from localStorage
+  // Survives page reloads, app restarts, and memory purge
+  const [persistentScrapedSlugs, setPersistentScrapedSlugs] = React.useState<string[]>(() => {
+    return getScrapedCategoriesRegistry();
+  });
+
+  React.useEffect(() => {
+    const refreshRegistry = () => {
+      setPersistentScrapedSlugs(getScrapedCategoriesRegistry());
+    };
+    refreshRegistry();
+    window.addEventListener('storage', refreshRegistry);
+    window.addEventListener('focus', refreshRegistry);
+    return () => {
+      window.removeEventListener('storage', refreshRegistry);
+      window.removeEventListener('focus', refreshRegistry);
+    };
   }, [products]);
 
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(false);
@@ -330,6 +353,11 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
           const isSelected = selectedCategorySlug === cat.slug;
           const isCurrentlyActiveSweep = activeSweepCategoryIndex === idx;
           const countInCatalog = categoryCounts[cat.id] || 0;
+          const isPersistentScraped =
+            persistentScrapedSlugs.includes(cat.id.toLowerCase()) ||
+            persistentScrapedSlugs.includes(cat.slug.toLowerCase()) ||
+            persistentScrapedSlugs.includes(cat.name.toLowerCase());
+          const hasBeenScraped = countInCatalog > 0 || isPersistentScraped;
 
           return (
             <div
@@ -339,7 +367,9 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
                 isCurrentlyActiveSweep
                   ? 'bg-amber-950/50 border-amber-400 ring-2 ring-amber-400/60 shadow-[0_0_20px_rgba(245,158,11,0.35)] animate-pulse'
                   : isSelected
-                  ? 'bg-emerald-950/50 border-emerald-400 ring-1 ring-emerald-400/60 shadow-[0_0_15px_rgba(0,255,102,0.25)]'
+                  ? 'bg-emerald-950/60 border-emerald-400 ring-2 ring-emerald-400/80 shadow-[0_0_20px_rgba(0,255,102,0.35)]'
+                  : hasBeenScraped
+                  ? 'bg-emerald-950/45 border-emerald-500/80 ring-1 ring-emerald-500/50 shadow-[0_0_15px_rgba(0,255,102,0.22)] hover:border-emerald-400 hover:bg-emerald-900/40'
                   : 'bg-slate-900/60 border-slate-800/80 hover:border-emerald-500/40 hover:bg-slate-900/90'
               }`}
             >
@@ -348,31 +378,42 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm"
                   style={{
-                    backgroundColor: `${cat.color}20`,
-                    color: cat.color,
-                    border: `1px solid ${cat.color}50`,
+                    backgroundColor: hasBeenScraped ? 'rgba(0, 255, 102, 0.25)' : `${cat.color}20`,
+                    color: hasBeenScraped ? '#00ff88' : cat.color,
+                    border: hasBeenScraped ? '1px solid rgba(0, 255, 102, 0.6)' : `1px solid ${cat.color}50`,
                   }}
                 >
                   <IconComp className="w-4 h-4" />
                 </div>
 
                 <span
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-bold transition-all ${
+                  className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-bold transition-all flex items-center gap-1 ${
                     isCurrentlyActiveSweep
                       ? 'bg-amber-500/25 text-amber-300 border border-amber-400 font-mono animate-pulse'
-                      : countInCatalog > 0
-                      ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 shadow-[0_0_8px_rgba(0,255,102,0.2)]'
+                      : hasBeenScraped
+                      ? 'bg-emerald-500/25 text-[#00ff88] border border-emerald-400/80 shadow-[0_0_8px_rgba(0,255,102,0.3)]'
                       : 'bg-slate-800/80 text-slate-400 border border-slate-700/50'
                   }`}
                   title={`${countInCatalog} annonces réelles aspirées dans cette catégorie`}
                 >
-                  {isCurrentlyActiveSweep ? '⚡ En cours...' : `${countInCatalog.toLocaleString()} art.`}
+                  {isCurrentlyActiveSweep ? (
+                    '⚡ En cours...'
+                  ) : hasBeenScraped ? (
+                    <>
+                      <CheckCircle2 className="w-3 h-3 text-[#00ff66]" />
+                      <span>{countInCatalog > 0 ? `${countInCatalog.toLocaleString()} art.` : '✓ Aspiré'}</span>
+                    </>
+                  ) : (
+                    `${countInCatalog.toLocaleString()} art.`
+                  )}
                 </span>
               </div>
 
               {/* Title & Arabic */}
               <div>
-                <h4 className="text-xs font-mono font-bold text-slate-100 group-hover:text-[#00ff88] transition-colors truncate">
+                <h4 className={`text-xs font-mono font-bold transition-colors truncate ${
+                  hasBeenScraped ? 'text-[#00ff88]' : 'text-slate-100 group-hover:text-[#00ff88]'
+                }`}>
                   {cat.name}
                 </h4>
                 <div className="text-[10px] text-slate-400 font-sans truncate mt-0.5">
@@ -392,12 +433,20 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    markCategoryAsScraped(cat.id);
+                    markCategoryAsScraped(cat.slug);
+                    markCategoryAsScraped(cat.name);
+                    setPersistentScrapedSlugs(getScrapedCategoriesRegistry());
                     onSelectCategory(cat);
                     if (onStartCategoryScrape) {
                       onStartCategoryScrape(cat);
                     }
                   }}
-                  className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-[#00ff66] text-[#00ff88] hover:text-black border border-emerald-500/40 font-mono font-bold text-[10px] flex items-center gap-1 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+                  className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] flex items-center gap-1 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95 ${
+                    hasBeenScraped
+                      ? 'bg-emerald-500/30 hover:bg-[#00ff66] text-[#00ff88] hover:text-black border border-emerald-400/60'
+                      : 'bg-emerald-500/20 hover:bg-[#00ff66] text-[#00ff88] hover:text-black border border-emerald-500/40'
+                  }`}
                   title={`Lancer l'aspiration immédiate de "${cat.name}"`}
                 >
                   <Zap className="w-2.5 h-2.5 fill-current" />

@@ -5,19 +5,32 @@ const STORAGE_KEY_SUPABASE = 'cyber_vacuum_supabase_config';
 const STORAGE_KEY_PRODUCTS = 'cyber_vacuum_products_cache';
 
 export function getStoredSupabaseConfig(): SupabaseConfig {
+  const envUrl = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://uzouxpnsgloselhhltyw.supabase.co';
+  const envKey =
+    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) ||
+    (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+    'sb_publishable_r9R1bhGboPX75YU6_STg8Q_Ga6tG4TM';
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY_SUPABASE);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return {
+        url: parsed.url || envUrl,
+        anonKey: parsed.anonKey || envKey,
+        tableName: parsed.tableName || 'scraped_products',
+        isConnected: Boolean((parsed.url || envUrl) && (parsed.anonKey || envKey)),
+        autoSync: parsed.autoSync || false,
+      };
     }
   } catch {
     // fallback
   }
   return {
-    url: (import.meta.env.VITE_SUPABASE_URL as string) || '',
-    anonKey: (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '',
+    url: envUrl,
+    anonKey: envKey,
     tableName: 'scraped_products',
-    isConnected: false,
+    isConnected: Boolean(envUrl && envKey),
     autoSync: false,
   };
 }
@@ -540,42 +553,142 @@ export async function syncProductsToSupabase(
   }
 
   try {
-    const rows = products.map((p) => ({
-      id: p.id,
-      title: p.title,
-      brand: p.brand || null,
-      category: p.category,
-      current_price: p.currentPrice,
-      original_price: p.originalPrice,
-      currency: p.currency,
-      discount_percent: p.discountPercent,
-      rating: p.rating,
-      reviews_count: p.reviewsCount,
-      in_stock: p.inStock,
-      stock_level: p.stockLevel,
-      image_url: p.imageUrl,
-      product_url: p.productUrl,
-      source_domain: p.sourceDomain,
-      price_history: p.priceHistory,
-      specs: p.specs || {},
-      ai_confidence: p.aiConfidence,
-      matrix_hash: p.matrixHash || null,
-      scraped_at: p.scrapedAt,
-      last_updated: new Date().toISOString(),
-    }));
+    // Chunk into batches of 100 to prevent payload limit errors on large sweeps
+    const batchSize = 100;
+    let totalSynced = 0;
 
-    const { error } = await client
-      .from(config.tableName || 'scraped_products')
-      .upsert(rows, { onConflict: 'id' });
+    for (let i = 0; i < products.length; i += batchSize) {
+      const chunk = products.slice(i, i + batchSize);
+      const rows = chunk.map((p) => {
+        const enrichedSpecs = {
+          ...(p.specs || {}),
+          _seller: p.seller,
+          _images: p.images,
+          _description: p.description,
+          _itemType: p.itemType,
+          _isOfficialStore: p.isOfficialStore,
+          _isSponsored: p.isSponsored,
+          _publishedDate: p.publishedDate,
+          _deliveryAvailable: p.deliveryAvailable,
+          _priceType: p.priceType,
+        };
 
-    if (error) {
-      return { success: false, count: 0, error: error.message };
+        return {
+          id: p.id,
+          title: p.title,
+          brand: p.brand || null,
+          category: p.category,
+          current_price: p.currentPrice,
+          original_price: p.originalPrice,
+          currency: p.currency,
+          discount_percent: p.discountPercent,
+          rating: p.rating,
+          reviews_count: p.reviewsCount,
+          in_stock: p.inStock,
+          stock_level: p.stockLevel,
+          image_url: p.imageUrl,
+          product_url: p.productUrl,
+          source_domain: p.sourceDomain,
+          price_history: p.priceHistory,
+          specs: enrichedSpecs,
+          ai_confidence: p.aiConfidence,
+          matrix_hash: p.matrixHash || null,
+          scraped_at: p.scrapedAt,
+          last_updated: new Date().toISOString(),
+        };
+      });
+
+      const { error } = await client
+        .from(config.tableName || 'scraped_products')
+        .upsert(rows, { onConflict: 'id' });
+
+      if (error) {
+        return { success: false, count: totalSynced, error: error.message };
+      }
+      totalSynced += rows.length;
     }
 
-    return { success: true, count: rows.length };
+    return { success: true, count: totalSynced };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return { success: false, count: 0, error: message };
+  }
+}
+
+/**
+ * Fetches products directly from Supabase Cloud Database (Used by TEMU-DZ Hub)
+ */
+export async function fetchProductsFromSupabase(
+  config: SupabaseConfig,
+  limit = 2500
+): Promise<{ success: boolean; products: ScrapedProduct[]; error?: string }> {
+  if (!config.url || !config.anonKey) {
+    return { success: false, products: [], error: 'Supabase non configuré. Veuillez entrer votre URL et clé Anon.' };
+  }
+  const client = getSupabaseClient(config);
+  if (!client) {
+    return { success: false, products: [], error: 'Impossible d\'initialiser le client Supabase.' };
+  }
+
+  try {
+    const { data, error } = await client
+      .from(config.tableName || 'scraped_products')
+      .select('*')
+      .order('scraped_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      return { success: false, products: [], error: error.message };
+    }
+
+    const products: ScrapedProduct[] = (data || []).map((row: any) => {
+      const specs = row.specs || {};
+      const seller = row.seller || specs._seller || undefined;
+      const images = row.images || specs._images || (row.image_url ? [row.image_url] : []);
+      const description = row.description || specs._description;
+      const itemType = row.item_type || specs._itemType || 'annonce';
+      const isOfficialStore = row.is_official_store ?? specs._isOfficialStore ?? (seller ? seller.type !== 'Particulier' : false);
+      const isSponsored = row.is_sponsored ?? specs._isSponsored ?? false;
+
+      return {
+        id: row.id,
+        title: row.title || 'Sans titre',
+        brand: row.brand || undefined,
+        category: row.category || 'Général',
+        currentPrice: Number(row.current_price) || 0,
+        originalPrice: Number(row.original_price) || Number(row.current_price) || 0,
+        currency: row.currency || 'DA',
+        discountPercent: Number(row.discount_percent) || 0,
+        rating: Number(row.rating) || 4.7,
+        reviewsCount: Number(row.reviews_count) || 25,
+        inStock: row.in_stock !== false,
+        stockLevel: row.stock_level || 'IN_STOCK',
+        imageUrl: row.image_url || '',
+        images,
+        productUrl: row.product_url || '',
+        sourceDomain: row.source_domain || 'ouedkniss.com',
+        priceHistory: Array.isArray(row.price_history) ? row.price_history : [],
+        specs,
+        aiConfidence: Number(row.ai_confidence) || 97,
+        matrixHash: row.matrix_hash || undefined,
+        scrapedAt: row.scraped_at || new Date().toISOString(),
+        lastUpdated: row.last_updated || new Date().toISOString(),
+        seller,
+        description,
+        publishedDate: specs._publishedDate || row.published_date || 'Aujourd\'hui',
+        deliveryAvailable: specs._deliveryAvailable ?? row.delivery_available ?? true,
+        priceType: specs._priceType || row.price_type || (row.discount_percent > 0 ? 'Négociable' : 'Fixe'),
+        syncedToSupabase: true,
+        itemType,
+        isOfficialStore,
+        isSponsored,
+      };
+    });
+
+    return { success: true, products };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Erreur réseau';
+    return { success: false, products: [], error: message };
   }
 }
 

@@ -101,3 +101,66 @@ export function resetCategoryProgress(categoryKey?: string): void {
     console.warn('[Checkpoint] Failed to reset category progress', err);
   }
 }
+
+// ========================================================
+// PERSISTENT SCRAPED CATEGORIES REGISTRY
+// Ensures categories already scraped remain green (vert) forever
+// even when the user reopens the app or web page, or purges memory.
+// ========================================================
+const SCRAPED_CATEGORIES_REGISTRY_KEY = 'cyber_vacuum_scraped_categories_registry_v1';
+
+export function getScrapedCategoriesRegistry(): string[] {
+  try {
+    const raw = localStorage.getItem(SCRAPED_CATEGORIES_REGISTRY_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markCategoryAsScraped(identifier: string): void {
+  if (!identifier) return;
+  try {
+    const normalized = identifier.trim().toLowerCase();
+    const current = getScrapedCategoriesRegistry();
+    if (!current.includes(normalized)) {
+      current.push(normalized);
+      localStorage.setItem(SCRAPED_CATEGORIES_REGISTRY_KEY, JSON.stringify(current));
+    }
+  } catch (err) {
+    console.warn('[Checkpoint] Failed to mark category as scraped', err);
+  }
+}
+
+export function markCategoriesBatchAsScraped(identifiers: string[]): void {
+  if (!identifiers || identifiers.length === 0) return;
+  try {
+    const current = new Set(getScrapedCategoriesRegistry());
+    for (const id of identifiers) {
+      if (id && typeof id === 'string') {
+        current.add(id.trim().toLowerCase());
+      }
+    }
+    localStorage.setItem(SCRAPED_CATEGORIES_REGISTRY_KEY, JSON.stringify(Array.from(current)));
+  } catch (err) {
+    console.warn('[Checkpoint] Failed to mark batch categories as scraped', err);
+  }
+}
+
+export function isCategoryAlreadyScraped(identifier: string): boolean {
+  if (!identifier) return false;
+  const list = getScrapedCategoriesRegistry();
+  const normalized = identifier.trim().toLowerCase();
+  return list.includes(normalized);
+}
+
+export function resetScrapedCategoriesRegistry(): void {
+  try {
+    localStorage.removeItem(SCRAPED_CATEGORIES_REGISTRY_KEY);
+  } catch {
+    // ignore
+  }
+}
+

@@ -32,6 +32,7 @@ import {
   ShieldCheck,
   BarChart3,
   Heart,
+  Cloud,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
@@ -53,6 +54,7 @@ interface ProductCatalogGridProps {
   products: ScrapedProduct[];
   onSyncSingleProduct: (product: ScrapedProduct) => Promise<void>;
   onBulkSyncSupabase: () => Promise<void>;
+  onSendToSupabaseAndClearMemory?: () => Promise<void> | void;
   isSupabaseConfigured: boolean;
   onOpenSupabaseModal: () => void;
   onRemoveCurrency?: (currency: string) => void;
@@ -166,6 +168,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   products,
   onSyncSingleProduct,
   onBulkSyncSupabase,
+  onSendToSupabaseAndClearMemory,
   isSupabaseConfigured,
   onOpenSupabaseModal,
   onRemoveCurrency,
@@ -1163,6 +1166,19 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
               <Database className="w-3.5 h-3.5" />
               <span>Sync DB</span>
             </button>
+
+            {onSendToSupabaseAndClearMemory && (
+              <button
+                type="button"
+                onClick={onSendToSupabaseAndClearMemory}
+                disabled={products.length === 0}
+                className="flex-1 sm:flex-none px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#00ff88] text-slate-950 font-black text-xs hover:brightness-110 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+                title="Envoyer tous les articles aspirés vers Supabase et vider la mémoire vive de la page pour l'alléger"
+              >
+                <Cloud className="w-4 h-4 fill-slate-950 text-slate-950 shrink-0" />
+                <span className="whitespace-nowrap">Envoyer à Supabase & Vider la mémoire</span>
+              </button>
+            )}
 
             {onClearAllProducts && (
               <button

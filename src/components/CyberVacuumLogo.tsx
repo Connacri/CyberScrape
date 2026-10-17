@@ -10,10 +10,11 @@ interface CyberVacuumLogoProps {
 }
 
 /**
- * Exact geometric vector recreation of the user's uploaded "uncuu nn" (VACUUM) brand logo.
+ * Exact geometric vector recreation of the brand logo ("uncuu nn" / VACUUM).
  * Letters 1 & 2: Neon Emerald Green (#00ff66)
  * Letters 3 & 4: Crisp Diamond White (#ffffff)
  * Letters 5, 6 & 7: Neon Emerald Green (#00ff66)
+ * Uses native CSS drop-shadow so the logo ALWAYS renders reliably without SVG filter ID collisions.
  */
 export const CyberVacuumLogo: React.FC<CyberVacuumLogoProps> = ({
   className = '',
@@ -43,21 +44,12 @@ export const CyberVacuumLogo: React.FC<CyberVacuumLogoProps> = ({
         height={finalH}
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="overflow-visible select-none"
+        className="overflow-visible select-none shrink-0"
+        style={{
+          filter: glow ? 'drop-shadow(0 0 6px rgba(0, 255, 102, 0.75)) drop-shadow(0 0 12px rgba(0, 255, 102, 0.35))' : undefined,
+        }}
       >
-        <defs>
-          {glow && (
-            <filter id="cyber-logo-glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="5" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          )}
-        </defs>
-
-        <g filter={glow ? 'url(#cyber-logo-glow)' : undefined}>
+        <g>
           {/* Glyph 1: 'u' (Green #00ff66) - x: 10 */}
           <path
             d="M 10 15 
@@ -168,20 +160,50 @@ export const CyberVacuumLogo: React.FC<CyberVacuumLogoProps> = ({
 };
 
 /**
- * Square App Icon variant of the user's logo for app launcher, header badges and splash
+ * Exact Brand App Icon Squircle component matching the exact brand logo
  */
-export const CyberVacuumIconTile: React.FC<{ size?: number; glow?: boolean; className?: string }> = ({
-  size = 48,
+export const CyberVacuumAppIcon: React.FC<{
+  size?: number | string;
+  glow?: boolean;
+  className?: string;
+  roundedClass?: string;
+}> = ({
+  size = 36,
   glow = true,
   className = '',
+  roundedClass = 'rounded-xl',
 }) => {
+  const numericSize = typeof size === 'number' ? size : 36;
   return (
     <div
-      style={{ width: size, height: size }}
-      className={`relative rounded-2xl bg-black border border-[#00ff66]/40 flex items-center justify-center p-2 overflow-hidden shadow-[0_0_20px_rgba(0,255,102,0.3)] ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background: 'radial-gradient(circle at center, #08182a 0%, #030712 85%, #010307 100%)',
+      }}
+      className={`relative ${roundedClass} border border-emerald-400/80 flex flex-col items-center justify-center p-1 overflow-hidden shadow-[0_0_16px_rgba(0,255,102,0.45)] select-none shrink-0 ${className}`}
     >
-      <CyberVacuumLogo size="custom" width={size * 0.85} height={size * 0.35} glow={glow} />
+      {/* Outer energy accent border */}
+      <div className="absolute inset-0 rounded-[inherit] border border-[#00f0ff]/30 pointer-events-none" />
+      
+      {/* Vector image of brand logo icon */}
+      <img
+        src="./icon.svg"
+        alt="Cyber-Vacuum Brand Icon"
+        className="w-full h-full object-contain pointer-events-none"
+        style={{
+          filter: glow ? 'drop-shadow(0 0 4px rgba(0,255,102,0.8))' : undefined,
+        }}
+        onError={(e) => {
+          // If svg fails, show inline logo
+          (e.target as HTMLElement).style.display = 'none';
+        }}
+      />
+
+      {/* Holographic sheen */}
       <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent pointer-events-none" />
     </div>
   );
 };
+
+export const CyberVacuumIconTile = CyberVacuumAppIcon;

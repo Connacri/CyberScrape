@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { ScrapedProduct } from '../types';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { ScrapedProduct, SupabaseConfig } from '../types';
 import {
   Flame,
   Zap,
@@ -22,25 +22,36 @@ import {
   X,
   Eye,
   SlidersHorizontal,
+  Cloud,
+  RefreshCw,
+  Database,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { ensureProductDetails, buildTelLink, buildWhatsAppLink } from '../utils/sellerGenerator';
 import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
-
 import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
+import { fetchProductsFromSupabase } from '../utils/supabaseClient';
 
 interface TemuEcommerceHubProps {
-  products: ScrapedProduct[];
+  products?: ScrapedProduct[];
+  supabaseConfig: SupabaseConfig;
   onSelectProduct: (product: ScrapedProduct) => void;
+  onOpenSupabaseModal: () => void;
   onStartScrapingCategory?: (categorySlug: string) => void;
+  refreshTrigger?: number;
 }
 
 const LAZY_CHUNK_SIZE = 24;
 
 export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
-  products,
+  products = [],
+  supabaseConfig,
   onSelectProduct,
+  onOpenSupabaseModal,
   onStartScrapingCategory,
+  refreshTrigger,
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [titleSearch, setTitleSearch] = useState('');
@@ -49,6 +60,46 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc' | 'discount'>('featured');
 
   const [listingTypeFilter, setListingTypeFilter] = useState<'all' | 'boutique' | 'annonce' | 'pub'>('all');
+
+  // Supabase Direct Cloud State (Articles récupérés depuis Supabase, pas depuis le local)
+  const [cloudProducts, setCloudProducts] = useState<ScrapedProduct[]>([]);
+  const [isLoadingSupabase, setIsLoadingSupabase] = useState<boolean>(false);
+  const [supabaseError, setSupabaseError] = useState<string | null>(null);
+  const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
+
+  const isConfigured = Boolean(supabaseConfig.url && supabaseConfig.anonKey);
+
+  // Fetch real articles directly from Supabase Cloud
+  const loadFromSupabase = useCallback(async () => {
+    if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+      setCloudProducts([]);
+      return;
+    }
+    setIsLoadingSupabase(true);
+    setSupabaseError(null);
+    try {
+      const res = await fetchProductsFromSupabase(supabaseConfig);
+      if (res.success) {
+        setCloudProducts(res.products);
+        setLastFetchedAt(new Date());
+      } else {
+        setSupabaseError(res.error || 'Erreur lors de la lecture Supabase');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur de communication Supabase';
+      setSupabaseError(msg);
+    } finally {
+      setIsLoadingSupabase(false);
+    }
+  }, [supabaseConfig]);
+
+  useEffect(() => {
+    if (isConfigured) {
+      loadFromSupabase();
+    } else {
+      setCloudProducts([]);
+    }
+  }, [isConfigured, supabaseConfig.url, supabaseConfig.anonKey, supabaseConfig.tableName, refreshTrigger, loadFromSupabase]);
 
   // Senior Virtual Lazy Windowing State
   const [visibleCount, setVisibleCount] = useState<number>(LAZY_CHUNK_SIZE);
@@ -69,7 +120,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Strict multi-factor deduplication to guarantee 100% unique items in TEMU storefront
+  // Strict multi-factor deduplication to guarantee 100% unique items in TEMU storefront (from Supabase Cloud)
   const uniqueProducts = useMemo(() => {
     const seenIds = new Set<string>();
     const seenUrls = new Set<string>();
@@ -77,8 +128,11 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
     const seenImages = new Set<string>();
     const result: ScrapedProduct[] = [];
 
-    for (let i = 0; i < products.length; i++) {
-      const p = products[i];
+    // STRICT REQUIREMENT: Only display items from Supabase Cloud (not from local cache)
+    const sourceProducts = cloudProducts;
+
+    for (let i = 0; i < sourceProducts.length; i++) {
+      const p = sourceProducts[i];
       if (!p) continue;
       const idKey = (p.id || '').trim();
       const urlKey = (p.productUrl || '').trim().toLowerCase().split('?')[0];
@@ -98,7 +152,6 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       if (idKey && seenIds.has(idKey)) continue;
       if (urlKey && seenUrls.has(urlKey)) continue;
       if (combinedKey && seenKeys.has(combinedKey)) continue;
-      // Skip if exact same photo has already appeared in another card to prevent visual repetition
       if (imgKey && seenImages.has(imgKey) && !imgKey.includes('dicebear')) continue;
 
       if (idKey) seenIds.add(idKey);
@@ -108,7 +161,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       result.push(p);
     }
     return result;
-  }, [products]);
+  }, [cloudProducts]);
 
   // Counts of types
   const typeCounts = useMemo(() => {
@@ -220,10 +273,10 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
               TEMU-DZ // VENTE FLASH CHOC OUEDKNISS
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight drop-shadow-md">
-              Articles Réels Scrappés en Direct
+              Articles Réels en Direct de Supabase Cloud
             </h2>
             <p className="text-xs sm:text-sm text-orange-100 font-medium max-w-xl">
-              Catalogue haute vitesse sauvegardé dans la base de données locale. 1-Clic pour appeler ou contacter sur WhatsApp !
+              Flux 100% Cloud distant extrait depuis votre base Supabase. Mémoire locale allégée à zéro surcharge !
             </p>
           </div>
 
@@ -255,6 +308,64 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
               </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 1.5 SUPABASE CLOUD DIRECT CONTROL & REFRESH BAR                */}
+      {/* ============================================================== */}
+      <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-orange-500/40 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-500/50 flex items-center justify-center text-orange-400 shrink-0">
+            <Cloud className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-white uppercase tracking-wider text-[11px] sm:text-xs">
+                FLUX CLOUD SUPABASE (DIRECT)
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  isConfigured
+                    ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                }`}
+              >
+                {isConfigured ? 'CONNECTÉ' : 'NON LIÉ'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-sans truncate">
+              {isConfigured
+                ? `Table "${supabaseConfig.tableName || 'scraped_products'}" • ${cloudProducts.length} articles en ligne${
+                    lastFetchedAt ? ` • Mis à jour à ${lastFetchedAt.toLocaleTimeString('fr-FR')}` : ''
+                  }`
+                : 'Connectez Supabase pour charger le catalogue distant.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+          {isConfigured ? (
+            <button
+              type="button"
+              onClick={loadFromSupabase}
+              disabled={isLoadingSupabase}
+              className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-orange-500/20 border border-orange-500/60 text-orange-300 hover:bg-orange-500/30 hover:text-white transition-all flex items-center justify-center gap-2 font-bold cursor-pointer disabled:opacity-50 text-xs shadow-sm"
+              title="Recharger le catalogue en direct depuis Supabase Cloud"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSupabase ? 'animate-spin text-white' : ''}`} />
+              <span>{isLoadingSupabase ? 'Lecture Cloud...' : 'Rafraîchir Supabase'}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenSupabaseModal}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer text-xs"
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Connecter Supabase</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -456,14 +567,68 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       {/* ============================================================== */}
       {/* 4. PRODUCTS LISTING: DENSE TEMU GRID OR HORIZONTAL LIST        */}
       {/* ============================================================== */}
-      {filteredProducts.length === 0 ? (
-        <div className="rounded-3xl bg-slate-950/80 border border-slate-800 p-8 text-center space-y-3">
+      {!isConfigured ? (
+        <div className="rounded-3xl bg-slate-950/90 border-2 border-dashed border-amber-500/40 p-8 sm:p-12 text-center space-y-4 shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+            <Cloud className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-lg sm:text-xl font-black text-white font-mono">
+              FLUX CLOUD SUPABASE EXCLUSIF
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300">
+              Cet onglet TEMU-DZ est configuré pour extraire les annonces <strong>uniquement depuis votre base de données Supabase distante</strong> (aucune donnée locale n'est conservée pour libérer la mémoire).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenSupabaseModal}
+            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-[#fb5200] text-slate-950 font-black text-sm tracking-wider uppercase hover:brightness-110 active:scale-95 transition-all shadow-xl cursor-pointer inline-flex items-center gap-2"
+          >
+            <Database className="w-4 h-4" />
+            <span>Connecter Supabase maintenant</span>
+          </button>
+        </div>
+      ) : isLoadingSupabase ? (
+        <div className="rounded-3xl bg-slate-950/80 border border-orange-500/30 p-12 text-center space-y-3">
+          <Loader2 className="w-12 h-12 text-orange-400 animate-spin mx-auto" />
+          <h3 className="text-base font-bold text-white font-mono">
+            RÉCUPÉRATION DU CATALOGUE DEPUIS SUPABASE...
+          </h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Interrogation directe de la table "{supabaseConfig.tableName || 'scraped_products'}" en cours.
+          </p>
+        </div>
+      ) : supabaseError ? (
+        <div className="rounded-3xl bg-rose-950/30 border border-rose-500/40 p-8 text-center space-y-3">
+          <AlertCircle className="w-12 h-12 text-rose-400 mx-auto" />
+          <h3 className="text-base font-bold text-white">Échec de synchronisation Supabase</h3>
+          <p className="text-xs text-rose-300 max-w-md mx-auto">{supabaseError}</p>
+          <button
+            type="button"
+            onClick={loadFromSupabase}
+            className="px-4 py-2 rounded-xl bg-rose-500 text-white font-bold text-xs hover:bg-rose-600 transition-all cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Réessayer</span>
+          </button>
+        </div>
+      ) : cloudProducts.length === 0 ? (
+        <div className="rounded-3xl bg-slate-950/80 border border-slate-800 p-8 sm:p-12 text-center space-y-3">
           <ShoppingBag className="w-12 h-12 text-orange-400 mx-auto animate-bounce" />
-          <h3 className="text-lg font-bold text-white">Aucun article trouvé dans cette sélection</h3>
+          <h3 className="text-lg font-bold text-white font-mono">
+            AUCUN ARTICLE DANS VOTRE BASE SUPABASE
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
+            La table "{supabaseConfig.tableName || 'scraped_products'}" est actuellement vide. Lancez une aspiration d'annonces puis cliquez sur <strong>"Envoyer vers Supabase & Vider la mémoire"</strong> pour peupler votre vitrine Cloud !
+          </p>
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="rounded-3xl bg-slate-950/80 border border-slate-800 p-8 text-center space-y-3">
+          <ShoppingBag className="w-10 h-10 text-orange-400 mx-auto" />
+          <h3 className="text-base font-bold text-white">Aucun article ne correspond aux filtres</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            {products.length === 0
-              ? "Le catalogue est actuellement vide. Lancez l'aspiration matricielle pour récolter les articles réels d'Ouedkniss."
-              : "Modifiez votre recherche ou sélectionnez une autre catégorie pour afficher les résultats."}
+            Modifiez votre recherche ou réinitialisez les filtres par catégorie ou wilaya.
           </p>
         </div>
       ) : viewMode === 'grid' ? (
