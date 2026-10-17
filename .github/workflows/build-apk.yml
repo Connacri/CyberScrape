@@ -254,6 +254,7 @@ jobs:
           mkdir -p android-app/app/src/main/assets/assets
           cp -r dist/* android-app/app/src/main/assets/
           cp -r dist/assets/* android-app/app/src/main/assets/assets/ 2>/dev/null || true
+          cp -r dist/assets/* android-app/app/src/main/assets/ 2>/dev/null || true
           mkdir -p android-app/app/src/main/assets/public
           cp -r dist/* android-app/app/src/main/assets/public/
 
@@ -286,7 +287,9 @@ jobs:
 
                   // Assets loader serves local assets as a secure HTTPS origin to eliminate file:// CORS blocks on ES modules
                   final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
+                      .setDomain("appassets.androidplatform.net")
                       .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
+                      .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this))
                       .build();
 
                   WebSettings settings = webView.getSettings();

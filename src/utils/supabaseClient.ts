@@ -5,10 +5,12 @@ const STORAGE_KEY_SUPABASE = 'cyber_vacuum_supabase_config';
 const STORAGE_KEY_PRODUCTS = 'cyber_vacuum_products_cache';
 
 export function getStoredSupabaseConfig(): SupabaseConfig {
-  const envUrl = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://uzouxpnsgloselhhltyw.supabase.co';
+  const envUrl =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
+    'https://uzouxpnsgloselhhltyw.supabase.co';
   const envKey =
-    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) ||
-    (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+    (typeof import.meta !== 'undefined' &&
+      (import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env?.VITE_SUPABASE_ANON_KEY)) ||
     'sb_publishable_r9R1bhGboPX75YU6_STg8Q_Ga6tG4TM';
 
   try {
