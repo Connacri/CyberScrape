@@ -55,6 +55,7 @@ import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
 import { cyberAudio } from '../utils/cyberAudio';
 import { LazyMatrixProductImage } from './LazyMatrixProductImage';
 import { fetchProductsFromSupabase } from '../utils/supabaseClient';
+import { matchCategory, matchSearchQuery } from '../utils/categoryMatcher';
 
 interface ProductCatalogGridProps {
   products: ScrapedProduct[];
@@ -258,12 +259,15 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     }
   }, [isSupabaseConfigured, dataSourceMode, refreshTrigger, loadFromSupabase, products.length]);
 
-  // Active dataset: if in Supabase mode or local memory is empty, use cloudProducts
+  // Active dataset: if in Supabase mode and cloud has items, use cloudProducts, otherwise fall back to products
   const activeProducts = useMemo(() => {
-    if (dataSourceMode === 'supabase' || (products.length === 0 && cloudProducts.length > 0)) {
+    if (dataSourceMode === 'supabase' && cloudProducts.length > 0) {
       return cloudProducts;
     }
-    return products;
+    if (products && products.length > 0) {
+      return products;
+    }
+    return cloudProducts;
   }, [dataSourceMode, products, cloudProducts]);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -484,16 +488,12 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         // Direct real-time title filter
         const matchesTitle = !titleTerm || p.title.toLowerCase().includes(titleTerm);
 
-        // Broad keyword filter
-        const matchesSearch =
-          !term ||
-          p.title.toLowerCase().includes(term) ||
-          (p.brand && p.brand.toLowerCase().includes(term)) ||
-          p.sourceDomain.toLowerCase().includes(term) ||
-          extractWilaya(p).toLowerCase().includes(term) ||
-          (p.specs && Object.values(p.specs).some((val) => String(val).toLowerCase().includes(term)));
+        // Broad keyword filter with multi-token diacritic-insensitive search
+        const matchesSearch = !term || matchSearchQuery(p, term);
 
-        const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
+        const matchesCategory =
+          selectedCategory === 'all' ||
+          matchCategory(p.category, selectedCategory, p.title, p.brand, p.specs);
         const matchesWilaya = selectedWilaya === 'all' || extractWilaya(p).toLowerCase() === selectedWilaya.toLowerCase();
         const matchesCurrency = selectedCurrency === 'all' || p.currency === selectedCurrency;
         const matchesMinPrice = minPrice === '' || p.currentPrice >= Number(minPrice);
