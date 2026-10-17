@@ -178,13 +178,13 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
-        {/* Main HUD Bar Line */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Main HUD Bar Line: Flex column on mobile so status and metrics get dedicated lines */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
           {/* Left Block: Status & Category Context */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
             {/* Status Radar Badge */}
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold tracking-wider uppercase border transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold tracking-wider uppercase border transition-all shrink-0 ${
                 isActive
                   ? 'bg-emerald-950/80 border-emerald-400 text-[#00ff88] shadow-[0_0_15px_rgba(0,255,102,0.3)] animate-pulse'
                   : isComplete
@@ -212,7 +212,7 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
 
             {/* Current Active Category / Global Context */}
             {isInitialScanRunning ? (
-              <div className="flex items-center gap-2 text-xs font-mono text-cyan-300 animate-pulse">
+              <div className="flex items-center gap-2 text-xs font-mono text-cyan-300 animate-pulse w-full sm:w-auto">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
                 <span className="font-bold">SCAN PRÉ-VOL // 17 CATÉGORIES EN COURS...</span>
                 <span className="text-slate-400 text-[11px] hidden sm:inline">
@@ -220,20 +220,19 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
                 </span>
               </div>
             ) : isActive && currentCategory ? (
-              <div className="flex items-center gap-2 text-xs font-mono">
-                <span className="text-slate-400 hidden md:inline">Progression :</span>
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs font-mono w-full sm:w-auto">
                 <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-semibold flex items-center gap-1.5">
                   <span className="text-[#00ff88] font-bold">
                     Catégorie {(currentCategoryIndex ?? 0) + 1}/{totalCategories}
                   </span>
                   <span className="text-slate-400">|</span>
-                  <span className="truncate max-w-[180px] sm:max-w-[260px]">{currentCategory.name}</span>
+                  <span className="truncate max-w-[150px] sm:max-w-[240px]">{currentCategory.name}</span>
                 </span>
                 <span className="text-cyan-300 font-bold text-[11px] bg-cyan-950/70 border border-cyan-500/40 px-2 py-0.5 rounded">
                   Page {currentPage} / {(currentCategoryTotalPages || totalPagesPerCategory).toLocaleString('fr-FR')} existantes
                 </span>
                 {nextCategory && (
-                  <span className="text-slate-400 text-[10px] hidden lg:inline">
+                  <span className="text-slate-400 text-[10px] hidden xl:inline">
                     (Suivante: {nextCategory.name.split(' ')[0]})
                   </span>
                 )}
@@ -251,11 +250,11 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
             )}
           </div>
 
-          {/* Center / Right: Progress Metric + Actions */}
-          <div className="flex items-center gap-3">
+          {/* Center / Right: Progress Metric + Actions (dedicated line on mobile) */}
+          <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-1 lg:pt-0 border-t lg:border-t-0 border-slate-800/60">
             {/* Real-time Percentage Indicator */}
             <div className="flex items-center gap-2">
-              <div className="text-right">
+              <div className="text-left lg:text-right">
                 <div className="text-base sm:text-lg font-black font-mono leading-none tracking-tight flex items-baseline gap-1">
                   <span
                     className={`transition-colors ${
@@ -330,25 +329,25 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
           </div>
         </div>
 
-        {/* Real-time Category Page-by-Page Tracking Banner */}
+        {/* Real-time Category Page-by-Page Tracking Banner (Chaque bloc sur sa ligne dédiée si pas de place) */}
         {isActive && currentCategory && (
-          <div className="mt-2.5 p-2 rounded-xl bg-slate-900/90 border border-cyan-500/40 flex flex-wrap items-center justify-between gap-2 text-xs font-mono shadow-md">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1.5 text-cyan-300 font-bold">
-                <Radar className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+          <div className="mt-2.5 p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/40 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs font-mono shadow-md">
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <span className="flex items-center gap-1.5 text-cyan-300 font-bold shrink-0">
+                <Radar className="w-3.5 h-3.5 text-cyan-400 animate-spin shrink-0" />
                 <span>SUIVI CATÉGORIE EN DIRECT :</span>
               </span>
-              <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40">
+              <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/40 shrink-0">
                 Page {currentPage} sur {(currentCategoryTotalPages || totalPagesPerCategory).toLocaleString('fr-FR')} existantes
               </span>
               {currentCategoryTotalArticles && (
-                <span className="text-slate-400 text-[11px] hidden sm:inline">
+                <span className="text-slate-400 text-[11px] block sm:inline">
                   (~{currentCategoryTotalArticles.toLocaleString('fr-FR')} articles • ~{currentCategoryBoutiques?.toLocaleString('fr-FR')} Stores • ~{currentCategoryAdsPubs?.toLocaleString('fr-FR')} Pubs)
                 </span>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] w-full md:w-auto justify-between md:justify-end pt-1 md:pt-0 border-t md:border-t-0 border-slate-800">
               {lastPageBatchStats && (
                 <span className="text-[#00ff88] font-bold">
                   +{lastPageBatchStats.itemsCount} articles sur page {lastPageBatchStats.page} ({lastPageBatchStats.boutiquesCount} Stores, {lastPageBatchStats.particuliersCount} Part., {lastPageBatchStats.adsCount} Pubs)
@@ -358,7 +357,7 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
                 Total catégorie : {categoryNewItemsCount} articles
               </span>
               {nextCategory && (
-                <span className="text-cyan-400 text-[10px] hidden md:inline">
+                <span className="text-cyan-400 text-[10px] hidden lg:inline">
                   → Passage auto dès fin : {nextCategory.name}
                 </span>
               )}

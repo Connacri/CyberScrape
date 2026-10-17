@@ -809,19 +809,19 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
   const renderPaginationControls = () => {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 my-3 rounded-2xl bg-slate-950/90 border border-emerald-500/30 font-mono text-xs text-slate-300 shadow-md backdrop-blur-md">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row flex-wrap items-center justify-between gap-3 p-3 my-3 rounded-2xl bg-slate-950/90 border border-emerald-500/30 font-mono text-xs text-slate-300 shadow-md backdrop-blur-md">
+        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2">
           <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[#00ff88] font-bold text-xs flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
             {displayMode === 'paged' ? `Page ${currentPage} sur ${totalPages}` : `${visibleCount} sur ${filteredProducts.length}`}
           </span>
-          <span className="hidden sm:inline-block text-slate-400 text-xs">
-            ({filteredProducts.length.toLocaleString('fr-DZ')} annonces filtrées)
+          <span className="text-slate-400 text-xs">
+            ({filteredProducts.length.toLocaleString('fr-DZ')} annonces)
           </span>
         </div>
 
         {displayMode === 'paged' && totalPages > 1 && (
-          <div className="flex items-center gap-1.5">
+          <div className="w-full sm:w-auto flex items-center justify-center gap-1.5 py-1 overflow-x-auto">
             <button
               onClick={() => {
                 setCurrentPage(1);
@@ -874,7 +874,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </div>
         )}
 
-        <div className="flex items-center gap-3">
+        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
           <div className="flex items-center gap-1.5 rounded-xl bg-slate-900 p-1 border border-slate-800 text-[11px]">
             <button
               type="button"
@@ -1492,32 +1492,45 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
           {/* Action Buttons: Export & Sync (Clean wrap on mobile without squishing) */}
           <div className="flex flex-wrap items-center justify-start sm:justify-end gap-1.5 font-mono text-xs w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={() => handleExportCsv(filteredProducts)}
-              disabled={products.length === 0}
-              className="flex-1 sm:flex-none min-w-[72px] px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
-              title="Exporter les résultats en CSV"
-            >
-              <Download className="w-3.5 h-3.5 text-cyan-400" />
-              <span>CSV</span>
-            </button>
+            <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
+              <button
+                type="button"
+                onClick={() => handleExportCsv(filteredProducts)}
+                disabled={products.length === 0}
+                className="flex-1 sm:flex-none min-w-[70px] px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+                title="Exporter les résultats en CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                <span>CSV</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={handleExportJson}
-              disabled={products.length === 0}
-              className="flex-1 sm:flex-none min-w-[72px] px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
-              title="Exporter les résultats en JSON"
-            >
-              <Code className="w-3.5 h-3.5 text-emerald-400" />
-              <span>JSON</span>
-            </button>
+              <button
+                type="button"
+                onClick={handleExportJson}
+                disabled={products.length === 0}
+                className="flex-1 sm:flex-none min-w-[70px] px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+                title="Exporter les résultats en JSON"
+              >
+                <Code className="w-3.5 h-3.5 text-emerald-400" />
+                <span>JSON</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onBulkSyncSupabase}
+                disabled={products.length === 0}
+                className="flex-1 sm:flex-none min-w-[80px] px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-500/30 flex items-center justify-center gap-1.5 font-bold transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+                title="Synchroniser le catalogue complet sur Supabase"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Sync DB</span>
+              </button>
+            </div>
 
             <button
               type="button"
               onClick={() => setShowCategoryCharts(!showCategoryCharts)}
-              className={`flex-1 sm:flex-none min-w-[110px] px-2.5 sm:px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer min-h-[38px] ${
+              className={`w-full sm:w-auto px-2.5 sm:px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer min-h-[38px] ${
                 showCategoryCharts
                   ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
                   : 'bg-slate-900 border-slate-800 text-purple-400 hover:text-purple-300 hover:border-purple-400/50'
@@ -1525,18 +1538,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
               title="Afficher/masquer les graphiques récapitulatifs Recharts par catégorie"
             >
               <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-              <span>{showCategoryCharts ? 'Masquer' : 'Graphiques Recharts'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onBulkSyncSupabase}
-              disabled={products.length === 0}
-              className="flex-1 sm:flex-none min-w-[90px] px-3 sm:px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-500/30 flex items-center justify-center gap-1.5 font-bold transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
-              title="Synchroniser le catalogue complet sur Supabase"
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>Sync DB</span>
+              <span>{showCategoryCharts ? 'Masquer Graphiques' : 'Graphiques Recharts'}</span>
             </button>
 
             {onSendToSupabaseAndClearMemory && (
@@ -1544,7 +1546,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                 type="button"
                 onClick={onSendToSupabaseAndClearMemory}
                 disabled={products.length === 0}
-                className="flex-1 sm:flex-none px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#00ff88] text-slate-950 font-black text-xs hover:brightness-110 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
+                className="w-full sm:w-auto px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#00ff88] text-slate-950 font-black text-xs hover:brightness-110 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 transition-all disabled:opacity-40 cursor-pointer min-h-[38px]"
                 title="Envoyer tous les articles aspirés vers Supabase et vider la mémoire vive de la page pour l'alléger"
               >
                 <Cloud className="w-4 h-4 fill-slate-950 text-slate-950 shrink-0" />
@@ -1557,11 +1559,12 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                 type="button"
                 onClick={onClearAllProducts}
                 disabled={products.length === 0}
-                className="w-10 h-10 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-rose-200 transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center shrink-0 min-h-[38px]"
+                className="w-full sm:w-10 h-10 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-rose-200 transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center shrink-0 min-h-[38px]"
                 title="Vider tous les articles déjà aspirés"
                 aria-label="Vider les articles"
               >
                 <Trash2 className="w-4 h-4" />
+                <span className="sm:hidden font-bold ml-1.5 text-xs">Vider le catalogue</span>
               </button>
             )}
           </div>

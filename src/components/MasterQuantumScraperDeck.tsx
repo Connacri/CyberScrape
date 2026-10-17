@@ -202,8 +202,8 @@ export const MasterQuantumScraperDeck: React.FC<MasterQuantumScraperDeckProps> =
       </div>
 
       {/* Target Channel Filter (Tous, Boutiques, Annonces, Pubs) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4 p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
           <span className="text-[11px] text-slate-400 font-bold uppercase mr-1">Canaux Ciblés :</span>
           {(
             [
@@ -235,15 +235,15 @@ export const MasterQuantumScraperDeck: React.FC<MasterQuantumScraperDeckProps> =
         </div>
 
         {scopeMode === 'single' && !isScrapingActive && (
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400">Catégorie :</span>
+          <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+            <span className="text-[11px] text-slate-400 shrink-0">Catégorie :</span>
             <select
               value={activeCategory.slug}
               onChange={(e) => {
                 const found = OUEDKNISS_CATEGORIES.find((c) => c.slug === e.target.value);
                 if (found) onSelectCategory(found);
               }}
-              className="px-2.5 py-1 rounded-lg bg-black/80 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold focus:outline-none cursor-pointer"
+              className="flex-1 sm:flex-none px-2.5 py-1 rounded-lg bg-black/80 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold focus:outline-none cursor-pointer max-w-[240px] truncate"
             >
               {OUEDKNISS_CATEGORIES.map((c) => (
                 <option key={c.slug} value={c.slug}>
@@ -333,13 +333,13 @@ export const MasterQuantumScraperDeck: React.FC<MasterQuantumScraperDeckProps> =
         </button>
 
         {/* Secondary helper controls below the master button */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mt-2 px-1 text-xs text-slate-400">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2 px-1 text-xs text-slate-400">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             <span>Moteur Direct Multi-Workers // Sans blocage ni limitation</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-1 sm:pt-0">
             {savedCheckpoint && !isScrapingActive && (
               <button
                 type="button"
@@ -368,11 +368,11 @@ export const MasterQuantumScraperDeck: React.FC<MasterQuantumScraperDeckProps> =
       {/* ============================================================== */}
       {/* REAL-TIME TELEMETRY HUD (SPEED, GAUGE, RECENT BATCH, METRICS)  */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-4">
         {/* Metric 1: Vitesse Réelle */}
         <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center gap-2.5">
           <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Vitesse Crawl</div>
             <div className="text-sm font-bold text-[#00ff88]">
               {isScrapingActive ? `${estimatedVelocity} art/sec` : 'En veille'}
@@ -383,7 +383,7 @@ export const MasterQuantumScraperDeck: React.FC<MasterQuantumScraperDeckProps> =
         {/* Metric 2: Catégorie Active & Page en cours */}
         <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center gap-2.5">
           <Layers className="w-4 h-4 text-cyan-400 shrink-0" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Avancement Page</div>
             <div className="text-sm font-bold text-cyan-300 truncate">
               {isScrapingActive
@@ -396,7 +396,7 @@ export const MasterQuantumScraperDeck: React.FC<MasterQuantumScraperDeckProps> =
         {/* Metric 3: Nouveaux articles récoltés */}
         <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center gap-2.5">
           <TrendingUp className="w-4 h-4 text-amber-400 shrink-0" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Session Active</div>
             <div className="text-sm font-bold text-amber-300">
               +{sweepNewItemsCount.toLocaleString()} aspirés
@@ -407,7 +407,7 @@ export const MasterQuantumScraperDeck: React.FC<MasterQuantumScraperDeckProps> =
         {/* Metric 4: Total Catalogue en Base */}
         <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center gap-2.5">
           <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Catalogue Total</div>
             <div className="text-sm font-bold text-purple-300">
               {totalCatalogCount.toLocaleString()} articles
