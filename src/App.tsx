@@ -1174,7 +1174,7 @@ export default function App() {
   const [categoryCompletionAlert, setCategoryCompletionAlert] = useState<CategoryCompletionAlertData | null>(null);
   const [categorySyncPromptData, setCategorySyncPromptData] = useState<CategorySyncPromptData | null>(null);
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
-  const [showSplashScreen, setShowSplashScreen] = useState<boolean>(true);
+  const [showSplashScreen, setShowSplashScreen] = useState<boolean>(false);
   const [isCategoryAuditModalOpen, setIsCategoryAuditModalOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
@@ -2839,75 +2839,26 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Zone 4: Action Controls Cluster (Compact on mobile to NEVER overflow) */}
+          {/* Zone 4: Action Controls Cluster (Guaranteed to show Centre de Contrôle on large screens & mobile) */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Desktop Action Buttons */}
-            <div className="hidden lg:flex items-center gap-2">
-              {/* BOUTON ENVOYER VERS SUPABASE & VIDER LA MÉMOIRE */}
-              <button
-                type="button"
-                onClick={handleSendToSupabaseAndClearMemory}
-                disabled={products.length === 0 || isSyncingAndClearing}
-                className="h-9 px-3 rounded-xl bg-gradient-to-r from-emerald-500/25 via-cyan-500/20 to-[#00ff88]/20 border border-emerald-400/60 text-[#00ff88] hover:bg-emerald-500/35 hover:border-emerald-300 transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold shadow-[0_0_15px_rgba(0,255,102,0.25)] disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
-                title="Envoyer tous les articles aspirés vers Supabase et vider la mémoire locale de la page pour l'alléger"
-                aria-label="Envoyer vers Supabase et vider la mémoire"
-              >
-                {isSyncingAndClearing ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
-                ) : (
-                  <Cloud className="w-3.5 h-3.5 text-cyan-300" />
-                )}
-                <span className="font-mono">
-                  {isSyncingAndClearing ? 'Transfert...' : `Envoyer à Supabase & Vider (${products.length})`}
-                </span>
-              </button>
+            {/* CENTRE DE CONTRÔLE (PRIORITÉ N°1 : VISIBLE SUR TOUS LES ÉCRANS, Y COMPRIS GRANDS ÉCRANS PC / TABLETTE) */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(true);
+                cyberAudio.playClick();
+              }}
+              className="h-9 px-3 rounded-xl bg-gradient-to-r from-emerald-950/90 to-slate-900 border border-emerald-400 hover:border-[#00ff88] text-white hover:bg-emerald-900/60 flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer transition-all active:scale-95 shadow-[0_0_15px_rgba(0,255,102,0.3)] ring-1 ring-emerald-400/40"
+              title="Ouvrir le Centre de Contrôle (Options, APK Mobile, Audio, Voix IA, Pluie Matrix, Purge...)"
+              aria-label="Centre de Contrôle et Réglages"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-[#00ff88] animate-pulse" />
+              <span className="font-mono text-xs font-black text-[#00ff88] whitespace-nowrap">
+                Centre de Contrôle
+              </span>
+            </button>
 
-              <button
-                type="button"
-                onClick={handleClearAllProducts}
-                disabled={products.length === 0}
-                className="w-9 h-9 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-400 hover:bg-rose-900/60 hover:text-white transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center shrink-0"
-                title="Vider tous les articles aspirés (remise à zéro)"
-                aria-label="Vider tous les articles"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsCategoryAuditModalOpen(true)}
-                className="h-9 px-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]"
-                title="Scanner & Auditer les 17 Catégories Ouedkniss (Pages, Articles, Stores, Pubs)"
-                aria-label="Audit Catégories"
-              >
-                <Radar className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Audit Catégories</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowSplashScreen(true)}
-                className="h-9 px-2.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 hover:bg-purple-900/60 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold"
-                title="Afficher l'écran de démarrage Splash Screen"
-                aria-label="Splash Screen"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                <span>Splash</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsApkModalOpen(true)}
-                className="h-9 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold"
-                title="Télécharger l'APK Android (Signé)"
-                aria-label="Télécharger APK Android"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                <span>APK Mobile</span>
-              </button>
-            </div>
-
-            {/* Quick Supabase status button (Always visible on sm: screens and up) */}
+            {/* Quick Supabase status button */}
             <button
               type="button"
               onClick={() => setIsSupabaseModalOpen(true)}
@@ -2929,7 +2880,7 @@ export default function App() {
             <button
               type="button"
               onClick={handleToggleAudio}
-              className={`w-9 h-9 sm:w-9 sm:h-9 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer min-h-[38px] min-w-[38px] ${
+              className={`w-9 h-9 sm:w-9 sm:h-9 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer min-h-[36px] min-w-[36px] ${
                 isAudioMuted
                   ? 'bg-slate-900 border-slate-800 text-slate-500'
                   : 'bg-emerald-950/40 border-emerald-500/40 text-[#00ff88]'
@@ -2940,16 +2891,28 @@ export default function App() {
               {isAudioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
 
-            {/* Mobile / Tablet Settings Drawer Button (Opens slide-over modal) */}
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 hover:text-white hover:border-emerald-500/50 flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-95"
-              title="Centre de contrôle et réglages"
-              aria-label="Menu options et réglages"
-            >
-              <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
-            </button>
+            {/* Extra direct shortcuts on very wide screens (2xl+) */}
+            <div className="hidden 2xl:flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsCategoryAuditModalOpen(true)}
+                className="h-9 px-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+                title="Scanner & Auditer les 17 Catégories Ouedkniss"
+              >
+                <Radar className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Audit</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsApkModalOpen(true)}
+                className="h-9 px-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer font-bold"
+                title="Télécharger l'APK Android (Signé)"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                <span>APK</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -3083,9 +3046,9 @@ export default function App() {
         onDismiss={() => setCategoryCompletionAlert(null)}
       />
 
-      {/* Mobile Slide-Over Settings & Control Center Drawer */}
+      {/* Slide-Over Settings & Control Center Drawer (Works on all devices) */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end lg:hidden animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex justify-end animate-fadeIn">
           {/* Backdrop with tap-to-close */}
           <div
             className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
@@ -4047,7 +4010,7 @@ export default function App() {
         aria-label="Navigation principale mobile"
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-emerald-500/30 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] pb-[env(safe-area-inset-bottom,0px)]"
       >
-        <div className="grid grid-cols-4 h-16 max-w-lg mx-auto px-1">
+        <div className="grid grid-cols-5 h-16 max-w-lg mx-auto px-1">
           {/* Tab 1: Vortex & IA */}
           <button
             type="button"
@@ -4124,6 +4087,20 @@ export default function App() {
             )}
             <LineChart className="w-5 h-5 shrink-0" />
             <span className="text-[10px] font-mono font-bold tracking-tight">Tendances</span>
+          </button>
+
+          {/* Tab 5: Centre de Contrôle */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileMenuOpen(true);
+              cyberAudio.playClick();
+            }}
+            className="flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative min-h-[48px] text-slate-400 hover:text-emerald-300 active:scale-95"
+            title="Ouvrir le Centre de Contrôle"
+          >
+            <SlidersHorizontal className="w-5 h-5 shrink-0 text-emerald-400" />
+            <span className="text-[10px] font-mono font-bold tracking-tight">Contrôle</span>
           </button>
         </div>
       </nav>
