@@ -2110,7 +2110,7 @@ export default function App() {
               }`}
             >
               <Users className="w-3.5 h-3.5 shrink-0" />
-              <span>Vendeurs</span>
+              <span>Contacts DZ</span>
             </button>
 
             <button
@@ -2124,20 +2124,6 @@ export default function App() {
             >
               <LineChart className="w-3.5 h-3.5 shrink-0" />
               <span>Tendances</span>
-            </button>
-
-            {/* Centre de Contrôle dans les larges écrans - Icône pure sans texte */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsMobileMenuOpen(true);
-                cyberAudio.playClick();
-              }}
-              className="px-2.5 py-1.5 rounded-lg flex items-center justify-center font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] text-slate-400 hover:text-[#00ff88] hover:bg-emerald-950/40 border border-slate-800/80 hover:border-emerald-500/40"
-              title="Centre de Contrôle"
-              aria-label="Centre de Contrôle"
-            >
-              <SlidersHorizontal className="w-4 h-4 shrink-0 text-[#00ff88]" />
             </button>
           </nav>
 
@@ -2233,165 +2219,186 @@ export default function App() {
           </div>
         </div>
 
-        {/* Row 2: REAL-TIME GLOBAL SEARCH BAR + BOUTIQUE OFFICIELLE FILTER + CATEGORY SELECTOR + RECHARTS SUMMARY TRIGGER */}
-        {/* Responsive Design: Sur mobile, la barre de recherche et les filtres disposent chacun de leur propre ligne dédiée (ergonomie 100% tactile) */}
-        <div className="w-full border-t border-emerald-500/20 bg-slate-950/95 px-2.5 sm:px-6 py-2 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-2">
-          {/* Main Search Input: Ligne dédiée complète sur mobile */}
-          <div className="relative w-full sm:flex-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none" />
-            <input
-              type="text"
-              value={globalSearchTerm}
-              onChange={(e) => {
-                setGlobalSearchTerm(e.target.value);
-                if (activeTab === 'vacuum' && e.target.value.trim().length > 1) {
-                  // User searching: keep tab or navigate
-                }
-              }}
-              placeholder="Rechercher par titre, marque, wilaya, vendeur..."
-              className="w-full pl-9 pr-8 py-2 sm:py-2 rounded-xl bg-slate-900/95 border border-emerald-500/30 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40 transition-all min-h-[40px] sm:min-h-[38px]"
-            />
-            {globalSearchTerm && (
+        {/* Row 2: VORTEX & ASPIRATION SPECIFIC CONTROLS (Only visible on Vortex tab) */}
+        {activeTab === 'vacuum' && (
+          <div className="w-full border-t border-emerald-500/20 bg-slate-950/95 px-2.5 sm:px-6 py-2 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-2">
+            {/* Main Search Input: Ligne dédiée complète sur mobile */}
+            <div className="relative w-full sm:flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none" />
+              <input
+                type="text"
+                value={globalSearchTerm}
+                onChange={(e) => {
+                  setGlobalSearchTerm(e.target.value);
+                }}
+                placeholder="Rechercher par titre, marque, wilaya, vendeur..."
+                className="w-full pl-9 pr-8 py-2 sm:py-2 rounded-xl bg-slate-900/95 border border-emerald-500/30 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40 transition-all min-h-[40px] sm:min-h-[38px]"
+              />
+              {globalSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setGlobalSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs cursor-pointer"
+                  title="Effacer la recherche"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Quick Filter Controls: Ligne dédiée complète sur mobile pour ne pas comprimer la recherche */}
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
+              {/* Boutique Officielle Filter in Global Search Bar (Filtrage sur champ brand ou seller) */}
               <button
                 type="button"
-                onClick={() => setGlobalSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs cursor-pointer"
-                title="Effacer la recherche"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Quick Filter Controls: Ligne dédiée complète sur mobile pour ne pas comprimer la recherche */}
-          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
-            {/* Boutique Officielle Filter in Global Search Bar (Filtrage sur champ brand ou seller) */}
-            <button
-              type="button"
-              onClick={() => {
-                setFilterOfficialStoresOnly((prev) => !prev);
-                cyberAudio.playClick();
-              }}
-              className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer select-none min-h-[40px] sm:min-h-[38px] ${
-                filterOfficialStoresOnly
-                  ? 'bg-emerald-500/25 border-[#00ff88] text-[#00ff88] shadow-[0_0_15px_rgba(0,255,102,0.35)] ring-1 ring-emerald-400/50'
-                  : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/40'
-              }`}
-              title="Filtrer uniquement les Boutiques Officielles et Stores Certifiés (vérifiés sur la marque ou le vendeur)"
-            >
-              <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${filterOfficialStoresOnly ? 'text-[#00ff88] animate-pulse' : 'text-slate-400'}`} />
-              <span className="hidden sm:inline">Boutique Officielle</span>
-              <span className="sm:hidden">Store Pro</span>
-              <span
-                className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                onClick={() => {
+                  setFilterOfficialStoresOnly((prev) => !prev);
+                  cyberAudio.playClick();
+                }}
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer select-none min-h-[40px] sm:min-h-[38px] ${
                   filterOfficialStoresOnly
-                    ? 'bg-emerald-950/90 text-[#00ff88] border border-emerald-400/50 font-bold'
-                    : 'bg-black/60 text-slate-400'
+                    ? 'bg-emerald-500/25 border-[#00ff88] text-[#00ff88] shadow-[0_0_15px_rgba(0,255,102,0.35)] ring-1 ring-emerald-400/50'
+                    : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/40'
                 }`}
+                title="Filtrer uniquement les Boutiques Officielles et Stores Certifiés (vérifiés sur la marque ou le vendeur)"
               >
-                {officialStoresCount}
-              </span>
-            </button>
+                <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${filterOfficialStoresOnly ? 'text-[#00ff88] animate-pulse' : 'text-slate-400'}`} />
+                <span className="hidden sm:inline">Boutique Pro</span>
+                <span className="sm:hidden">Store Pro</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                    filterOfficialStoresOnly
+                      ? 'bg-emerald-950/90 text-[#00ff88] border border-emerald-400/50 font-bold'
+                      : 'bg-black/60 text-slate-400'
+                  }`}
+                >
+                  {officialStoresCount}
+                </span>
+              </button>
 
-            {/* Category Select Filter */}
-            <select
-              value={globalSelectedCategory}
-              onChange={(e) => setGlobalSelectedCategory(e.target.value)}
-              aria-label="Filtrer par catégorie"
-              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-emerald-400 font-mono text-xs focus:outline-none focus:border-emerald-500 min-h-[40px] sm:min-h-[38px] max-w-[150px] sm:max-w-[190px] truncate cursor-pointer font-bold"
-            >
-              <option value="all">Toutes Catégories</option>
-              {OUEDKNISS_CATEGORIES.map((cat) => (
-                <option key={cat.slug} value={cat.name}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              {/* Category Select Filter */}
+              <select
+                value={globalSelectedCategory}
+                onChange={(e) => setGlobalSelectedCategory(e.target.value)}
+                aria-label="Filtrer par catégorie"
+                className="flex-1 sm:flex-none px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-emerald-400 font-mono text-xs focus:outline-none focus:border-emerald-500 min-h-[40px] sm:min-h-[38px] max-w-[150px] sm:max-w-[190px] truncate cursor-pointer font-bold"
+              >
+                <option value="all">Toutes Catégories</option>
+                {OUEDKNISS_CATEGORIES.map((cat) => (
+                  <option key={cat.slug} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
 
-            {/* Recharts Summary Charts Trigger Button */}
-            <button
-              type="button"
-              onClick={() => setShowCategoryChartsModal(true)}
-              className={`px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer min-h-[40px] sm:min-h-[38px] ${
-                showCategoryChartsModal
-                  ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
-                  : 'bg-slate-900/90 border-slate-800 text-purple-400 hover:text-white hover:border-purple-400/50'
-              }`}
-              title="Afficher les graphiques récapitulatifs Recharts par catégorie"
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-              <span className="hidden sm:inline">Graphiques Recharts</span>
-              <span className="sm:hidden">Graph</span>
-            </button>
+              {/* Recharts Summary Charts Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setShowCategoryChartsModal(true)}
+                className={`px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer min-h-[40px] sm:min-h-[38px] ${
+                  showCategoryChartsModal
+                    ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                    : 'bg-slate-900/90 border-slate-800 text-purple-400 hover:text-white hover:border-purple-400/50'
+                }`}
+                title="Afficher les graphiques récapitulatifs Recharts par catégorie"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="hidden sm:inline">Graphiques Recharts</span>
+                <span className="sm:hidden">Graph</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
-      {/* ============================================================== */}
-      {/* REAL-TIME DUAL PROGRESS BAR: ASPIRATION ("suce") & ENVOI SUPABASE */}
-      {/* ============================================================== */}
-      <CyberDualProgressBar
-        isScraping={isContinuousScraping || isAllCategoriesSweepActive || job.status === 'aspirating' || job.status === 'scanning'}
-        scrapingProgress={
-          isAllCategoriesSweepActive
-            ? sweepPercent
-            : (job.progress || (products.length > 0 ? Math.min(100, Math.round((products.length / (scrapeVolume || 28)) * 100)) : 10))
-        }
-        scrapingCurrent={products.length || liveAspiratedCount}
-        scrapingTotal={isAllCategoriesSweepActive ? (currentCategoryTotalArticles || 154784) : (scrapeVolume || 28)}
-        scrapingLabel={
-          job.aiAgentAction ||
-          (isAllCategoriesSweepActive
-            ? 'Balayage complet des catégories en cours...'
-            : 'Aspiration matricielle en temps réel...')
-        }
-        scrapingPage={sweepCurrentPage || 1}
-        onStopScraping={handleStopScrape}
-        isSyncingSupabase={isSyncingAndClearing}
-        supabaseSyncProgress={supabaseSyncProgress}
-      />
+      {/* Discrete 1-line background scraping status bar (Only visible when user is in other tabs while scraping) */}
+      {activeTab !== 'vacuum' && (isContinuousScraping || isAllCategoriesSweepActive) && (
+        <div className="w-full bg-slate-950/95 border-b border-emerald-500/40 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-emerald-300 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#00ff88] animate-ping shrink-0" />
+            <span className="font-bold text-white">Aspiration Vortex active en tâche de fond :</span>
+            <span className="text-[#00ff88] font-bold">
+              {products.length.toLocaleString('fr-FR')} annonces scellées
+            </span>
+            <span className="text-slate-400 hidden md:inline">
+              • Page {sweepCurrentPage || 1} • Balayage {sweepPercent}%
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleSelectTab('vacuum')}
+            className="px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-[#00ff88] border border-emerald-400/50 font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95"
+          >
+            Afficher le Vortex & Aspiration →
+          </button>
+        </div>
+      )}
 
       {/* ============================================================== */}
-      {/* GLOBAL RECONNAISSANCE & MASTER SWEEP PROGRESS BAR (ALWAYS VISIBLE) */}
+      {/* VORTEX-ONLY SCRAPING MONITORS: PROGRESS BARS & CELEBRATION     */}
       {/* ============================================================== */}
-      <GlobalSweepProgressBar
-        isActive={isContinuousScraping || isAllCategoriesSweepActive}
-        isComplete={isSweepComplete}
-        currentCategoryIndex={activeSweepCategoryIndex}
-        currentPage={sweepCurrentPage}
-        totalPagesPerCategory={sweepPagesPerCategory === 0 ? (currentCategoryTotalPages || 5000) : sweepPagesPerCategory}
-        currentCategoryTotalPages={currentCategoryTotalPages}
-        currentCategoryTotalArticles={currentCategoryTotalArticles}
-        currentCategoryBoutiques={currentCategoryBoutiques}
-        currentCategoryAdsPubs={currentCategoryAdsPubs}
-        categoryNewItemsCount={currentCategoryNewItemsCount}
-        lastPageBatchStats={lastPageBatchStats}
-        isInitialScanRunning={isInitialScanRunning}
-        initialScanSummary={initialScanSummary}
-        percent={sweepPercent}
-        newItemsCount={sweepNewItemsCount}
-        totalCatalogCount={products.length}
-        completedCategorySlugs={sweepCompletedCategories}
-        products={products}
-        sweepPagesPerCategory={sweepPagesPerCategory}
-        onChangeSweepPagesPerCategory={setSweepPagesPerCategory}
-        onStartSweep={handleStartAllCategoriesSweep}
-        onStopSweep={handleStopScrape}
-        savedCheckpoint={savedCheckpoint}
-        onResumeSweep={handleResumeAllCategoriesSweep}
-        onSelectCategory={(cat) => {
-          setSelectedCategorySlug(cat.slug);
-          setTargetUrl(cat.url);
-          cyberAudio.playHoloTap(880);
-        }}
-        onOpenAuditModal={() => setIsCategoryAuditModalOpen(true)}
-      />
+      {activeTab === 'vacuum' && (
+        <>
+          <CyberDualProgressBar
+            isScraping={isContinuousScraping || isAllCategoriesSweepActive || job.status === 'aspirating' || job.status === 'scanning'}
+            scrapingProgress={
+              isAllCategoriesSweepActive
+                ? sweepPercent
+                : (job.progress || (products.length > 0 ? Math.min(100, Math.round((products.length / (scrapeVolume || 28)) * 100)) : 10))
+            }
+            scrapingCurrent={products.length || liveAspiratedCount}
+            scrapingTotal={isAllCategoriesSweepActive ? (currentCategoryTotalArticles || 154784) : (scrapeVolume || 28)}
+            scrapingLabel={
+              job.aiAgentAction ||
+              (isAllCategoriesSweepActive
+                ? 'Balayage complet des catégories en cours...'
+                : 'Aspiration matricielle en temps réel...')
+            }
+            scrapingPage={sweepCurrentPage || 1}
+            onStopScraping={handleStopScrape}
+            isSyncingSupabase={isSyncingAndClearing}
+            supabaseSyncProgress={supabaseSyncProgress}
+          />
 
-      {/* Real-time Category Completion Celebration Alert Banner */}
-      <MasterSweepAlertBanner
-        alert={categoryCompletionAlert}
-        onDismiss={() => setCategoryCompletionAlert(null)}
-      />
+          <GlobalSweepProgressBar
+            isActive={isContinuousScraping || isAllCategoriesSweepActive}
+            isComplete={isSweepComplete}
+            currentCategoryIndex={activeSweepCategoryIndex}
+            currentPage={sweepCurrentPage}
+            totalPagesPerCategory={sweepPagesPerCategory === 0 ? (currentCategoryTotalPages || 5000) : sweepPagesPerCategory}
+            currentCategoryTotalPages={currentCategoryTotalPages}
+            currentCategoryTotalArticles={currentCategoryTotalArticles}
+            currentCategoryBoutiques={currentCategoryBoutiques}
+            currentCategoryAdsPubs={currentCategoryAdsPubs}
+            categoryNewItemsCount={currentCategoryNewItemsCount}
+            lastPageBatchStats={lastPageBatchStats}
+            isInitialScanRunning={isInitialScanRunning}
+            initialScanSummary={initialScanSummary}
+            percent={sweepPercent}
+            newItemsCount={sweepNewItemsCount}
+            totalCatalogCount={products.length}
+            completedCategorySlugs={sweepCompletedCategories}
+            products={products}
+            sweepPagesPerCategory={sweepPagesPerCategory}
+            onChangeSweepPagesPerCategory={setSweepPagesPerCategory}
+            onStartSweep={handleStartAllCategoriesSweep}
+            onStopSweep={handleStopScrape}
+            savedCheckpoint={savedCheckpoint}
+            onResumeSweep={handleResumeAllCategoriesSweep}
+            onSelectCategory={(cat) => {
+              setSelectedCategorySlug(cat.slug);
+              setTargetUrl(cat.url);
+              cyberAudio.playHoloTap(880);
+            }}
+            onOpenAuditModal={() => setIsCategoryAuditModalOpen(true)}
+          />
+
+          <MasterSweepAlertBanner
+            alert={categoryCompletionAlert}
+            onDismiss={() => setCategoryCompletionAlert(null)}
+          />
+        </>
+      )}
 
       {/* Slide-Over Settings & Control Center Drawer (Works on all devices) */}
       {isMobileMenuOpen && (
@@ -3414,7 +3421,7 @@ export default function App() {
         aria-label="Navigation principale mobile"
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-emerald-500/30 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] pb-[env(safe-area-inset-bottom,0px)]"
       >
-        <div className="grid grid-cols-6 h-16 max-w-xl mx-auto px-1">
+        <div className="grid grid-cols-5 h-16 max-w-xl mx-auto px-1">
           {/* Tab 1: Vortex & IA */}
           <button
             type="button"
@@ -3429,7 +3436,7 @@ export default function App() {
               <span className="absolute top-0 inset-x-1.5 h-0.5 bg-gradient-to-r from-emerald-500 to-[#00ff88] rounded-full shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
             )}
             <Cpu className="w-5 h-5 shrink-0" />
-            <span className="text-[10px] font-mono font-bold tracking-tight">Vortex</span>
+            <span className="text-[10px] font-mono font-bold tracking-tight whitespace-nowrap">Vortex</span>
           </button>
 
           {/* Tab 2: Catalogue */}
@@ -3453,7 +3460,7 @@ export default function App() {
                 </span>
               )}
             </div>
-            <span className="text-[10px] font-mono font-bold tracking-tight">Catalogue</span>
+            <span className="text-[10px] font-mono font-bold tracking-tight whitespace-nowrap">Catalogue</span>
           </button>
 
           {/* Tab 3: TEMU-DZ */}
@@ -3473,10 +3480,10 @@ export default function App() {
               <Zap className="w-5 h-5 fill-current shrink-0" />
               <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-yellow-400 animate-ping" />
             </div>
-            <span className="text-[10px] font-mono font-bold tracking-tight">TEMU-DZ</span>
+            <span className="text-[10px] font-mono font-bold tracking-tight whitespace-nowrap">TEMU-DZ</span>
           </button>
 
-          {/* Tab 4: Vendeurs */}
+          {/* Tab 4: Contacts DZ (Vendeurs & Annonceurs avec Téléphone et Email) */}
           <button
             type="button"
             onClick={() => handleSelectTab('sellers')}
@@ -3490,7 +3497,7 @@ export default function App() {
               <span className="absolute top-0 inset-x-1.5 h-0.5 bg-gradient-to-r from-purple-500 to-purple-300 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
             )}
             <Users className="w-5 h-5 shrink-0" />
-            <span className="text-[10px] font-mono font-bold tracking-tight">Vendeurs</span>
+            <span className="text-[10px] font-mono font-bold tracking-tight whitespace-nowrap">Contacts</span>
           </button>
 
           {/* Tab 5: Tendances */}
@@ -3507,21 +3514,7 @@ export default function App() {
               <span className="absolute top-0 inset-x-1.5 h-0.5 bg-gradient-to-r from-cyan-500 to-cyan-300 rounded-full shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
             )}
             <LineChart className="w-5 h-5 shrink-0" />
-            <span className="text-[10px] font-mono font-bold tracking-tight">Tendances</span>
-          </button>
-
-          {/* Tab 5: Centre de Contrôle */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsMobileMenuOpen(true);
-              cyberAudio.playClick();
-            }}
-            className="flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative min-h-[48px] text-slate-400 hover:text-emerald-300 active:scale-95"
-            title="Ouvrir le Centre de Contrôle"
-          >
-            <SlidersHorizontal className="w-5 h-5 shrink-0 text-emerald-400" />
-            <span className="text-[10px] font-mono font-bold tracking-tight">Contrôle</span>
+            <span className="text-[10px] font-mono font-bold tracking-tight whitespace-nowrap">Tendances</span>
           </button>
         </div>
       </nav>
