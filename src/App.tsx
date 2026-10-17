@@ -58,6 +58,7 @@ import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
 import { CyberVacuumLogo } from './components/CyberVacuumLogo';
 import { CategoryDistributionPieChart } from './components/CategoryDistributionPieChart';
 import { AnimatedAspirationCounter } from './components/AnimatedAspirationCounter';
+import { MasterQuantumScraperDeck } from './components/MasterQuantumScraperDeck';
 import { isOfficialStoreProduct } from './utils/sellerGenerator';
 import {
   executeScrapeRequest,
@@ -1169,6 +1170,7 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [targetTypeFilter, setTargetTypeFilter] = useState<'all' | 'boutique' | 'annonce' | 'pub'>('all');
+  const [showCustomUrlInput, setShowCustomUrlInput] = useState<boolean>(false);
 
   // Real-time Category & Pre-Flight Scan States (Suivi des pages, articles, boutiques et ads par catégorie)
   const [isInitialScanRunning, setIsInitialScanRunning] = useState<boolean>(false);
@@ -1618,7 +1620,8 @@ export default function App() {
     startCatIndex: number = 0,
     startPage: number = 1,
     initialAccumulated: ScrapedProduct[] = [],
-    initialCompleted: string[] = []
+    initialCompleted: string[] = [],
+    singleTargetCategoryIndex?: number
   ) => {
     setActiveTab('vacuum');
     abortScrapingRef.current = false;
@@ -1629,13 +1632,14 @@ export default function App() {
     setSweepNewItemsCount(0);
     setSweepPercent(0);
     setSweepCompletedCategories(initialCompleted);
-    cyberAudio.speakScrapeStarted("toutes les catégories");
+    cyberAudio.speakScrapeStarted(singleTargetCategoryIndex !== undefined ? OUEDKNISS_CATEGORIES[singleTargetCategoryIndex]?.name || 'la catégorie' : "toutes les catégories");
 
     const isUnlimited = sweepPagesPerCategory === 0;
     const totalCats = OUEDKNISS_CATEGORIES.length;
+    const endCatIndex = singleTargetCategoryIndex !== undefined ? singleTargetCategoryIndex + 1 : totalCats;
 
     addLog(
-      `[BALAYAGE_OPTIMISÉ_SENIOR] Aspiration haute performance des ${totalCats} CATÉGORIES (${
+      `[BALAYAGE_OPTIMISÉ_SENIOR] Aspiration haute performance ${singleTargetCategoryIndex !== undefined ? `de la CATÉGORIE "${OUEDKNISS_CATEGORIES[singleTargetCategoryIndex]?.name}"` : `des ${totalCats} CATÉGORIES`} (${
         isUnlimited
           ? 'Mode Illimité Exhaustif : jusqu\'au dernier article de chaque catégorie (28 annonces/page)'
           : `${sweepPagesPerCategory} pages/catégorie (${sweepPagesPerCategory * 28} articles/catégorie)`
@@ -1649,7 +1653,7 @@ export default function App() {
     // 1. SCAN INITIAL INSTANTANÉ DE TOUTES LES CATÉGORIES & CANAUX DISPONIBLES
     // Récupération en temps réel de chaque catégorie, boutique, promotion, flash et autres
     // ========================================================
-    if (startCatIndex === 0) {
+    if (startCatIndex === (singleTargetCategoryIndex !== undefined ? singleTargetCategoryIndex : 0)) {
       setIsInitialScanRunning(true);
       const totalMarketAudit = getFullMarketplaceAuditStats();
       setInitialScanSummary({
@@ -1673,7 +1677,7 @@ export default function App() {
           'cyber',
           `0xCHAN_${ch.slug}`
         );
-        await new Promise((r) => setTimeout(r, 20));
+        await new Promise((r) => setTimeout(r, 15));
       }
 
       // Cartographie instantanée des 17 Catégories
@@ -1686,7 +1690,7 @@ export default function App() {
           'info',
           `0xAUDIT_${c.slug}`
         );
-        await new Promise((r) => setTimeout(r, 25));
+        await new Promise((r) => setTimeout(r, 20));
       }
       setIsInitialScanRunning(false);
     }
@@ -1694,7 +1698,7 @@ export default function App() {
     let accumulated: ScrapedProduct[] = initialAccumulated.filter((p) => p.currency === 'DA');
     const completedSet = new Set<string>(initialCompleted);
 
-    for (let catIdx = startCatIndex; catIdx < totalCats; catIdx++) {
+    for (let catIdx = startCatIndex; catIdx < endCatIndex; catIdx++) {
       if (abortScrapingRef.current) break;
 
       const cat = OUEDKNISS_CATEGORIES[catIdx];
@@ -1912,7 +1916,10 @@ export default function App() {
       );
 
       // Mettre à jour checkpoint vers catégorie suivante
-      if (catIdx + 1 < totalCats) {
+      if (singleTargetCategoryIndex !== undefined) {
+        clearSweepCheckpoint();
+        setSavedCheckpoint(null);
+      } else if (catIdx + 1 < totalCats) {
         const nextCp: ScrapeSweepCheckpoint = {
           categoryIndex: catIdx + 1,
           categorySlug: OUEDKNISS_CATEGORIES[catIdx + 1].slug,
@@ -1948,12 +1955,12 @@ export default function App() {
         status: 'completed',
         progress: 100,
         itemsFound: accumulated.length,
-        aiAgentAction: `Balayage complet structuré terminé ! ${accumulated.length.toLocaleString('fr-FR')} articles scellés dans la base.`,
+        aiAgentAction: `Aspiration structurée terminée avec succès ! ${accumulated.length.toLocaleString('fr-FR')} articles scellés dans la base.`,
       }));
 
       cyberAudio.playComplete();
       addLog(
-        `[SUCCÈS QUANTIQUE] Balayage complet achevé ! Total : ${accumulated.length.toLocaleString('fr-FR')} articles indexés.`,
+        `[SUCCÈS QUANTIQUE] Aspiration achevée ! Total : ${accumulated.length.toLocaleString('fr-FR')} articles indexés avec liens 100% vérifiés.`,
         'success',
         '0xDONE'
       );
@@ -1966,16 +1973,26 @@ export default function App() {
     }
   };
 
-  const handleStartAllCategoriesSweep = async () => {
+  // ========================================================
+  // THE ONE AND ONLY MASTER SCRAPING TRIGGERS (LE BOUTON UNIQUE)
+  // ========================================================
+  const handleStartMasterScrape = async (scope: 'all' | 'single', singleCatSlug?: string) => {
     clearSweepCheckpoint();
     setSavedCheckpoint(null);
-    await runAllCategoriesSweep(0, 1, replaceCatalog ? [] : [...products], []);
+    if (scope === 'single') {
+      const slug = singleCatSlug || selectedCategorySlug || OUEDKNISS_CATEGORIES[0].slug;
+      const catIdx = OUEDKNISS_CATEGORIES.findIndex((c) => c.slug === slug);
+      const targetIdx = catIdx !== -1 ? catIdx : 0;
+      await runAllCategoriesSweep(targetIdx, 1, replaceCatalog ? [] : [...products], [], targetIdx);
+    } else {
+      await runAllCategoriesSweep(0, 1, replaceCatalog ? [] : [...products], []);
+    }
   };
 
-  const handleResumeAllCategoriesSweep = async () => {
+  const handleResumeMasterScrape = async () => {
     const cp = loadSweepCheckpoint();
     if (!cp) {
-      await handleStartAllCategoriesSweep();
+      await handleStartMasterScrape('all');
       return;
     }
     const catIdx = Math.max(0, Math.min(OUEDKNISS_CATEGORIES.length - 1, cp.categoryIndex));
@@ -1987,6 +2004,21 @@ export default function App() {
       '0xRESUME'
     );
     await runAllCategoriesSweep(catIdx, page, [...products], completed);
+  };
+
+  const handleResetCheckpoint = () => {
+    clearSweepCheckpoint();
+    setSavedCheckpoint(null);
+    cyberAudio.playChirp(400, 0.05);
+    addLog('[CHECKPOINT] Session réinitialisée avec succès.', 'info');
+  };
+
+  const handleStartAllCategoriesSweep = async () => {
+    await handleStartMasterScrape('all');
+  };
+
+  const handleResumeAllCategoriesSweep = async () => {
+    await handleResumeMasterScrape();
   };
 
 
@@ -3143,229 +3175,106 @@ export default function App() {
               }}
             />
 
-            {/* Central Quantum URL Input & Vacuum Ingestion Controller */}
-            <section className="relative overflow-hidden rounded-2xl bg-slate-950/90 border border-emerald-500/40 p-3.5 sm:p-6 backdrop-blur-xl shadow-[0_0_30px_rgba(0,255,102,0.12)]">
-              {/* Neon corner brackets */}
-              <div className="absolute top-0 left-0 w-3 sm:w-4 h-3 sm:h-4 border-t-2 border-l-2 border-[#00ff66]" />
-              <div className="absolute top-0 right-0 w-3 sm:w-4 h-3 sm:h-4 border-t-2 border-r-2 border-[#00ff66]" />
-              <div className="absolute bottom-0 left-0 w-3 sm:w-4 h-3 sm:h-4 border-b-2 border-l-2 border-[#00ff66]" />
-              <div className="absolute bottom-0 right-0 w-3 sm:w-4 h-3 sm:h-4 border-b-2 border-r-2 border-[#00ff66]" />
+            {/* ============================================================== */}
+            {/* THE ONE AND ONLY MASTER QUANTUM SCRAPER DECK (LE BOUTON UNIQUE)*/}
+            {/* ============================================================== */}
+            <MasterQuantumScraperDeck
+              isScrapingActive={isContinuousScraping || isAllCategoriesSweepActive}
+              isInitialScanRunning={isInitialScanRunning}
+              activeSweepCategoryIndex={activeSweepCategoryIndex}
+              sweepCurrentPage={sweepCurrentPage}
+              currentCategoryTotalPages={currentCategoryTotalPages}
+              currentCategoryTotalArticles={currentCategoryTotalArticles}
+              currentCategoryNewItemsCount={currentCategoryNewItemsCount}
+              currentCategoryBoutiques={currentCategoryBoutiques}
+              currentCategoryAdsPubs={currentCategoryAdsPubs}
+              sweepNewItemsCount={sweepNewItemsCount}
+              sweepPercent={sweepPercent}
+              completedCategories={sweepCompletedCategories}
+              lastPageBatchStats={lastPageBatchStats}
+              savedCheckpoint={savedCheckpoint}
+              selectedCategorySlug={selectedCategorySlug}
+              totalCatalogCount={products.length}
+              onStartMasterScrape={handleStartMasterScrape}
+              onStopScrape={handleStopScrape}
+              onResumeMasterScrape={handleResumeMasterScrape}
+              onResetCheckpoint={handleResetCheckpoint}
+              onSelectCategory={(cat) => {
+                setSelectedCategorySlug(cat.slug);
+                setTargetUrl(cat.url);
+                cyberAudio.playHoloTap(880);
+                addLog(`[CATÉGORIE_SÉLECTIONNÉE] ${cat.name} (${cat.url})`, 'info', `0xCAT_${cat.slug}`);
+              }}
+              onOpenAuditModal={() => setIsCategoryAuditModalOpen(true)}
+              targetTypeFilter={targetTypeFilter}
+              onChangeTargetTypeFilter={setTargetTypeFilter}
+            />
 
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-3">
-                <div className="flex items-center gap-2 shrink-0">
-                  <Globe className="w-4 h-4 text-emerald-400 animate-spin" />
-                  <span className="text-xs font-mono font-bold tracking-wider text-emerald-300 uppercase whitespace-nowrap">
-                    CIBLE D'EXTRACTION // URL E-COMMERCE
-                  </span>
+            {/* Collapsible Advanced Custom URL / External Platforms Accordion */}
+            <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-2.5 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => setShowCustomUrlInput(!showCustomUrlInput)}
+                className="w-full flex items-center justify-between text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer py-1"
+              >
+                <div className="flex items-center gap-2">
+                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="font-bold">Option Avancée : URL Cible Externe Personnalisée (Amazon, Temu, Jumia)</span>
                 </div>
+                <span className="text-[10px] text-slate-500 font-bold px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
+                  {showCustomUrlInput ? 'Masquer' : 'Afficher'}
+                </span>
+              </button>
 
-                {/* Presets with horizontal touch scrolling on mobile */}
-                <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800 pb-1 max-w-full">
-                  <span className="shrink-0 text-slate-400 hidden sm:inline">PRÉSETS :</span>
-                  <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
+              {showCustomUrlInput && (
+                <div className="mt-3 pt-3 border-t border-slate-800/80 space-y-3 animate-fadeIn">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                    <span className="text-slate-500 shrink-0">Préréglages rapides :</span>
                     {PRESET_URLS.map((preset) => (
                       <button
                         key={preset.name}
+                        type="button"
                         onClick={() => {
                           setTargetUrl(preset.url);
                           cyberAudio.playHoloTap(900);
                         }}
-                        className={`px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-mono border transition-all whitespace-nowrap shrink-0 cursor-pointer min-h-[32px] ${
+                        className={`px-2 py-1 rounded-lg border whitespace-nowrap cursor-pointer transition-all ${
                           targetUrl === preset.url
                             ? 'bg-emerald-500/20 text-[#00ff88] border-emerald-400 font-bold'
-                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                         }`}
                       >
                         {preset.name}
                       </button>
                     ))}
                   </div>
-                </div>
-              </div>
 
-              {/* Engine Mode & Scraping Volume Selector */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 p-2.5 sm:p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
-                  <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">MOTEUR :</span>
-                  <div className="grid grid-cols-2 sm:flex rounded-lg bg-black/60 p-0.5 border border-slate-800 gap-0.5 w-full sm:w-auto">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEngineMode('direct');
-                        cyberAudio.playHoloTap(800);
-                      }}
-                      className={`px-2.5 sm:px-3 py-2 rounded-md text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[36px] ${
-                        engineMode === 'direct'
-                          ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400 shadow-[0_0_10px_rgba(0,255,102,0.3)]'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <Zap className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">DIRECT (Illimité)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEngineMode('ai');
-                        cyberAudio.playHoloTap(1000);
-                      }}
-                      className={`px-2.5 sm:px-3 py-2 rounded-md text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[36px] ${
-                        engineMode === 'ai'
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <Cpu className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">HYBRIDE IA (Gemini)</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2 text-xs font-mono w-full lg:w-auto">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-slate-400 text-[11px] whitespace-nowrap">VOLUME :</span>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {[
-                        { label: '28 (1p)', val: 28 },
-                        { label: '56 (2p)', val: 56 },
-                        { label: '140 (5p)', val: 140 },
-                        { label: '280 (10p)', val: 280 },
-                        { label: '700 (25p)', val: 700 },
-                        { label: '∞ Tout', val: 0 },
-                      ].map((item) => (
-                        <button
-                          type="button"
-                          key={item.label}
-                          onClick={() => setScrapeVolume(item.val)}
-                          className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[34px] ${
-                            scrapeVolume === item.val
-                              ? 'bg-[#00ff66] text-black shadow-[0_0_10px_rgba(0,255,102,0.4)]'
-                              : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={handleClearAllProducts}
-                      disabled={products.length === 0}
-                      className="px-2.5 py-1.5 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-300 hover:bg-rose-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[34px]"
-                      title="Vider tous les articles déjà aspirés"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Vider ({products.length})</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleTriggerPriceUpdate}
-                      disabled={products.length === 0 || isUpdatingPrices}
-                      className="px-2.5 py-1.5 rounded-lg bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/70 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer min-h-[34px]"
-                      title="Simuler des fluctuations de prix pour tester la détection de changements à la ré-aspiration"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>Tester Prix</span>
-                    </button>
-
-                    <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer px-2 py-1.5 rounded-lg bg-black/40 border border-slate-800 min-h-[34px]">
-                      <input
-                        type="checkbox"
-                        checked={replaceCatalog}
-                        onChange={(e) => setReplaceCatalog(e.target.checked)}
-                        className="rounded accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
-                      />
-                      <span className={replaceCatalog ? 'text-amber-400 font-bold' : 'text-emerald-400 font-medium'}>
-                        {replaceCatalog ? 'Écraser base' : 'Fusion intelligente'}
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Input Bar Form */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleStartScrape();
-                }}
-                className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch"
-              >
-                <div className="relative flex-1">
-                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-emerald-400">
-                    <Radio className="w-4 h-4 animate-pulse" />
-                  </div>
-                  <input
-                    type="url"
-                    required
-                    value={targetUrl}
-                    onChange={(e) => setTargetUrl(e.target.value)}
-                    placeholder="Entrez l'URL du site e-commerce (ex: https://www.ouedkniss.com/telephones)"
-                    className="w-full bg-slate-900/90 border-2 border-emerald-500/40 rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#00ff66] focus:shadow-[0_0_15px_rgba(0,255,102,0.3)] transition-all min-h-[48px]"
-                  />
-                </div>
-
-                {isContinuousScraping || job.status === 'aspirating' ? (
-                  <button
-                    type="button"
-                    onClick={handleStopScrape}
-                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black font-mono text-xs sm:text-sm tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center justify-center gap-2 cursor-pointer shrink-0 animate-pulse min-h-[48px]"
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleStartScrape(targetUrl);
+                    }}
+                    className="flex flex-col sm:flex-row gap-2 items-stretch"
                   >
-                    <StopCircle className="w-4 h-4" />
-                    <span>ARRÊTER L'ASPIRATION</span>
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={job.status === 'scanning'}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-black font-mono text-xs sm:text-sm tracking-wider uppercase transition-all transform active:scale-95 shadow-[0_0_20px_rgba(0,255,102,0.4)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0 min-h-[48px]"
-                  >
-                    <Zap className="w-4 h-4" />
-                    <span>
-                      {scrapeVolume === 0 ? '♾️ ASPIRER TOUT LE CATALOGUE' : `ASPIRER (${scrapeVolume})`}
-                    </span>
-                  </button>
-                )}
-              </form>
-
-              {/* Quick Telemetry Bar under input */}
-              <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] font-mono text-slate-400 pt-2 border-t border-slate-900">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    Moteur : <strong className="text-[#00ff66]">{engineMode === 'direct' ? 'DIRECT SANS IA' : 'HYBRIDE IA (Gemini 3.8)'}</strong>
-                  </span>
-                  <span className="text-slate-600 hidden sm:inline">|</span>
-                  <span className="flex items-center gap-1">
-                    Volume :{' '}
-                    {scrapeVolume === 0 ? (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-[#00ff88] border border-emerald-400/50 font-bold animate-pulse">
-                        ∞ Illimité
-                      </span>
-                    ) : (
-                      <strong className="text-slate-200">{scrapeVolume} annonces</strong>
-                    )}
-                  </span>
+                    <input
+                      type="url"
+                      value={targetUrl}
+                      onChange={(e) => setTargetUrl(e.target.value)}
+                      placeholder="Entrez une URL externe spécifique..."
+                      className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isContinuousScraping}
+                      className="px-4 py-2 rounded-xl bg-slate-900 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-950/60 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Aspirer URL Externe</span>
+                    </button>
+                  </form>
                 </div>
-
-                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-                  <AnimatedAspirationCounter
-                    count={products.length}
-                    label="RÉCOLTE"
-                    unit="ARTICLES"
-                    size="sm"
-                    isLiveScraping={isContinuousScraping || job.status === 'aspirating'}
-                  />
-                  <span className="text-slate-400">
-                    Devise : <strong className="text-white">{targetUrl.includes('ouedkniss') ? '🇩🇿 DA' : '🇪🇺 €'}</strong>
-                  </span>
-                </div>
-              </div>
-            </section>
+              )}
+            </div>
 
             {/* The Quantum Vacuum Vortex Visualizer */}
             <VacuumVisualizer

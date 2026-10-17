@@ -213,101 +213,50 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
             )}
           </div>
 
-          {/* Primary Action Button (Stateful: Idle vs Scraping Active) */}
-          {isScrapingActive ? (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-amber-500/15 border border-amber-400/60 text-amber-300 font-mono text-xs font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse min-h-[44px]">
+          {/* Active Category Status & Focus Indicator (No redundant scrape buttons) */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {isScrapingActive ? (
+              <div className="px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-400/60 text-amber-300 font-mono text-xs font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse min-h-[40px]">
                 <Sparkles className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
                 <span>
-                  ASPIRATION ({activeSweepCategoryIndex !== undefined ? activeSweepCategoryIndex + 1 : 1}/{OUEDKNISS_CATEGORIES.length})
+                  ASPIRATION EN COURS ({activeSweepCategoryIndex !== undefined ? activeSweepCategoryIndex + 1 : 1}/{OUEDKNISS_CATEGORIES.length})
                 </span>
                 {activeCategory && (
-                  <span className="hidden xl:inline text-amber-200 font-mono max-w-[150px] truncate">
+                  <span className="hidden sm:inline text-amber-200">
                     : {activeCategory.name}
                   </span>
                 )}
               </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const focusedCat = OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug) || OUEDKNISS_CATEGORIES[0];
+                  return (
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-[#00ff88] font-mono text-xs flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-slate-400">Ciblée :</span>
+                      <span className="font-bold text-white">{focusedCat.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                        {focusedCat.realPages || 473} pages
+                      </span>
+                    </div>
+                  );
+                })()}
 
-              {onStopSweep && (
-                <button
-                  type="button"
-                  onClick={onStopSweep}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-mono text-xs font-black flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all cursor-pointer min-h-[44px]"
-                  title="Arrêter immédiatement le balayage des catégories"
-                >
-                  <StopCircle className="w-4 h-4 fill-white/20 shrink-0" />
-                  <span>STOP</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              {/* Button 0: Resume In-Progress Sweep if checkpoint exists */}
-              {savedCheckpoint && onResumeSweep && (
-                <button
-                  type="button"
-                  onClick={onResumeSweep}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 hover:from-cyan-400 hover:to-emerald-300 font-mono text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.4)] min-h-[44px] animate-pulse"
-                  title={`Reprendre l'aspiration à la catégorie ${savedCheckpoint.categoryIndex + 1}/${OUEDKNISS_CATEGORIES.length} (${savedCheckpoint.categoryName}), page ${savedCheckpoint.currentPage || 1}`}
-                >
-                  <Play className="w-4 h-4 fill-slate-950 text-slate-950 shrink-0" />
-                  <span className="tracking-wide whitespace-nowrap">
-                    REPRENDRE : CAT. {savedCheckpoint.categoryIndex + 1} (P.{savedCheckpoint.currentPage || 1})
-                  </span>
-                </button>
-              )}
-
-              {/* Button 1: Direct Category Scrape (functions identically to the bottom input scrape button) */}
-              <button
-                type="button"
-                onClick={() => {
-                  const selectedCat = OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug) || OUEDKNISS_CATEGORIES[0];
-                  if (onStartCategoryScrape) {
-                    onStartCategoryScrape(selectedCat);
-                  } else {
-                    onSelectCategory(selectedCat);
-                  }
-                }}
-                className="w-full sm:w-auto relative group overflow-hidden px-4 sm:px-5 py-2.5 rounded-xl font-mono text-xs font-black text-slate-950 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.45)] hover:shadow-[0_0_35px_rgba(0,255,102,0.7)] hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#00ff66] via-emerald-400 to-cyan-300 border border-emerald-300 min-h-[44px]"
-                title={`Aspirer immédiatement la catégorie "${OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug)?.name || 'sélectionnée'}"`}
-              >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
-                <Zap className="w-4 h-4 fill-black text-black group-hover:rotate-12 transition-transform shrink-0" />
-                <span className="tracking-wide whitespace-nowrap">
-                  ASPIRER : {(OUEDKNISS_CATEGORIES.find((c) => c.slug === selectedCategorySlug)?.name || 'CETTE CATÉGORIE').toUpperCase()}
-                </span>
-              </button>
-
-              {/* Button: Reconnaissance Audit Pre-Flight */}
-              {onOpenAuditModal && (
-                <button
-                  type="button"
-                  onClick={onOpenAuditModal}
-                  className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:border-cyan-400 font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] shadow-[0_0_12px_rgba(0,240,255,0.25)]"
-                  title="Scanner et auditer les 17 catégories : pages, articles, boutiques et pubs"
-                >
-                  <Radar className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span className="tracking-wide whitespace-nowrap">AUDITER LES 17 CATÉGORIES</span>
-                </button>
-              )}
-
-              {/* Button 2: Sequential 17 Categories Sweep */}
-              <button
-                type="button"
-                onClick={onStartAllCategoriesSweep}
-                className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-[#00ff88] hover:bg-emerald-950/50 hover:border-emerald-400 font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px]"
-                title={savedCheckpoint ? "Recommencer le balayage des 17 catégories depuis le début" : "Aspirer toutes les 17 catégories l'une après l'autre"}
-              >
-                <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                <span className="tracking-wide whitespace-nowrap">
-                  {savedCheckpoint ? 'RECOMMENCER LES 17 CATÉGORIES' : 'BALAYER LES 17 CATÉGORIES'}
-                </span>
-                <span className="px-1.5 py-0.5 rounded bg-black/85 text-[#00ff88] text-[10px] font-bold border border-emerald-400/50 hidden sm:inline">
-                  {sweepPagesPerCategory === 0 ? '∞ Illimité' : `${sweepPagesPerCategory * 48}/cat`}
-                </span>
-              </button>
-            </div>
-          )}
+                {onOpenAuditModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenAuditModal}
+                    className="px-3 py-1.5 rounded-xl bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 font-mono text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer min-h-[38px]"
+                    title="Cartographie des 17 catégories"
+                  >
+                    <Radar className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="hidden sm:inline">Audit</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

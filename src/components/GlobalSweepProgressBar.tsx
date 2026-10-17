@@ -276,75 +276,30 @@ export const GlobalSweepProgressBar: React.FC<GlobalSweepProgressBarProps> = ({
               </div>
             </div>
 
-            {/* Actions: Start / Stop Controls */}
-            {isActive ? (
-              <button
-                onClick={onStopSweep}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(244,63,94,0.4)] transition-all cursor-pointer animate-pulse"
-                title="Stopper le balayage global immédiatement"
-              >
-                <Square className="w-3.5 h-3.5 fill-white" />
-                <span>Stopper</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                {/* Quick depth selector */}
-                <div className="hidden md:flex items-center bg-slate-900/90 border border-slate-800 rounded-lg p-0.5 text-[11px] font-mono">
-                  {[
-                    { label: '5p', val: 5 },
-                    { label: '25p', val: 25 },
-                    { label: '50p', val: 50 },
-                    { label: '100p', val: 100 },
-                    { label: '∞ Illimité', val: 0 },
-                  ].map((opt) => (
-                    <button
-                      key={opt.val}
-                      onClick={() => onChangeSweepPagesPerCategory(opt.val)}
-                      className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
-                        sweepPagesPerCategory === opt.val
-                          ? 'bg-emerald-500/25 text-[#00ff88] border border-emerald-400/50 font-bold shadow-[0_0_8px_rgba(0,255,102,0.3)]'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+            {/* Real-time Telemetry & Status Indicator (No duplicate buttons) */}
+            <div className="flex items-center gap-2">
+              {isActive ? (
+                <div className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-400/50 text-[#00ff88] text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_12px_rgba(0,255,102,0.3)] animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>SWEEP ACTIF (P.{currentPage})</span>
                 </div>
-
-                {/* Resume button if checkpoint exists */}
-                {savedCheckpoint && onResumeSweep && (
-                  <button
-                    onClick={onResumeSweep}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] animate-pulse"
-                    title={`Reprendre l'aspiration à la catégorie ${savedCheckpoint.categoryIndex + 1}/${totalCategories} (${savedCheckpoint.categoryName}), page ${savedCheckpoint.currentPage || 1}`}
-                  >
-                    <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
-                    <span>Reprendre (Cat. {savedCheckpoint.categoryIndex + 1} p.{savedCheckpoint.currentPage || 1})</span>
-                  </button>
-                )}
-
-                {onOpenAuditModal && (
-                  <button
-                    type="button"
-                    onClick={onOpenAuditModal}
-                    className="px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:text-white hover:bg-cyan-900/60 text-xs font-mono font-bold flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,240,255,0.25)] transition-all cursor-pointer"
-                    title="Audit pré-vol : scanner le nombre de pages, articles, boutiques et pubs de chaque catégorie"
-                  >
-                    <Radar className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="hidden sm:inline">Audit Pré-Vol</span>
-                  </button>
-                )}
-
+              ) : isComplete ? (
+                <div className="px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-400/50 text-cyan-300 text-xs font-mono font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>100% SCELLÉ</span>
+                </div>
+              ) : onOpenAuditModal ? (
                 <button
-                  onClick={onStartSweep}
-                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00ff88] text-slate-950 hover:from-emerald-400 hover:to-cyan-300 text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,255,102,0.35)] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                  title={savedCheckpoint ? "Recommencer depuis la 1ère catégorie" : "Démarrer l'aspiration séquentielle des 17 catégories Ouedkniss"}
+                  type="button"
+                  onClick={onOpenAuditModal}
+                  className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-cyan-400 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer min-h-[36px]"
+                  title="Cartographie des 17 catégories"
                 >
-                  <Globe className="w-3.5 h-3.5 text-slate-950" />
-                  <span>{savedCheckpoint ? 'Recommencer (17 Cat.)' : 'Balayer les 17 Catégories'}</span>
+                  <Radar className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="hidden sm:inline">Audit Pré-Vol</span>
                 </button>
-              </div>
-            )}
+              ) : null}
+            </div>
 
             {/* Toggle 17 Categories Micro-Matrix */}
             <button
