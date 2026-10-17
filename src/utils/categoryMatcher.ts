@@ -237,9 +237,231 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
 };
 
 /**
- * Universal Category Matcher
- * Accurately determines if a product belongs to the selected category.
- * Matches across category name, slug, keywords, title, specs, and brand.
+/**
+ * 17 Canonical Ouedkniss Category Slugs
+ */
+export const CANONICAL_CATEGORY_SLUGS = [
+  'automobiles',
+  'pieces-detachees',
+  'telephones',
+  'informatique',
+  'electromenager',
+  'immobilier',
+  'maison',
+  'vetements',
+  'jeux-video',
+  'sports-loisirs',
+  'materiaux',
+  'services',
+  'voyages-tourisme',
+  'alimentation-agriculture',
+  'animaux',
+  'bebes-enfants',
+  'emploi',
+] as const;
+
+export type CanonicalCategorySlug = (typeof CANONICAL_CATEGORY_SLUGS)[number];
+
+/**
+ * Resolves any category label, slug, or search filter into its exact canonical slug
+ */
+export function resolveCategorySlug(categoryNameOrSlug: string | undefined | null): string {
+  if (!categoryNameOrSlug || categoryNameOrSlug === 'all' || categoryNameOrSlug === 'all-categories') {
+    return 'all';
+  }
+  const norm = normalizeText(categoryNameOrSlug);
+
+  if (norm.includes('auto') || norm.includes('vehicule') || norm.includes('voiture') || norm.includes('moto') || norm.includes('camion')) {
+    if (norm.includes('piece') || norm.includes('detachee')) return 'pieces-detachees';
+    return 'automobiles';
+  }
+  if (norm.includes('piece') || norm.includes('detachee') || norm.includes('pneu') || norm.includes('jante')) {
+    return 'pieces-detachees';
+  }
+  if (norm.includes('tel') || norm.includes('smart') || norm.includes('tablette') || norm.includes('iphone')) {
+    return 'telephones';
+  }
+  if (norm.includes('info') || norm.includes('ordinateur') || norm.includes('laptop') || norm.includes('pc') || norm.includes('bureau')) {
+    return 'informatique';
+  }
+  if (norm.includes('electro') || norm.includes('climatiseur') || norm.includes('refrigerat') || norm.includes('lave') || norm.includes('frigo')) {
+    return 'electromenager';
+  }
+  if (norm.includes('immo') || norm.includes('terrain') || norm.includes('appart') || norm.includes('villa') || norm.includes('studio') || norm.includes('local')) {
+    return 'immobilier';
+  }
+  if (norm.includes('maison') || norm.includes('meuble') || norm.includes('mobilier') || norm.includes('salon') || norm.includes('lit') || norm.includes('matelas')) {
+    return 'maison';
+  }
+  if (norm.includes('vetement') || norm.includes('mode') || norm.includes('habit') || norm.includes('chaussure') || norm.includes('basket') || norm.includes('sneaker')) {
+    return 'vetements';
+  }
+  if (norm.includes('jeu') || norm.includes('video') || norm.includes('console') || norm.includes('gaming') || norm.includes('playstation') || norm.includes('switch') || norm.includes('xbox')) {
+    return 'jeux-video';
+  }
+  if (norm.includes('sport') || norm.includes('loisir') || norm.includes('fitness') || norm.includes('velo') || norm.includes('vtt') || norm.includes('muscu')) {
+    return 'sports-loisirs';
+  }
+  if (norm.includes('materiau') || norm.includes('outillage') || norm.includes('btp') || norm.includes('chantier') || norm.includes('groupe electrogene')) {
+    return 'materiaux';
+  }
+  if (norm.includes('service') || norm.includes('artisan') || norm.includes('travaux') || norm.includes('demenag') || norm.includes('plomb') || norm.includes('peintr')) {
+    return 'services';
+  }
+  if (norm.includes('voyage') || norm.includes('tourisme') || norm.includes('omra') || norm.includes('sejour') || norm.includes('hotel') || norm.includes('vol') || norm.includes('visa')) {
+    return 'voyages-tourisme';
+  }
+  if (norm.includes('aliment') || norm.includes('agricol') || norm.includes('terroir') || norm.includes('datte') || norm.includes('miel') || norm.includes('huile')) {
+    return 'alimentation-agriculture';
+  }
+  if (norm.includes('anim') || norm.includes('chien') || norm.includes('chat') || norm.includes('oiseau') || norm.includes('cheval')) {
+    return 'animaux';
+  }
+  if (norm.includes('bebe') || norm.includes('enfant') || norm.includes('poussette') || norm.includes('puericulture') || norm.includes('biberon')) {
+    return 'bebes-enfants';
+  }
+  if (norm.includes('emploi') || norm.includes('recrutement') || norm.includes('travail') || norm.includes('carriere') || norm.includes('candidature') || norm.includes('stage')) {
+    return 'emploi';
+  }
+
+  // Exact slug match check
+  for (const slug of CANONICAL_CATEGORY_SLUGS) {
+    if (norm === slug || norm.replace(/\s+/g, '-') === slug) {
+      return slug;
+    }
+  }
+
+  return 'telephones'; // safe default
+}
+
+/**
+ * Deterministically determines the canonical category of a product
+ * Primary source: product.category, then product.productUrl, then product.title.
+ */
+export function getCanonicalCategorySlug(product: {
+  category?: string | null;
+  productUrl?: string | null;
+  title?: string | null;
+}): CanonicalCategorySlug {
+  // 1. Direct URL path inspection (100% reliable on Ouedkniss links like ouedkniss.com/automobiles/...)
+  if (product.productUrl) {
+    const pUrl = product.productUrl.toLowerCase();
+    for (const slug of CANONICAL_CATEGORY_SLUGS) {
+      if (pUrl.includes(`/${slug}`) || pUrl.includes(`-${slug}-`)) {
+        return slug;
+      }
+    }
+    if (pUrl.includes('/voitures-') || pUrl.includes('/automobiles')) return 'automobiles';
+    if (pUrl.includes('/telephones-') || pUrl.includes('/smartphones')) return 'telephones';
+    if (pUrl.includes('/informatique-') || pUrl.includes('/laptops')) return 'informatique';
+    if (pUrl.includes('/voyages-') || pUrl.includes('/omra')) return 'voyages-tourisme';
+  }
+
+  // 2. Product's defined category field
+  if (product.category && product.category !== 'Général' && product.category !== 'Annonces Ouedkniss Algérie') {
+    const slug = resolveCategorySlug(product.category);
+    if (slug !== 'all' && (CANONICAL_CATEGORY_SLUGS as readonly string[]).includes(slug)) {
+      return slug as CanonicalCategorySlug;
+    }
+  }
+
+  // 3. Title analysis if category was generic/empty
+  const titleNorm = normalizeText(product.title);
+
+  // Automobiles
+  if (
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'clio') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'golf') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'peugeot') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'renault') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'volkswagen') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'dacia') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'hyundai') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'kia') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'audi') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'bmw') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'mercedes') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'seat') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'skoda') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'scooter') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'moto') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'camion') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'safia') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), '00 peinture') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'dci') ||
+    tokenMatchesText(titleNorm, titleNorm.replace(/\s+/g, ''), 'tdi')
+  ) {
+    return 'automobiles';
+  }
+
+  // Voyages & Tourisme
+  if (
+    titleNorm.includes('omra') ||
+    titleNorm.includes('hadj') ||
+    titleNorm.includes('sejour turquie') ||
+    titleNorm.includes('voyage organise') ||
+    titleNorm.includes('vol alger') ||
+    titleNorm.includes('billet avion') ||
+    titleNorm.includes('visa touristique')
+  ) {
+    return 'voyages-tourisme';
+  }
+
+  // Phones & Tablets
+  if (
+    titleNorm.includes('iphone') ||
+    titleNorm.includes('galaxy s') ||
+    titleNorm.includes('redmi') ||
+    titleNorm.includes('xiaomi') ||
+    titleNorm.includes('oppo') ||
+    titleNorm.includes('realme') ||
+    titleNorm.includes('ipad') ||
+    titleNorm.includes('smartphone') ||
+    titleNorm.includes('airpods')
+  ) {
+    return 'telephones';
+  }
+
+  // Gaming
+  if (
+    titleNorm.includes('ps5') ||
+    titleNorm.includes('playstation') ||
+    titleNorm.includes('switch oled') ||
+    titleNorm.includes('xbox series') ||
+    titleNorm.includes('dualsense')
+  ) {
+    return 'jeux-video';
+  }
+
+  // Informatique
+  if (
+    titleNorm.includes('rtx') ||
+    titleNorm.includes('macbook') ||
+    titleNorm.includes('rog strix') ||
+    titleNorm.includes('victus') ||
+    titleNorm.includes('laptop') ||
+    titleNorm.includes('pc gamer')
+  ) {
+    return 'informatique';
+  }
+
+  // Électroménager
+  if (
+    titleNorm.includes('climatiseur') ||
+    titleNorm.includes('smart tv') ||
+    titleNorm.includes('refrigerateur') ||
+    titleNorm.includes('machine a laver')
+  ) {
+    return 'electromenager';
+  }
+
+  return 'telephones';
+}
+
+/**
+ * Universal Unified Category Matcher:
+ * Ensures 100% strict matching across screens.
+ * When filtering by 'automobiles', will NEVER return smartphones or trips.
  */
 export function matchCategory(
   productCategory: string | undefined | null,
@@ -252,86 +474,33 @@ export function matchCategory(
     return true;
   }
 
-  const normCat = normalizeText(selectedCat);
-  const normPCat = normalizeText(productCategory);
-  const normTitle = normalizeText(productTitle);
-  const normBrand = normalizeText(productBrand);
+  const selectedSlug = resolveCategorySlug(selectedCat);
+  if (selectedSlug === 'all') return true;
 
-  // 1. Direct normalized equality or substring
-  if (normPCat === normCat) return true;
-  if (normPCat && normCat && (normPCat.includes(normCat) || normCat.includes(normPCat))) {
-    return true;
-  }
+  // Resolve product canonical category
+  const productSlug = getCanonicalCategorySlug({
+    category: productCategory,
+    title: productTitle,
+  });
 
-  // 2. Map standard category key
-  let catKey = '';
-  for (const key of Object.keys(CATEGORY_KEYWORDS)) {
-    if (normCat.includes(key) || key.includes(normCat)) {
-      catKey = key;
-      break;
-    }
-  }
-
-  // If selectedCat didn't match a direct key, check keywords in selectedCat
-  if (!catKey) {
-    for (const [key, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-      if (keywords.some((kw) => normCat.includes(kw) || kw.includes(normCat))) {
-        catKey = key;
-        break;
-      }
-    }
-  }
-
-  if (catKey && CATEGORY_KEYWORDS[catKey]) {
-    const keywords = CATEGORY_KEYWORDS[catKey];
-
-    // Check if product's category contains any keyword
-    if (normPCat && keywords.some((kw) => normPCat.includes(kw))) {
-      return true;
-    }
-
-    // Check if product's title contains any keyword (critical for generic category "Annonces Ouedkniss" or "E-Commerce")
-    if (normTitle && keywords.some((kw) => normTitle.includes(kw))) {
-      return true;
-    }
-
-    // Check brand
-    if (normBrand && keywords.some((kw) => normBrand.includes(kw))) {
-      return true;
-    }
-
-    // Check specs
-    if (productSpecs) {
-      const specsStr = normalizeText(Object.values(productSpecs).join(' '));
-      if (keywords.some((kw) => specsStr.includes(kw))) {
-        return true;
-      }
-    }
-  }
-
-  // 3. Fallback token overlap
-  const catTokens = normCat.split(' ').filter((w) => w.length >= 3);
-  const prodTokens = `${normPCat} ${normTitle}`.split(' ').filter((w) => w.length >= 3);
-
-  const overlap = catTokens.some((ct) => prodTokens.some((pt) => pt.includes(ct) || ct.includes(pt)));
-  return overlap;
+  return productSlug === selectedSlug;
 }
 
 /**
  * Universal Sub-Category / Department Matcher
- * Handles intelligent matching of chips (e.g. "Smartphones 5G", "Ventes Flash", "Voitures Moins de 100k km").
+ * Strictly filters within the canonical department so chips NEVER cross-contaminate.
  */
 export function matchSubcategory(
   product: ScrapedProduct,
   subCategory: string | undefined | null
 ): boolean {
-  if (!subCategory || subCategory === 'all' || subCategory === 'tout') {
+  if (!subCategory || subCategory === 'all' || subCategory === 'tout' || subCategory.startsWith('Tout (')) {
     return true;
   }
 
   const normSub = normalizeText(subCategory);
 
-  // 1. Special Feature Chips
+  // 1. Universal Feature Chips (work across all categories)
   if (normSub.includes('flash') || normSub.includes('reduction') || normSub.includes('80')) {
     return (product.discountPercent || 0) >= 15 || product.itemType === 'pub';
   }
@@ -354,19 +523,89 @@ export function matchSubcategory(
   }
 
   if (normSub.includes('meilleure') || normSub.includes('top vente')) {
-    return (product.reviewsCount || 0) >= 200 || (product.discountPercent || 0) >= 10;
+    return (product.reviewsCount || 0) >= 200 || (product.discountPercent || 0) >= 8;
   }
 
-  // 2. Keyword based matching against title, category, brand, specs
+  // 2. Specific Vehicle chips
+  if (normSub.includes('golf') || normSub.includes('allemande')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'automobiles') return false;
+    const t = normalizeText(product.title);
+    return t.includes('golf') || t.includes('volkswagen') || t.includes('audi') || t.includes('seat') || t.includes('skoda') || t.includes('bmw') || t.includes('mercedes');
+  }
+
+  if (normSub.includes('clio') || normSub.includes('gt line')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'automobiles') return false;
+    const t = normalizeText(product.title);
+    return t.includes('clio') || t.includes('renault') || t.includes('dci') || t.includes('gt line');
+  }
+
+  if (normSub.includes('00 peinture') || normSub.includes('safia')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'automobiles') return false;
+    const t = normalizeText(`${product.title} ${Object.values(product.specs || {}).join(' ')}`);
+    return t.includes('00 peinture') || t.includes('safia') || t.includes('origine') || t.includes('neuf');
+  }
+
+  if (normSub.includes('suv') || normSub.includes('4x4')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'automobiles') return false;
+    const t = normalizeText(product.title);
+    return t.includes('suv') || t.includes('4x4') || t.includes('duster') || t.includes('tucson') || t.includes('sportage') || t.includes('tiguan');
+  }
+
+  if (normSub.includes('moto') || normSub.includes('scooter')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'automobiles') return false;
+    const t = normalizeText(product.title);
+    return t.includes('moto') || t.includes('scooter') || t.includes('tmax') || t.includes('sym') || t.includes('vespa');
+  }
+
+  if (normSub.includes('camion') || normSub.includes('btp')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'automobiles') return false;
+    const t = normalizeText(product.title);
+    return t.includes('camion') || t.includes('engin') || t.includes('jcb') || t.includes('tracteur') || t.includes('isuzu') || t.includes('sonacome');
+  }
+
+  // 3. Specific Phone chips
+  if (normSub.includes('iphone')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'telephones') return false;
+    const t = normalizeText(product.title);
+    return t.includes('iphone') || t.includes('apple');
+  }
+
+  if (normSub.includes('galaxy') || normSub.includes('samsung')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'telephones') return false;
+    const t = normalizeText(product.title);
+    return t.includes('galaxy') || t.includes('samsung');
+  }
+
+  if (normSub.includes('5g')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'telephones') return false;
+    const t = normalizeText(product.title);
+    return t.includes('5g');
+  }
+
+  if (normSub.includes('tablette') || normSub.includes('ipad')) {
+    const can = getCanonicalCategorySlug(product);
+    if (can !== 'telephones') return false;
+    const t = normalizeText(product.title);
+    return t.includes('tablette') || t.includes('ipad');
+  }
+
+  // Fallback: match tokens strictly within product
   const subTokens = normSub.split(' ').filter((t) => t.length >= 3 && !['les', 'des', 'aux', 'pour', 'avec', 'sans', 'dans'].includes(t));
   if (subTokens.length === 0) return true;
 
   const searchable = normalizeText(
-    `${product.title} ${product.category} ${product.brand || ''} ${Object.values(product.specs || {}).join(' ')}`
+    `${product.title} ${product.brand || ''} ${Object.values(product.specs || {}).join(' ')}`
   );
-  const compressed = searchable.replace(/\s+/g, '');
-
-  return subTokens.some((token) => tokenMatchesText(searchable, compressed, token));
+  return subTokens.some((token) => searchable.includes(token));
 }
 
 /**
@@ -614,6 +853,21 @@ export const TEMU_OFFICIAL_DEPARTMENTS: TemuDepartment[] = [
       'Studios Meublés Alger / Oran',
       'Terrains avec Acte & Livret',
       'Locaux Commerciaux & Hangars',
+    ],
+  },
+  {
+    id: 'voyages',
+    name: '✈️ Voyages & Tourisme',
+    slug: 'voyages-tourisme',
+    iconName: 'Plane',
+    badge: 'Évasion',
+    color: '#0284c7',
+    subcategories: [
+      'Omra & Hadj Tout Compris',
+      'Séjours Turquie & Istanbul',
+      'Hôtels & Complexes Tunisie',
+      'Billets d\'Avion Air Algérie',
+      'Circuits Sud Algérien & Djanet',
     ],
   },
   {
