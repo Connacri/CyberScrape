@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { ScrapedProduct } from '../types';
+import { ScrapedProduct, SupabaseConfig } from '../types';
 import {
   Search,
   Filter,
@@ -33,6 +33,10 @@ import {
   BarChart3,
   Heart,
   Cloud,
+  TrendingUp,
+  Cpu,
+  RefreshCw,
+  Zap,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
@@ -49,6 +53,7 @@ import {
 import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
 import { cyberAudio } from '../utils/cyberAudio';
 import { LazyMatrixProductImage } from './LazyMatrixProductImage';
+import { fetchProductsFromSupabase } from '../utils/supabaseClient';
 
 interface ProductCatalogGridProps {
   products: ScrapedProduct[];
@@ -61,6 +66,8 @@ interface ProductCatalogGridProps {
   onClearAllProducts?: () => void;
   onDeleteProduct?: (id: string) => void;
   discoveredCategories?: string[];
+  supabaseConfig?: SupabaseConfig;
+  refreshTrigger?: number;
 }
 
 const CHUNK_SIZE = 36; // 36 items per lazy-load chunk for buttery smooth 60fps
@@ -174,7 +181,51 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   onRemoveCurrency,
   onClearAllProducts,
   discoveredCategories = [],
+  supabaseConfig,
+  refreshTrigger,
 }) => {
+  // Source Mode: Supabase Cloud vs Local Cache (Defaults to Supabase if configured or if local RAM is empty)
+  const [dataSourceMode, setDataSourceMode] = useState<'supabase' | 'local'>(() => {
+    return isSupabaseConfigured ? 'supabase' : 'local';
+  });
+
+  const [cloudProducts, setCloudProducts] = useState<ScrapedProduct[]>([]);
+  const [isLoadingCloud, setIsLoadingCloud] = useState<boolean>(false);
+  const [cloudError, setCloudError] = useState<string | null>(null);
+
+  // Direct fetch from Supabase Cloud
+  const loadFromSupabase = useCallback(async () => {
+    if (!supabaseConfig?.url || !supabaseConfig?.anonKey) return;
+    setIsLoadingCloud(true);
+    setCloudError(null);
+    try {
+      const res = await fetchProductsFromSupabase(supabaseConfig);
+      if (res.success) {
+        setCloudProducts(res.products);
+      } else {
+        setCloudError(res.error || 'Erreur lors de la lecture Supabase');
+      }
+    } catch (err: unknown) {
+      setCloudError(err instanceof Error ? err.message : 'Erreur réseau');
+    } finally {
+      setIsLoadingCloud(false);
+    }
+  }, [supabaseConfig]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured && (dataSourceMode === 'supabase' || products.length === 0)) {
+      loadFromSupabase();
+    }
+  }, [isSupabaseConfigured, dataSourceMode, refreshTrigger, loadFromSupabase, products.length]);
+
+  // Active dataset: if in Supabase mode or local memory is empty, use cloudProducts
+  const activeProducts = useMemo(() => {
+    if (dataSourceMode === 'supabase' || (products.length === 0 && cloudProducts.length > 0)) {
+      return cloudProducts;
+    }
+    return products;
+  }, [dataSourceMode, products, cloudProducts]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [titleFilter, setTitleFilter] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -262,7 +313,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     let boutique = 0;
     let annonce = 0;
     let pub = 0;
-    for (const p of products) {
+    for (const p of activeProducts) {
       if (p.itemType === 'pub' || p.isSponsored) {
         pub++;
       } else if (isOfficialStoreProduct(p)) {
@@ -271,8 +322,8 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         annonce++;
       }
     }
-    return { boutique, annonce, pub, total: products.length };
-  }, [products]);
+    return { boutique, annonce, pub, total: activeProducts.length };
+  }, [activeProducts]);
 
   // Lazy loading state
   const [visibleCount, setVisibleCount] = useState<number>(CHUNK_SIZE);
@@ -290,15 +341,15 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   // Reset visibleCount whenever filters change
   useEffect(() => {
     setVisibleCount(CHUNK_SIZE);
-  }, [searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, selectedItemType, onlyFavorites]);
+  }, [searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, selectedItemType, onlyFavorites, dataSourceMode]);
 
 
   // Overall dataset min/max price for the range filter slider bounds
   const datasetPriceStats = useMemo(() => {
-    if (products.length === 0) return { min: 0, max: 0 };
+    if (activeProducts.length === 0) return { min: 0, max: 0 };
     let min = Infinity;
     let max = 0;
-    for (const p of products) {
+    for (const p of activeProducts) {
       if (p.currentPrice < min) min = p.currentPrice;
       if (p.currentPrice > max) max = p.currentPrice;
     }
@@ -306,12 +357,12 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       min: min === Infinity ? 0 : min,
       max,
     };
-  }, [products]);
+  }, [activeProducts]);
 
   // Wilaya map with counts
   const wilayaStats = useMemo(() => {
     const map = new Map<string, number>();
-    products.forEach((p) => {
+    activeProducts.forEach((p) => {
       const w = extractWilaya(p);
       if (w) {
         map.set(w, (map.get(w) || 0) + 1);
@@ -320,13 +371,13 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     return Array.from(map.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  }, [products]);
+  }, [activeProducts]);
 
   // Category map with count & price analytics
   const categoryStats = useMemo(() => {
     const map = new Map<string, { count: number; minPrice: number; maxPrice: number; totalSum: number }>();
 
-    products.forEach((p) => {
+    activeProducts.forEach((p) => {
       const cat = p.category || 'Général';
       const existing = map.get(cat);
       if (!existing) {
@@ -351,14 +402,14 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       maxPrice: stats.maxPrice,
       avgPrice: Math.round(stats.totalSum / stats.count),
     }));
-  }, [products]);
+  }, [activeProducts]);
 
   // Filtered and sorted products with real-time title filtering
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     const titleTerm = titleFilter.trim().toLowerCase();
 
-    return products
+    return activeProducts
       .filter((p) => {
         // Direct real-time title filter
         const matchesTitle = !titleTerm || p.title.toLowerCase().includes(titleTerm);
@@ -760,6 +811,204 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   return (
     <div className="space-y-4">
       {/* ============================================================== */}
+      {/* 0. DATA SOURCE SELECTOR & RAM OPTIMIZATION CONTROLLER         */}
+      {/* ============================================================== */}
+      <div className="p-3 sm:p-4 rounded-3xl bg-slate-950/95 border-2 border-emerald-500/50 shadow-[0_0_35px_rgba(0,255,102,0.18)] backdrop-blur-xl">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-[#00ff88]">
+                <Database className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                  SOURCE D'AFFICHAGE DES LISTES & GRIDS :
+                </span>
+                <div className="text-xs font-mono font-black text-white flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${dataSourceMode === 'supabase' ? 'bg-[#00ff88] animate-ping' : 'bg-cyan-400'}`} />
+                  {dataSourceMode === 'supabase' ? '🟢 SUPABASE CLOUD DATABASE (Direct DB)' : '💾 MÉMOIRE VIVE RAM LOCALE'}
+                </div>
+              </div>
+            </div>
+
+            {/* Toggle Switch */}
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setDataSourceMode('supabase');
+                  loadFromSupabase();
+                  cyberAudio.playClick();
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  dataSourceMode === 'supabase'
+                    ? 'bg-gradient-to-r from-emerald-500 via-[#00ff88] to-cyan-400 text-slate-950 font-black shadow-[0_0_15px_rgba(0,255,102,0.4)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>Supabase Cloud ({cloudProducts.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDataSourceMode('local');
+                  cyberAudio.playClick();
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  dataSourceMode === 'local'
+                    ? 'bg-emerald-500/20 text-[#00ff88] border border-emerald-400 font-black shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Cache RAM ({products.length})</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Action Tools */}
+          <div className="flex flex-wrap items-center gap-2">
+            {dataSourceMode === 'supabase' && (
+              <button
+                type="button"
+                onClick={loadFromSupabase}
+                disabled={isLoadingCloud}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                title="Recharger les derniers articles depuis Supabase"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCloud ? 'animate-spin' : ''}`} />
+                <span>{isLoadingCloud ? 'Chargement...' : 'Actualiser Supabase'}</span>
+              </button>
+            )}
+
+            {onSendToSupabaseAndClearMemory && products.length > 0 && (
+              <button
+                type="button"
+                onClick={onSendToSupabaseAndClearMemory}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/25 to-[#00ff88]/20 border border-emerald-400 text-[#00ff88] hover:bg-emerald-500/35 text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(0,255,102,0.25)] transition-all"
+                title="Transférer tous les articles vers Supabase et vider la RAM du téléphone"
+              >
+                <Zap className="w-3.5 h-3.5 fill-[#00ff88]" />
+                <span>Sync Supabase & Vider RAM ({products.length})</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Informational memory status hint */}
+        <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-400 font-bold">💡 Allègement Webpage :</span>
+            <span>
+              {dataSourceMode === 'supabase'
+                ? 'Les listes sont chargées directement depuis Supabase Cloud. Zéro freeze ni blocage sur smartphone.'
+                : products.length >= 3500
+                ? '⚠️ Attention : RAM locale chargée (>3500 art.). Cliquez sur "Sync & Vider RAM" pour maintenir 60 FPS.'
+                : 'Articles stockés en mémoire locale temporaire.'}
+            </span>
+          </div>
+
+          <div className="text-[10px] text-cyan-300">
+            {dataSourceMode === 'supabase' ? `Table: ${supabaseConfig?.tableName || 'scraped_products'}` : `RAM: ${products.length} articles`}
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 0.5 LARGE IMPACT METRICS & COUNTERS DECK (CLAIRES ET GRANDES) */}
+      {/* ============================================================== */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
+        {/* 1. Total Annonces */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-emerald-500/40 shadow-[0_0_20px_rgba(0,255,102,0.12)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Total Annonces</span>
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-[#00ff88] mt-1.5 tracking-tight drop-shadow-sm">
+            {activeProducts.length.toLocaleString('fr-FR')}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>{dataSourceMode === 'supabase' ? 'Supabase Cloud' : 'Mémoire RAM'}</span>
+          </div>
+        </div>
+
+        {/* 2. Boutiques Pro */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-cyan-500/40 shadow-[0_0_20px_rgba(0,240,255,0.12)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Boutiques Pro</span>
+            <ShieldCheck className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-cyan-300 mt-1.5 tracking-tight">
+            {typeCounts.boutique.toLocaleString('fr-FR')}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1">Stores Certifiés</div>
+        </div>
+
+        {/* 3. Particuliers */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.12)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Particuliers</span>
+            <Tag className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-amber-300 mt-1.5 tracking-tight">
+            {typeCounts.annonce.toLocaleString('fr-FR')}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1">Vendeurs directs</div>
+        </div>
+
+        {/* 4. Wilayas Couvertes */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.12)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Wilayas</span>
+            <MapPin className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-purple-300 mt-1.5 tracking-tight">
+            {wilayaStats.length} <span className="text-xs font-normal text-slate-400">/ 58</span>
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1">Couverture DZ</div>
+        </div>
+
+        {/* 5. Prix Moyen Panier */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-emerald-500/40">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Prix Moyen</span>
+            <TrendingUp className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-lg sm:text-xl font-black font-mono text-emerald-300 mt-2 truncate">
+            {activeProducts.length > 0
+              ? `${Math.round(activeProducts.reduce((acc, p) => acc + (p.currentPrice || 0), 0) / activeProducts.length).toLocaleString('fr-FR')} DA`
+              : '0 DA'}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1">Moyenne marché</div>
+        </div>
+
+        {/* 6. Statut RAM Mobile */}
+        <div
+          className={`p-3.5 sm:p-4 rounded-2xl border ${
+            products.length >= 4000
+              ? 'bg-rose-950/40 border-rose-500/70 text-rose-300'
+              : products.length >= 2500
+              ? 'bg-amber-950/40 border-amber-500/70 text-amber-300'
+              : 'bg-slate-900/95 border-slate-800 text-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Mémoire RAM</span>
+            <Cpu className="w-4 h-4" />
+          </div>
+          <div className="text-lg sm:text-xl font-black font-mono mt-2 truncate">
+            {products.length === 0 ? '🟢 0 Mo' : `${products.length.toLocaleString('fr-FR')} art.`}
+          </div>
+          <div className="text-[10px] font-mono mt-1">
+            {products.length === 0 ? 'Allégé (60 FPS)' : products.length >= 4000 ? '⚠️ Saturation' : 'Modéré'}
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
       {/* 1. CATEGORY LISTS & TABS MATRIX BAR (Horizontal Pills) */}
       {/* ============================================================== */}
       <div className="p-3 rounded-2xl bg-slate-950/90 border border-emerald-500/30 backdrop-blur-md">
@@ -772,7 +1021,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </div>
 
           <div className="text-[11px] font-mono text-slate-400">
-            TOTAL : <strong className="text-[#00ff88]">{products.length.toLocaleString()}</strong> ARTICLES SCELLÉS
+            TOTAL : <strong className="text-[#00ff88]">{activeProducts.length.toLocaleString()}</strong> ARTICLES SCELLÉS
           </div>
         </div>
 
@@ -791,7 +1040,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             <Sparkles className="w-3.5 h-3.5" />
             🌟 TOUTES LES CATÉGORIES
             <span className="ml-1 px-1.5 py-0.2 rounded-md bg-black/60 text-[10px] text-emerald-300 border border-emerald-500/30">
-              {products.length.toLocaleString()}
+              {activeProducts.length.toLocaleString()}
             </span>
           </button>
 
@@ -875,7 +1124,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                     : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
-                🌟 Tous ({products.length})
+                🌟 Tous ({activeProducts.length})
               </button>
               <button
                 type="button"

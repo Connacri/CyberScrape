@@ -370,6 +370,62 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       </div>
 
       {/* ============================================================== */}
+      {/* 1.8 LARGE STATS & CLOUD COUNTERS (CLAIRES, GRANDES & SANS ERREUR) */}
+      {/* ============================================================== */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        {/* Total Supabase Cloud Articles */}
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-orange-500/40 shadow-[0_0_20px_rgba(251,82,0,0.15)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Catalogue Cloud</span>
+            <Cloud className="w-4 h-4 text-orange-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-orange-400 mt-1.5 tracking-tight">
+            {cloudProducts.length.toLocaleString('fr-FR')}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+            <span>En direct de Supabase</span>
+          </div>
+        </div>
+
+        {/* Boutiques Pro Certifiées */}
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-emerald-500/40 shadow-[0_0_20px_rgba(0,255,102,0.12)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Boutiques Pro</span>
+            <ShieldCheck className="w-4 h-4 text-[#00ff88]" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-[#00ff88] mt-1.5 tracking-tight">
+            {typeCounts.boutiques.toLocaleString('fr-FR')}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1">Stores Officiels</div>
+        </div>
+
+        {/* Annonces Particuliers */}
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-yellow-500/40 shadow-[0_0_20px_rgba(234,179,8,0.12)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Particuliers</span>
+            <Tag className="w-4 h-4 text-yellow-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-yellow-300 mt-1.5 tracking-tight">
+            {typeCounts.annonces.toLocaleString('fr-FR')}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1">Vente directe</div>
+        </div>
+
+        {/* Catégories Actives */}
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-cyan-500/40 shadow-[0_0_20px_rgba(0,240,255,0.12)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">Catégories</span>
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-cyan-300 mt-1.5 tracking-tight">
+            {categoryCounts.size} <span className="text-xs font-normal text-slate-400">/ 17</span>
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-1">Rayons actifs</div>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
       {/* 2. REAL-TIME SEARCH & VIEW MODE CONTROLLER BAR                 */}
       {/* ============================================================== */}
       <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/90 border border-orange-500/30 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">

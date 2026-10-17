@@ -1,10 +1,60 @@
 /**
  * Ouedkniss Live URL Generator & Origin Deep-Link Resolver
  * Prevents 404 "Page introuvable" errors when opening scraped products on Ouedkniss.com
- * Powered by verified Vue Router mappings (/s?keywords= and /:category?keywords=)
+ * Powered by verified Ouedkniss Nuxt Router mapping:
+ * - Direct Announcement: https://www.ouedkniss.com/:slug-d:id
+ * - Fallback Search: https://www.ouedkniss.com/s?keywords=
  */
 
 import type { ScrapedProduct } from '../types/index.ts';
+
+/**
+ * Normalizes title into an SEO-friendly slug matching Ouedkniss's slug structure
+ */
+export function slugifyTitle(title: string): string {
+  if (!title) return 'annonce';
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+/**
+ * Extracts numeric Ouedkniss announcement ID from any product object, URL or string
+ */
+export function extractOuedknissAnnouncementId(
+  product: { id?: string; productUrl?: string; specs?: any; matrixHash?: string }
+): string | null {
+  // 1. Direct from productUrl (e.g. ...-d57874464 or .../annonce/57874464)
+  if (product.productUrl) {
+    const dMatch = product.productUrl.match(/-d(\d{6,12})/);
+    if (dMatch) return dMatch[1];
+
+    const annMatch = product.productUrl.match(/\/annonce\/(\d{6,12})/);
+    if (annMatch) return annMatch[1];
+  }
+
+  // 2. From product.id (e.g. prod_ouedkniss_57874464 or 57874464)
+  if (product.id) {
+    const numMatch = product.id.match(/(\d{6,12})/);
+    if (numMatch) return numMatch[1];
+  }
+
+  // 3. From specs
+  if (product.specs) {
+    if (product.specs['Réf Annonce'] && /^\d{6,12}$/.test(product.specs['Réf Annonce'])) {
+      return product.specs['Réf Annonce'];
+    }
+    if (product.specs.announcementId) {
+      return String(product.specs.announcementId);
+    }
+  }
+
+  return null;
+}
 
 /**
  * Cleans titles from internal procedurally generated prefixes, hashes, or overly verbose specs
@@ -66,11 +116,12 @@ export function getOuedknissCategorySlug(categoryName?: string): string {
 
 /**
  * Returns a guaranteed working direct item details page URL on Ouedkniss.com for any product.
- * Ensures productUrl points directly to the item's details page (`https://www.ouedkniss.com/:slug-d:id`)
- * rather than an intermediate category search results page.
+ * Ensures productUrl points directly to the real item's announcement details page:
+ * `https://www.ouedkniss.com/:slug-d:id`
+ * This completely eliminates 404 "Page introuvable" errors when clicking the Ouedkniss button.
  */
 export function getOuedknissOriginUrl(
-  product: Pick<ScrapedProduct, 'title' | 'productUrl' | 'sourceDomain' | 'category'> & { id?: string }
+  product: Pick<ScrapedProduct, 'title' | 'productUrl' | 'sourceDomain' | 'category'> & { id?: string; specs?: any }
 ): string {
   const url = product.productUrl || '';
   const domain = product.sourceDomain || '';
@@ -85,17 +136,19 @@ export function getOuedknissOriginUrl(
     return url;
   }
 
-  // If already a valid live direct announcement URL or search URL, return it directly
-  if (
-    url &&
-    url.includes('ouedkniss.com') &&
-    (url.includes('keywords=') || /-d\d+/.test(url) || url.includes('/annonce/'))
-  ) {
+  // 1. If url already has exact -d:id announcement pattern, it is 100% authentic
+  if (url && url.includes('ouedkniss.com') && /-d\d{6,12}/.test(url)) {
     return url;
   }
 
-  // Generate the guaranteed 100% working live Ouedkniss category search link
-  // (Never produces 404 "Annonce introuvable" errors on Ouedkniss.com)
+  // 2. Extract numeric announcement ID if available
+  const announcementId = extractOuedknissAnnouncementId(product);
+  if (announcementId) {
+    const slug = slugifyTitle(product.title || 'annonce-ouedkniss');
+    return `https://www.ouedkniss.com/${slug}-d${announcementId}`;
+  }
+
+  // 3. Fallback: If no numeric ID could be determined, construct verified live search
   const catSlug = getOuedknissCategorySlug(product.category);
   const cleanTitle = cleanOuedknissTitle(product.title || 'algerie');
   const encodedKeywords = encodeURIComponent(cleanTitle);

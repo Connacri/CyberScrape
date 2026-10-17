@@ -55,6 +55,10 @@ import {
   MasterSweepAlertBanner,
   CategoryCompletionAlertData,
 } from './components/MasterSweepAlertBanner';
+import {
+  CategorySyncPromptModal,
+  CategorySyncPromptData,
+} from './components/CategorySyncPromptModal';
 import { ApkReleaseModal } from './components/ApkReleaseModal';
 import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
 import { CyberVacuumLogo, CyberVacuumAppIcon } from './components/CyberVacuumLogo';
@@ -161,7 +165,7 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
     inStock: true,
     stockLevel: 'LOW_STOCK',
     imageUrl: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/automobiles/renault-clio-4-gt-line',
+    productUrl: 'https://www.ouedkniss.com/voitures-renault-clio-4-gt-line-d57860571',
     sourceDomain: 'ouedkniss.com',
     scrapedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
     lastUpdated: new Date().toISOString(),
@@ -189,7 +193,7 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
     inStock: true,
     stockLevel: 'IN_STOCK',
     imageUrl: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/automobiles/volkswagen-golf-8-r-line',
+    productUrl: 'https://www.ouedkniss.com/voitures-volkswagen-golf-8-r-line-d58276539',
     sourceDomain: 'ouedkniss.com',
     scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
     lastUpdated: new Date().toISOString(),
@@ -218,7 +222,7 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
     inStock: true,
     stockLevel: 'IN_STOCK',
     imageUrl: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/telephones/samsung-galaxy-s24-ultra',
+    productUrl: 'https://www.ouedkniss.com/telephones-samsung-galaxy-s24-ultra-512gb-d57874464',
     sourceDomain: 'ouedkniss.com',
     scrapedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
     lastUpdated: new Date().toISOString(),
@@ -246,7 +250,7 @@ const INITIAL_DEMO_PRODUCTS: ScrapedProduct[] = [
     inStock: true,
     stockLevel: 'IN_STOCK',
     imageUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80',
-    productUrl: 'https://www.ouedkniss.com/telephones/iphone-15-pro-max',
+    productUrl: 'https://www.ouedkniss.com/telephones-apple-iphone-15-pro-max-256gb-d58305081',
     sourceDomain: 'ouedkniss.com',
     scrapedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
     lastUpdated: new Date().toISOString(),
@@ -1167,6 +1171,7 @@ export default function App() {
   const [sweepPagesPerCategory, setSweepPagesPerCategory] = useState<number>(0); // 0 = Illimité ∞
   const [discoveredCategories, setDiscoveredCategories] = useState<string[]>([]);
   const [categoryCompletionAlert, setCategoryCompletionAlert] = useState<CategoryCompletionAlertData | null>(null);
+  const [categorySyncPromptData, setCategorySyncPromptData] = useState<CategorySyncPromptData | null>(null);
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
   const [showSplashScreen, setShowSplashScreen] = useState<boolean>(true);
   const [isCategoryAuditModalOpen, setIsCategoryAuditModalOpen] = useState<boolean>(false);
@@ -1907,6 +1912,17 @@ export default function App() {
         timestamp: Date.now(),
       });
 
+      // Prompt dialog to sync to Supabase and purge RAM to avoid 4000-5000 item phone freeze
+      setCategorySyncPromptData({
+        categoryName: cat.name,
+        categorySlug: cat.slug,
+        categoryIndex: catIdx + 1,
+        totalCategories: totalCats,
+        newItemsCount: categoryTotalNew,
+        totalLocalItems: accumulated.length,
+        categoryProducts: accumulated.filter((p) => p.category === cat.name),
+      });
+
       const nextCat = catIdx + 1 < totalCats ? OUEDKNISS_CATEGORIES[catIdx + 1] : null;
       addLog(
         `[CATÉGORIE_SCELLÉE] 🎉 "${cat.name}" terminée à 100% ! (+${categoryTotalNew} nouveaux articles scellés sur ${audit.totalPages} pages). ${
@@ -2506,6 +2522,23 @@ export default function App() {
 
       cyberAudio.playComplete();
       addLog(`[SUCCÈS QUANTIQUE] ${finalProductsList.length} articles scellés dans la base.`, 'success', '0xDONE');
+
+      // Prompt modal to send/sync to Supabase and flush local memory
+      if (extractedProducts.length > 0) {
+        const foundCat = OUEDKNISS_CATEGORIES.find((c) => c.slug === effectiveCategorySlug) || {
+          name: extractedProducts[0]?.category || 'Articles Ouedkniss',
+          slug: effectiveCategorySlug || 'all',
+        };
+        setCategorySyncPromptData({
+          categoryName: foundCat.name,
+          categorySlug: foundCat.slug,
+          categoryIndex: 1,
+          totalCategories: 1,
+          newItemsCount: extractedProducts.length,
+          totalLocalItems: finalProductsList.length,
+          categoryProducts: extractedProducts,
+        });
+      }
 
       if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
         await syncProductsToSupabase(finalProductsList, supabaseConfig);
@@ -3500,6 +3533,8 @@ export default function App() {
                   onRemoveCurrency={handleRemoveCurrency}
                   onClearAllProducts={handleClearAllProducts}
                   discoveredCategories={discoveredCategories}
+                  supabaseConfig={supabaseConfig}
+                  refreshTrigger={temuRefreshTrigger}
                 />
               </div>
             )}
@@ -3637,6 +3672,8 @@ export default function App() {
               onRemoveCurrency={handleRemoveCurrency}
               onClearAllProducts={handleClearAllProducts}
               discoveredCategories={discoveredCategories}
+              supabaseConfig={supabaseConfig}
+              refreshTrigger={temuRefreshTrigger}
             />
           </div>
         )}
@@ -3870,6 +3907,45 @@ export default function App() {
         onClose={() => setIsSupabaseModalOpen(false)}
         config={supabaseConfig}
         onSaveConfig={handleSaveSupabaseConfig}
+      />
+
+      {/* Category Scraped Sync & RAM Flush Prompt Dialog */}
+      <CategorySyncPromptModal
+        data={categorySyncPromptData}
+        supabaseConfig={supabaseConfig}
+        onClose={() => setCategorySyncPromptData(null)}
+        onSyncAndClearLocal={async () => {
+          clearStoredProducts();
+          setProducts([]);
+          setLiveAspiratedCount(0);
+          setTemuRefreshTrigger((prev) => prev + 1);
+          setSyncNotice({
+            message: `Articles synchronisés vers Supabase Cloud ! Mémoire RAM libérée à 100%. L'application tourne à 60 FPS.`,
+            type: 'success',
+          });
+        }}
+        onSyncKeepLocal={async () => {
+          setTemuRefreshTrigger((prev) => prev + 1);
+          setSyncNotice({
+            message: `Articles synchronisés vers Supabase Cloud avec succès !`,
+            type: 'success',
+          });
+        }}
+        onClearLocalOnly={() => {
+          clearStoredProducts();
+          setProducts([]);
+          setLiveAspiratedCount(0);
+          setSyncNotice({
+            message: `Mémoire RAM locale vidée. Vos articles restent consultables depuis Supabase.`,
+            type: 'success',
+          });
+        }}
+        onOpenSupabaseConfig={() => {
+          setIsSupabaseModalOpen(true);
+        }}
+        onGoToTemuTab={() => {
+          setActiveTab('temu');
+        }}
       />
 
       {/* High-Visibility Master Sweep Category Completion Banner (Audio & Visual Alert) */}
