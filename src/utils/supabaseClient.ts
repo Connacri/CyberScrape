@@ -542,7 +542,8 @@ export async function testSupabaseConnection(config: SupabaseConfig): Promise<{ 
 
 export async function syncProductsToSupabase(
   products: ScrapedProduct[],
-  config: SupabaseConfig
+  config: SupabaseConfig,
+  onProgress?: (syncedCount: number, totalCount: number, percent: number) => void
 ): Promise<{ success: boolean; count: number; error?: string }> {
   if (!config.url || !config.anonKey) {
     return { success: false, count: 0, error: 'Supabase non configuré.' };
@@ -553,6 +554,13 @@ export async function syncProductsToSupabase(
   }
 
   try {
+    if (products.length === 0) {
+      if (onProgress) onProgress(0, 0, 100);
+      return { success: true, count: 0 };
+    }
+
+    if (onProgress) onProgress(0, products.length, 0);
+
     // Chunk into batches of 100 to prevent payload limit errors on large sweeps
     const batchSize = 100;
     let totalSynced = 0;
@@ -606,8 +614,13 @@ export async function syncProductsToSupabase(
         return { success: false, count: totalSynced, error: error.message };
       }
       totalSynced += rows.length;
+      if (onProgress) {
+        const percent = Math.min(100, Math.round((totalSynced / products.length) * 100));
+        onProgress(totalSynced, products.length, percent);
+      }
     }
 
+    if (onProgress) onProgress(totalSynced, products.length, 100);
     return { success: true, count: totalSynced };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue';

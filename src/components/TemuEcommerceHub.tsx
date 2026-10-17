@@ -141,10 +141,9 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Accurate deduplication: drops true duplicate IDs or URLs, preserving all 300+ unique listings from Supabase
+  // Accurate deduplication: drops true duplicate IDs only, preserving all 300+ unique listings from Supabase
   const uniqueProducts = useMemo(() => {
     const seenIds = new Set<string>();
-    const seenUrls = new Set<string>();
     const result: ScrapedProduct[] = [];
 
     // Display items from Supabase Cloud (with fallback to props if Cloud is hydrating)
@@ -154,14 +153,12 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       const p = sourceProducts[i];
       if (!p) continue;
       const idKey = (p.id || '').trim();
-      const urlKey = (p.productUrl || '').trim().toLowerCase().split('?')[0];
 
-      // Skip duplicates based on identical ID or exact URL
-      if (idKey && seenIds.has(idKey)) continue;
-      if (urlKey && seenUrls.has(urlKey)) continue;
-
-      if (idKey) seenIds.add(idKey);
-      if (urlKey) seenUrls.add(urlKey);
+      // Only drop if identical primary key ID has already been included
+      if (idKey) {
+        if (seenIds.has(idKey)) continue;
+        seenIds.add(idKey);
+      }
       result.push(p);
     }
     return result;

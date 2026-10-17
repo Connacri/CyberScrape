@@ -17,6 +17,7 @@ import { ProductCatalogGrid } from './components/ProductCatalogGrid';
 import { SupabaseSyncModal } from './components/SupabaseSyncModal';
 import { OuedknissCategoryHub } from './components/OuedknissCategoryHub';
 import { GlobalSweepProgressBar } from './components/GlobalSweepProgressBar';
+import { CyberDualProgressBar } from './components/CyberDualProgressBar';
 import {
   OUEDKNISS_CATEGORIES,
   OuedknissCategoryMeta,
@@ -1297,6 +1298,17 @@ export default function App() {
   const [isSyncingAndClearing, setIsSyncingAndClearing] = useState<boolean>(false);
   const [temuRefreshTrigger, setTemuRefreshTrigger] = useState<number>(0);
   const [syncNotice, setSyncNotice] = useState<{ message: string; type: 'success' | 'warn'; count?: number } | null>(null);
+  const [supabaseSyncProgress, setSupabaseSyncProgress] = useState<{
+    current: number;
+    total: number;
+    percent: number;
+    statusText?: string;
+  }>({
+    current: 0,
+    total: 0,
+    percent: 0,
+    statusText: '',
+  });
 
   // Synchronize planned total count from Supabase (fast, non-blocking)
   useEffect(() => {
@@ -1930,22 +1942,74 @@ export default function App() {
         timestamp: Date.now(),
       });
 
-      // Prompt dialog to sync to Supabase and purge RAM to avoid 4000-5000 item phone freeze
-      setCategorySyncPromptData({
-        categoryName: cat.name,
-        categorySlug: cat.slug,
-        categoryIndex: catIdx + 1,
-        totalCategories: totalCats,
-        newItemsCount: categoryTotalNew,
-        totalLocalItems: accumulated.length,
-        categoryProducts: accumulated.filter((p) => p.category === cat.name),
-      });
+      // ==============================================================
+      // WORKFLOW AUTOMATIQUE : CLÔTURE -> SYNC SUPABASE -> PURGE RAM -> CATÉGORIE SUIVANTE
+      // ==============================================================
+      // 1. Clôture officielle et définitive de la catégorie
+      markCategoryAsScraped(cat.slug);
+      markCategoryAsScraped(cat.name);
+      completedSet.add(cat.slug);
+      setSweepCompletedCategories(Array.from(completedSet));
+
+      // 2. Synchronisation / Envoi immédiat vers Supabase Cloud (si configuré)
+      const itemsToSync = accumulated;
+      if (supabaseConfig.url && supabaseConfig.anonKey && itemsToSync.length > 0) {
+        setIsSyncingAndClearing(true);
+        setSupabaseSyncProgress({
+          current: 0,
+          total: itemsToSync.length,
+          percent: 0,
+          statusText: `[${cat.name}] Envoi de ${itemsToSync.length} articles vers Supabase Cloud...`,
+        });
+        addLog(
+          `[SUPABASE CLOUD] 🚀 Synchronisation automatique de la catégorie "${cat.name}" (${itemsToSync.length} articles)...`,
+          'info',
+          `0xSYNC_${cat.slug.slice(0, 4).toUpperCase()}`
+        );
+
+        const syncRes = await syncProductsToSupabase(
+          itemsToSync,
+          supabaseConfig,
+          (current, total, percent) => {
+            setSupabaseSyncProgress({
+              current,
+              total,
+              percent,
+              statusText: `[${cat.name}] Téléversement Supabase : ${current} / ${total} (${percent}%)...`,
+            });
+          }
+        );
+
+        setIsSyncingAndClearing(false);
+
+        if (syncRes.success) {
+          addLog(
+            `[SUPABASE CLOUD] ✅ Catégorie "${cat.name}" scellée dans le Cloud (+${syncRes.count} articles) !`,
+            'success',
+            '0xDONE_SYNC'
+          );
+          setSupabaseTotalCount((prev) => (prev > 0 ? prev + syncRes.count : syncRes.count));
+          setTemuRefreshTrigger((prev) => prev + 1);
+
+          // 3. Vider la mémoire locale (RAM & IndexedDB) pour fluidité optimale (0 lag)
+          clearStoredProducts();
+          accumulated = [];
+          setProducts([]);
+          setLiveAspiratedCount(0);
+          addLog(
+            `[PURGE MÉMOIRE] 🧹 Mémoire RAM & IndexedDB libérées à 100%. Prêt pour la catégorie suivante.`,
+            'info'
+          );
+        } else {
+          addLog(`[SUPABASE ERREUR] ${syncRes.error} (continuation vers catégorie suivante)`, 'warn');
+        }
+      }
 
       const nextCat = catIdx + 1 < totalCats ? OUEDKNISS_CATEGORIES[catIdx + 1] : null;
       addLog(
-        `[CATÉGORIE_SCELLÉE] 🎉 "${cat.name}" terminée à 100% ! (+${categoryTotalNew} nouveaux articles scellés sur ${audit.totalPages} pages). ${
+        `[CATÉGORIE_SCELLÉE] 🎉 "${cat.name}" terminée et scellée à 100% ! (+${categoryTotalNew} nouveaux articles). ${
           nextCat
-            ? `Passage automatique à la catégorie suivante : "${nextCat.name}" (Page 1) !`
+            ? `Passage automatique à l'aspiration de la catégorie suivante : "${nextCat.name}" (Page 1) !`
             : 'Balayage intégral de toutes les catégories achevé avec succès !'
         }`,
         'success',
@@ -2634,7 +2698,28 @@ export default function App() {
       return;
     }
     addLog(`[SUPABASE] Synchronisation groupée de ${products.length} produits vers Supabase...`, 'info');
-    const res = await syncProductsToSupabase(products, supabaseConfig);
+    setIsSyncingAndClearing(true);
+    setSupabaseSyncProgress({
+      current: 0,
+      total: products.length,
+      percent: 0,
+      statusText: `Préparation de l'envoi de ${products.length} articles vers Supabase...`,
+    });
+
+    const res = await syncProductsToSupabase(
+      products,
+      supabaseConfig,
+      (current, total, percent) => {
+        setSupabaseSyncProgress({
+          current,
+          total,
+          percent,
+          statusText: `Téléversement en cours : ${current} / ${total} articles scellés (${percent}%)...`,
+        });
+      }
+    );
+
+    setIsSyncingAndClearing(false);
     if (res.success) {
       setProducts((prev) => prev.map((p) => ({ ...p, syncedToSupabase: true })));
       cyberAudio.playComplete();
@@ -2670,10 +2755,27 @@ export default function App() {
     markCategoriesBatchAsScraped(catIdentifiers);
 
     setIsSyncingAndClearing(true);
+    setSupabaseSyncProgress({
+      current: 0,
+      total: count,
+      percent: 0,
+      statusText: `Préparation de l'envoi de ${count} articles vers Supabase...`,
+    });
     addLog(`[SUPABASE] Envoi groupé de ${count} articles vers Supabase et purge mémoire...`, 'info');
 
     try {
-      const res = await syncProductsToSupabase(products, supabaseConfig);
+      const res = await syncProductsToSupabase(
+        products,
+        supabaseConfig,
+        (current, total, percent) => {
+          setSupabaseSyncProgress({
+            current,
+            total,
+            percent,
+            statusText: `Envoi Supabase en cours : ${current} / ${total} articles (${percent}%)...`,
+          });
+        }
+      );
       if (res.success) {
         // Clear local storage and IndexedDB to lighten page
         clearStoredProducts();
@@ -2837,25 +2939,36 @@ export default function App() {
               <LineChart className="w-3.5 h-3.5 shrink-0" />
               <span>Tendances</span>
             </button>
-          </nav>
 
-          {/* Zone 4: Action Controls Cluster (Guaranteed to show Centre de Contrôle on large screens & mobile) */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* CENTRE DE CONTRÔLE (PRIORITÉ N°1 : VISIBLE SUR TOUS LES ÉCRANS, Y COMPRIS GRANDS ÉCRANS PC / TABLETTE) */}
+            {/* Centre de Contrôle dans les larges écrans - Icône pure sans texte */}
             <button
               type="button"
               onClick={() => {
                 setIsMobileMenuOpen(true);
                 cyberAudio.playClick();
               }}
-              className="h-9 px-3 rounded-xl bg-gradient-to-r from-emerald-950/90 to-slate-900 border border-emerald-400 hover:border-[#00ff88] text-white hover:bg-emerald-900/60 flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer transition-all active:scale-95 shadow-[0_0_15px_rgba(0,255,102,0.3)] ring-1 ring-emerald-400/40"
-              title="Ouvrir le Centre de Contrôle (Options, APK Mobile, Audio, Voix IA, Pluie Matrix, Purge...)"
-              aria-label="Centre de Contrôle et Réglages"
+              className="px-2.5 py-1.5 rounded-lg flex items-center justify-center font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] text-slate-400 hover:text-[#00ff88] hover:bg-emerald-950/40 border border-slate-800/80 hover:border-emerald-500/40"
+              title="Centre de Contrôle"
+              aria-label="Centre de Contrôle"
             >
-              <SlidersHorizontal className="w-4 h-4 text-[#00ff88] animate-pulse" />
-              <span className="font-mono text-xs font-black text-[#00ff88] whitespace-nowrap">
-                Centre de Contrôle
-              </span>
+              <SlidersHorizontal className="w-4 h-4 shrink-0 text-[#00ff88]" />
+            </button>
+          </nav>
+
+          {/* Zone 4: Action Controls Cluster (Guaranteed to show Centre de Contrôle on large screens & mobile) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* CENTRE DE CONTRÔLE (ICÔNE SEULE SANS AUCUN TEXTE) */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(true);
+                cyberAudio.playClick();
+              }}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900 border border-emerald-500/60 hover:border-[#00ff88] text-white hover:bg-emerald-950/70 flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-95 shadow-[0_0_14px_rgba(0,255,102,0.3)] ring-1 ring-emerald-400/50 group"
+              title="Centre de Contrôle"
+              aria-label="Centre de Contrôle"
+            >
+              <SlidersHorizontal className="w-4.5 h-4.5 text-[#00ff88] group-hover:rotate-45 transition-transform" />
             </button>
 
             {/* Quick Supabase status button */}
@@ -3003,6 +3116,30 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {/* ============================================================== */}
+      {/* REAL-TIME DUAL PROGRESS BAR: ASPIRATION ("suce") & ENVOI SUPABASE */}
+      {/* ============================================================== */}
+      <CyberDualProgressBar
+        isScraping={isContinuousScraping || isAllCategoriesSweepActive || job.status === 'aspirating' || job.status === 'scanning'}
+        scrapingProgress={
+          isAllCategoriesSweepActive
+            ? sweepPercent
+            : (job.progress || (products.length > 0 ? Math.min(100, Math.round((products.length / (scrapeVolume || 28)) * 100)) : 10))
+        }
+        scrapingCurrent={products.length || liveAspiratedCount}
+        scrapingTotal={isAllCategoriesSweepActive ? (currentCategoryTotalArticles || 154784) : (scrapeVolume || 28)}
+        scrapingLabel={
+          job.aiAgentAction ||
+          (isAllCategoriesSweepActive
+            ? 'Balayage complet des catégories en cours...'
+            : 'Aspiration matricielle en temps réel...')
+        }
+        scrapingPage={sweepCurrentPage || 1}
+        onStopScraping={handleStopScrape}
+        isSyncingSupabase={isSyncingAndClearing}
+        supabaseSyncProgress={supabaseSyncProgress}
+      />
 
       {/* ============================================================== */}
       {/* GLOBAL RECONNAISSANCE & MASTER SWEEP PROGRESS BAR (ALWAYS VISIBLE) */}
