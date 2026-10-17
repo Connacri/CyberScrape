@@ -107,6 +107,23 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   const [maxPrice, setMaxPrice] = useState<number | ''>('');
   const [showCategoryCharts, setShowCategoryCharts] = useState<boolean>(false);
 
+  // Track incremental product arrivals for smooth Framer Motion entrance feedback
+  const prevCountRef = useRef(products.length);
+  const [recentArrivalsCount, setRecentArrivalsCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (products.length > prevCountRef.current) {
+      const diff = products.length - prevCountRef.current;
+      setRecentArrivalsCount(diff);
+      const timer = setTimeout(() => {
+        setRecentArrivalsCount(0);
+      }, 5000);
+      prevCountRef.current = products.length;
+      return () => clearTimeout(timer);
+    }
+    prevCountRef.current = products.length;
+  }, [products.length]);
+
   // Favorites state persisted in localStorage
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
@@ -1104,6 +1121,32 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       {/* Pagination Top Toolbar */}
       {renderPaginationControls()}
 
+      {/* Incremental Ingestion Banner with Fluid Framer-Motion Transitions */}
+      <AnimatePresence>
+        {recentArrivalsCount > 0 && (
+          <motion.div
+            layout
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.25 } }}
+            transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+            className="mb-3 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-950/90 via-slate-900/90 to-cyan-950/90 border border-emerald-400/50 flex flex-wrap items-center justify-between gap-2 text-xs font-mono shadow-[0_0_25px_rgba(0,255,102,0.2)]"
+          >
+            <div className="flex items-center gap-2.5 text-[#00ff88] font-bold">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+              <span>+{recentArrivalsCount} NOUVEAUX ARTICLES INTÉGRÉS EN DIRECT</span>
+            </div>
+            <div className="flex items-center gap-2 text-cyan-300 text-[11px]">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+              <span>Animations fluides Framer Motion • Disposition 60 FPS</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ============================================================== */}
       {/* 4. MAIN PRODUCT DISPLAY: GRID / GROUPED / TABLE */}
       {/* ============================================================== */}
@@ -1235,13 +1278,20 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                     const tel = buildTelLink(seller);
                     const wa = buildWhatsAppLink(seller, det);
 
+                    const isRecentlyScraped = (() => {
+                      if (!p.scrapedAt) return false;
+                      const diff = Date.now() - new Date(p.scrapedAt).getTime();
+                      return diff >= 0 && diff < 60000;
+                    })();
+                    const staggerDelay = Math.min((index % 12) * 0.025, 0.25);
+
                     return (
                       <motion.tr
                         key={p.id}
                         layout
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                        exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.15 } }}
                         transition={{
                           layout: {
                             type: 'spring',
@@ -1249,9 +1299,14 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                             damping: 30,
                             mass: 0.8,
                           },
-                          opacity: { duration: 0.2 },
+                          opacity: { duration: 0.25, delay: staggerDelay },
+                          y: { type: 'spring', stiffness: 320, damping: 25, delay: staggerDelay },
                         }}
-                        className="hover:bg-slate-900/40 transition-colors cursor-pointer group"
+                        className={`transition-colors cursor-pointer group ${
+                          isRecentlyScraped
+                            ? 'bg-emerald-950/25 hover:bg-emerald-950/45'
+                            : 'hover:bg-slate-900/40'
+                        }`}
                         onClick={() => setSelectedDetailProduct(det)}
                       >
                         <td className="p-3 whitespace-nowrap">
@@ -1527,14 +1582,42 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     const wilaya = seller.wilaya || det.specs?.Wilaya;
 
     // Stagger delay based on position for a progressive wave fade-in
-    const staggerDelay = Math.min((index % 12) * 0.045, 0.45);
+    const staggerDelay = Math.min((index % 12) * 0.035, 0.35);
+
+    const isRecentlyScraped = (() => {
+      if (!det.scrapedAt) return false;
+      const diff = Date.now() - new Date(det.scrapedAt).getTime();
+      return diff >= 0 && diff < 60000;
+    })();
 
     return (
-      <div
+      <motion.div
         key={det.id}
+        layout
+        initial={{ opacity: 0, scale: 0.94, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: -10, transition: { duration: 0.18 } }}
+        transition={{
+          layout: {
+            type: 'spring',
+            stiffness: 340,
+            damping: 28,
+            mass: 0.8,
+          },
+          opacity: { duration: 0.3, delay: staggerDelay },
+          y: { type: 'spring', stiffness: 320, damping: 25, delay: staggerDelay },
+          scale: { duration: 0.26, delay: staggerDelay },
+        }}
+        whileHover={{
+          y: -4,
+          transition: { duration: 0.2, ease: 'easeOut' },
+        }}
         onClick={() => setSelectedDetailProduct(det)}
-        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3.5 transition-all duration-200 flex flex-col justify-between hover:shadow-[0_0_25px_rgba(0,255,102,0.18)] overflow-hidden cursor-pointer"
-        style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 360px' }}
+        className={`group relative rounded-2xl bg-slate-950/90 border p-3.5 flex flex-col justify-between overflow-hidden cursor-pointer transition-colors duration-200 ${
+          isRecentlyScraped
+            ? 'border-emerald-400/80 shadow-[0_0_22px_rgba(0,255,102,0.22)]'
+            : 'border-slate-800/80 hover:border-emerald-500/50 hover:shadow-[0_0_25px_rgba(0,255,102,0.18)]'
+        }`}
       >
         {/* Cyber corner accents */}
         <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-emerald-500/30 group-hover:border-emerald-400 transition-colors" />
@@ -1592,8 +1675,14 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             </div>
           </div>
 
-          {/* Classification Badge: Boutique vs Annonce Particulier vs Pub */}
-          <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
+          {/* Classification & Arrival Badges */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-1.5 min-w-0">
+            {isRecentlyScraped && (
+              <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/25 text-[#00ff88] border border-emerald-400/60 text-[9px] font-mono font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(0,255,102,0.3)] animate-pulse shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                NOUVEAU
+              </span>
+            )}
             {det.itemType === 'pub' || det.isSponsored ? (
               <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-400/60 text-[9px] font-mono font-bold flex items-center gap-1 shadow-sm shrink-0">
                 <Flame className="w-2.5 h-2.5 text-amber-400" />
@@ -1732,11 +1821,11 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
-  // Helper function to render a product in compact, ergonomic list row format
+  // Helper function to render a product in compact, ergonomic list row format with fluid Framer-Motion transitions
   function renderProductListRow(product: ScrapedProduct, index: number = 0) {
     const det = ensureProductDetails(product);
     const seller = det.seller!;
@@ -1747,14 +1836,41 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     const hasDiscount = det.discountPercent > 0;
     const isSyncing = syncingId === det.id;
     const wilaya = seller.wilaya || det.specs?.Wilaya;
-    const staggerDelay = Math.min((index % 12) * 0.035, 0.35);
+    const staggerDelay = Math.min((index % 12) * 0.03, 0.3);
+
+    const isRecentlyScraped = (() => {
+      if (!det.scrapedAt) return false;
+      const diff = Date.now() - new Date(det.scrapedAt).getTime();
+      return diff >= 0 && diff < 60000;
+    })();
 
     return (
-      <div
+      <motion.div
         key={det.id}
+        layout
+        initial={{ opacity: 0, x: -14, y: 8 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        exit={{ opacity: 0, x: 14, transition: { duration: 0.16 } }}
+        transition={{
+          layout: {
+            type: 'spring',
+            stiffness: 340,
+            damping: 28,
+            mass: 0.8,
+          },
+          opacity: { duration: 0.28, delay: staggerDelay },
+          x: { type: 'spring', stiffness: 320, damping: 25, delay: staggerDelay },
+        }}
+        whileHover={{
+          x: 3,
+          transition: { duration: 0.18, ease: 'easeOut' },
+        }}
         onClick={() => setSelectedDetailProduct(det)}
-        className="group relative rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 p-3 sm:p-4 transition-all duration-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 hover:shadow-[0_0_20px_rgba(0,255,102,0.15)] cursor-pointer"
-        style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 110px' }}
+        className={`group relative rounded-2xl bg-slate-950/90 border p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 cursor-pointer transition-colors duration-200 ${
+          isRecentlyScraped
+            ? 'border-emerald-400/80 shadow-[0_0_20px_rgba(0,255,102,0.2)]'
+            : 'border-slate-800/80 hover:border-emerald-500/50 hover:shadow-[0_0_20px_rgba(0,255,102,0.15)]'
+        }`}
       >
         <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
           {/* Square Image Thumbnail */}
@@ -1777,6 +1893,12 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           {/* Details & Specs */}
           <div className="flex-1 min-w-0 space-y-1.5">
             <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+              {isRecentlyScraped && (
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/25 text-[#00ff88] border border-emerald-400/60 font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(0,255,102,0.3)] animate-pulse shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  NOUVEAU
+                </span>
+              )}
               <span className="px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-400 border border-cyan-500/30 font-bold truncate max-w-[160px]">
                 {det.category || det.brand}
               </span>
@@ -1892,7 +2014,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 };
