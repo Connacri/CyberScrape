@@ -563,6 +563,32 @@ export default function App() {
     return products.filter((p) => isOfficialStoreProduct(p)).length;
   }, [products]);
 
+  // Valeurs calculées sécurisées du compteur Live de la Topbar
+  const topBarLiveCount = useMemo(() => {
+    return supabaseConfig.url && supabaseConfig.anonKey
+      ? Math.max(
+          toSafeNonNegativeInt(supabaseTotalCount) + (products?.length || 0),
+          toSafeNonNegativeInt(liveAspiratedCount),
+          products?.length || 0
+        )
+      : Math.max(
+          toSafeNonNegativeInt(liveAspiratedCount),
+          products?.length || 0
+        );
+  }, [supabaseConfig.url, supabaseConfig.anonKey, supabaseTotalCount, liveAspiratedCount, products?.length]);
+
+  const topBarLiveLabel = useMemo(() => {
+    return supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
+      ? 'Cloud Supabase'
+      : 'Articles Aspirés';
+  }, [supabaseConfig.url, supabaseConfig.anonKey, products.length, supabaseTotalCount]);
+
+  const topBarLiveUnit = useMemo(() => {
+    return supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
+      ? 'CLOUD'
+      : 'ADS';
+  }, [supabaseConfig.url, supabaseConfig.anonKey, products.length, supabaseTotalCount]);
+
   // Global filtered products across official stores, search term and category
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -2011,33 +2037,19 @@ export default function App() {
             </button>
           </div>
 
-          {/* ZONE 2: ANIMATED ASPIRATION COUNTER IN TOPBAR (CLAIRE, GRANDE ET SANS ERREUR) */}
-          <AnimatedAspirationCounter
-            count={
-              supabaseConfig.url && supabaseConfig.anonKey
-                ? Math.max(
-                    toSafeNonNegativeInt(supabaseTotalCount) + (products?.length || 0),
-                    toSafeNonNegativeInt(liveAspiratedCount),
-                    products?.length || 0
-                  )
-                : Math.max(
-                    toSafeNonNegativeInt(liveAspiratedCount),
-                    products?.length || 0
-                  )
-            }
-            label={
-              supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
-                ? 'Cloud Supabase'
-                : 'Articles Aspirés'
-            }
-            unit={
-              supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
-                ? 'CLOUD'
-                : 'ADS'
-            }
-            isLiveScraping={isContinuousScraping || job.status === 'aspirating' || job.status === 'scanning'}
-            onClick={() => handleSelectTab('catalog')}
-          />
+          {/* ZONE 2: ANIMATED ASPIRATION COUNTER IN TOPBAR (Grand écran: visible en ligne avec la nav) */}
+          <div className="hidden md:flex items-center shrink-0">
+            <AnimatedAspirationCounter
+              count={topBarLiveCount}
+              label={topBarLiveLabel}
+              unit={topBarLiveUnit}
+              isLiveScraping={isContinuousScraping || job.status === 'aspirating' || job.status === 'scanning'}
+              onClick={() => {
+                handleSelectTab('catalog');
+                cyberAudio.playTabSwitch();
+              }}
+            />
+          </div>
 
           {/* Zone 3: Navigation Switcher Tabs (Visible from md: upwards for responsive tablet/desktop access) */}
           <nav className="hidden md:flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs">
@@ -2200,6 +2212,24 @@ export default function App() {
                 <span>APK</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Row 1.5: DEDICATED MOBILE COUNTER LINE (Compteur seul dans une ligne dédiée dans la topbar - ergonomie mobile maximale) */}
+        <div className="md:hidden w-full border-t border-emerald-500/20 bg-slate-950/98 px-2.5 py-1.5 flex items-center justify-center shadow-inner">
+          <div className="w-full flex items-center justify-center">
+            <AnimatedAspirationCounter
+              count={topBarLiveCount}
+              label={topBarLiveLabel}
+              unit={topBarLiveUnit}
+              isLiveScraping={isContinuousScraping || job.status === 'aspirating' || job.status === 'scanning'}
+              onClick={() => {
+                handleSelectTab('catalog');
+                cyberAudio.playTabSwitch();
+              }}
+              className="w-full max-w-sm justify-between shadow-[0_0_15px_rgba(0,255,102,0.18)] cursor-pointer"
+              showCatalogBadge={true}
+            />
           </div>
         </div>
 
@@ -2386,6 +2416,29 @@ export default function App() {
                 >
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+
+              {/* Dedicated Live Counter Row in Menu Haut (Compteur seul sur sa ligne) */}
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40 space-y-2 font-mono text-xs shadow-[0_0_14px_rgba(0,255,102,0.12)]">
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="font-semibold text-emerald-300">Aspiration Live Algérie :</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-[#00ff88] border border-emerald-500/40 font-bold">
+                    TEMPS RÉEL
+                  </span>
+                </div>
+                <AnimatedAspirationCounter
+                  count={topBarLiveCount}
+                  label={topBarLiveLabel}
+                  unit={topBarLiveUnit}
+                  isLiveScraping={isContinuousScraping || job.status === 'aspirating' || job.status === 'scanning'}
+                  onClick={() => {
+                    handleSelectTab('catalog');
+                    setIsMobileMenuOpen(false);
+                    cyberAudio.playTabSwitch();
+                  }}
+                  className="w-full justify-between shadow-[0_0_12px_rgba(0,255,102,0.15)] cursor-pointer"
+                  showCatalogBadge={true}
+                />
               </div>
 
               {/* System Cache Info */}

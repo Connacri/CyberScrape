@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Sparkles, Flame, ShieldCheck } from 'lucide-react';
+import { Zap, Sparkles, Flame, ShieldCheck, ArrowUpRight } from 'lucide-react';
 
 interface AnimatedAspirationCounterProps {
   count: number;
@@ -10,6 +10,7 @@ interface AnimatedAspirationCounterProps {
   onClick?: () => void;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  showCatalogBadge?: boolean;
 }
 
 /**
@@ -112,6 +113,7 @@ export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps>
   onClick,
   className = '',
   size = 'md',
+  showCatalogBadge = false,
 }) => {
   const safeCount = toSafeNonNegativeInt(count);
   const { displayValue, isIncrementing, recentDelta } = useAnimatedNumber(safeCount, 460);
@@ -190,11 +192,11 @@ export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps>
       <div className="flex flex-col leading-none">
         {label && (
           <div className="flex items-center gap-1">
-            <span className="text-[8px] sm:text-[9px] font-mono font-bold text-emerald-400/90 uppercase tracking-widest hidden xs:block">
+            <span className="text-[8px] sm:text-[9px] font-mono font-bold text-emerald-400/90 uppercase tracking-widest">
               {label}
             </span>
             {(isIncrementing || isLiveScraping) && (
-              <Flame className="w-2.5 h-2.5 text-[#00ff88] animate-pulse hidden xs:inline" />
+              <Flame className="w-2.5 h-2.5 text-[#00ff88] animate-pulse" />
             )}
           </div>
         )}
@@ -223,6 +225,14 @@ export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps>
           )}
         </div>
       </div>
+
+      {/* Optional Interactive CTA Badge for dedicated mobile line / full width */}
+      {showCatalogBadge && (
+        <div className="ml-auto flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/35 px-2 py-0.5 rounded-lg group-hover:bg-emerald-500/25 group-hover:text-[#00ff88] group-hover:border-emerald-400/60 transition-all shrink-0">
+          <span className="hidden xs:inline">Catalogue</span>
+          <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+        </div>
+      )}
 
       {/* Cyber Shimmer Light Sweep Effect when incrementing */}
       {isIncrementing && (
