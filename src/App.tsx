@@ -67,7 +67,7 @@ import { ApkReleaseModal } from './components/ApkReleaseModal';
 import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
 import { CyberVacuumLogo, CyberVacuumAppIcon } from './components/CyberVacuumLogo';
 import { CategoryDistributionPieChart } from './components/CategoryDistributionPieChart';
-import { AnimatedAspirationCounter } from './components/AnimatedAspirationCounter';
+import { AnimatedAspirationCounter, toSafeNonNegativeInt } from './components/AnimatedAspirationCounter';
 import { MasterQuantumScraperDeck } from './components/MasterQuantumScraperDeck';
 import { isOfficialStoreProduct } from './utils/sellerGenerator';
 import {
@@ -1043,14 +1043,18 @@ interface SmartMergeResult {
  * - Insère les nouveaux articles en tête de liste.
  */
 function smartMergeProducts(
-  currentList: ScrapedProduct[],
-  incomingList: ScrapedProduct[]
+  currentList: ScrapedProduct[] = [],
+  incomingList: ScrapedProduct[] = []
 ): SmartMergeResult {
+  const safeCurrentList = Array.isArray(currentList) ? currentList : [];
+  const safeIncomingList = Array.isArray(incomingList) ? incomingList : [];
+
   const existingMap = new Map<string, ScrapedProduct>();
   const urlMap = new Map<string, ScrapedProduct>();
   const titleMap = new Map<string, ScrapedProduct>();
 
-  for (const item of currentList) {
+  for (const item of safeCurrentList) {
+    if (!item) continue;
     if (item.id) existingMap.set(item.id, item);
     if (item.productUrl) urlMap.set(item.productUrl.toLowerCase(), item);
     if (item.title) {
@@ -1068,7 +1072,18 @@ function smartMergeProducts(
   const newItems: ScrapedProduct[] = [];
   const todayStr = new Date().toISOString().split('T')[0];
 
-  for (const incoming of incomingList) {
+  for (const rawIncoming of safeIncomingList) {
+    if (!rawIncoming) continue;
+
+    // Sanitize incoming item to guarantee valid numeric fields
+    const incoming: ScrapedProduct = {
+      ...rawIncoming,
+      id: rawIncoming.id || `prod_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      currentPrice: toSafeNonNegativeInt(rawIncoming.currentPrice),
+      originalPrice: toSafeNonNegativeInt(rawIncoming.originalPrice || rawIncoming.currentPrice),
+      discountPercent: toSafeNonNegativeInt(rawIncoming.discountPercent),
+    };
+
     const normKey = incoming.title
       ? `${incoming.title.trim().toLowerCase().replace(/\s+/g, ' ')}:::${(incoming.brand || '').trim().toLowerCase()}`
       : '';
@@ -1087,7 +1102,9 @@ function smartMergeProducts(
     } else {
       // PRODUIT EXISTANT DÉJÀ PRÉSENT:
       // Détection stricte des modifications (prix, remise, stock, note, avis)
-      const priceDelta = incoming.currentPrice - existing.currentPrice;
+      const existingPrice = toSafeNonNegativeInt(existing.currentPrice);
+      const incomingPrice = toSafeNonNegativeInt(incoming.currentPrice);
+      const priceDelta = incomingPrice - existingPrice;
       const isPriceChanged = Math.abs(priceDelta) >= 1;
       const isDiscountChanged = incoming.discountPercent !== existing.discountPercent;
       const isStockChanged =
@@ -1104,11 +1121,11 @@ function smartMergeProducts(
         if (isPriceChanged) {
           priceHistory.push({
             date: todayStr,
-            price: incoming.currentPrice,
+            price: incomingPrice,
             note:
               priceDelta < 0
-                ? `Baisse de ${Math.abs(priceDelta)} ${incoming.currency}`
-                : `Hausse de ${priceDelta} ${incoming.currency}`,
+                ? `Baisse de ${Math.abs(priceDelta)} ${incoming.currency || 'DA'}`
+                : `Hausse de ${priceDelta} ${incoming.currency || 'DA'}`,
           });
         }
 
@@ -1127,7 +1144,7 @@ function smartMergeProducts(
 
         if (sampleUpdatedTitles.length < 3) {
           sampleUpdatedTitles.push(
-            `${incoming.title.slice(0, 30)} (${existing.currentPrice} -> ${incoming.currentPrice} ${incoming.currency})`
+            `${incoming.title.slice(0, 30)} (${existingPrice} -> ${incomingPrice} ${incoming.currency || 'DA'})`
           );
         }
       } else {
@@ -1140,14 +1157,14 @@ function smartMergeProducts(
   // Préservation du catalogue avec nouveaux éléments en tête
   const merged = [
     ...newItems,
-    ...currentList.map((p) => updatedMap.get(p.id) || p),
+    ...safeCurrentList.map((p) => updatedMap.get(p.id) || p),
   ];
 
   return {
     merged,
-    newCount,
-    updatedCount,
-    unchangedCount,
+    newCount: Math.max(0, newCount),
+    updatedCount: Math.max(0, updatedCount),
+    unchangedCount: Math.max(0, unchangedCount),
     sampleUpdatedTitles,
   };
 }
@@ -2413,7 +2430,7 @@ export default function App() {
 
               // Mettre à jour l'état réactif et le compteur géant dans la top bar
               setProducts([...accumulated]);
-              setLiveAspiratedCount(accumulated.length);
+              setLiveAspiratedCount((prev) => Math.max(toSafeNonNegativeInt(prev), accumulated.length, products.length));
 
               // Sauvegarde ultra-rapide non bloquante dans IndexedDB
               await saveScrapedProductsBatch(pageProducts);
@@ -2875,8 +2892,15 @@ export default function App() {
           <AnimatedAspirationCounter
             count={
               supabaseConfig.url && supabaseConfig.anonKey
-                ? Math.max(supabaseTotalCount + products.length, liveAspiratedCount, products.length)
-                : Math.max(liveAspiratedCount, products.length)
+                ? Math.max(
+                    toSafeNonNegativeInt(supabaseTotalCount) + (products?.length || 0),
+                    toSafeNonNegativeInt(liveAspiratedCount),
+                    products?.length || 0
+                  )
+                : Math.max(
+                    toSafeNonNegativeInt(liveAspiratedCount),
+                    products?.length || 0
+                  )
             }
             label={
               supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
@@ -3696,7 +3720,7 @@ export default function App() {
                       CYBER-BASE // CATALOGUE DE MARCHÉ ALGÉRIE
                     </h2>
                     <AnimatedAspirationCounter
-                      count={products.length}
+                      count={toSafeNonNegativeInt(products?.length)}
                       label=""
                       unit="ITEMS SCELLÉS"
                       size="sm"

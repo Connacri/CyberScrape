@@ -29,7 +29,9 @@ export type CatalogSortOption =
   | 'price_desc'
   | 'discount'
   | 'discount_desc'
-  | 'discount_asc';
+  | 'discount_asc'
+  | 'condition_neuf_first'
+  | 'condition_occ_first';
 
 interface PriceRangeFilterProps {
   minPrice: number | '';

@@ -42,6 +42,7 @@ import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
 import { ProductDetailModal } from './ProductDetailModal';
 import { PriceRangeFilter, CatalogSortOption } from './PriceRangeFilter';
+import { AdvancedCatalogFilterPanel, ProductCondition } from './AdvancedCatalogFilterPanel';
 import { CategoryDistributionPieChart } from './CategoryDistributionPieChart';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
@@ -171,6 +172,41 @@ export function extractWilaya(product: ScrapedProduct): string {
   return clean || raw;
 }
 
+export function extractCondition(product: ScrapedProduct): 'neuf' | 'occasion' | 'reconditionne' {
+  const specsStr = product.specs ? Object.entries(product.specs).map(([k, v]) => `${k}:${v}`).join(' ') : '';
+  const raw = `${product.specs?.['État'] || ''} ${product.specs?.['Etat'] || ''} ${product.specs?.['Condition'] || ''} ${specsStr} ${product.title || ''} ${product.description || ''}`.toLowerCase();
+
+  if (
+    raw.includes('reconditionn') ||
+    raw.includes('refurbished') ||
+    raw.includes('remis à neuf')
+  ) {
+    return 'reconditionne';
+  }
+
+  if (
+    raw.includes('neuf') ||
+    raw.includes('scellé') ||
+    raw.includes('scelle') ||
+    raw.includes('sous blister') ||
+    raw.includes('sous carton') ||
+    raw.includes('sous emballage') ||
+    raw.includes('non activé') ||
+    raw.includes('non active') ||
+    raw.includes('jamais utilisé') ||
+    raw.includes('jamais utilise') ||
+    raw.includes('jamais ouvert') ||
+    raw.includes('00 km') ||
+    raw.includes('0km') ||
+    raw.includes('0 km') ||
+    raw.includes('neuve')
+  ) {
+    return 'neuf';
+  }
+
+  return 'occasion';
+}
+
 export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   products,
   onSyncSingleProduct,
@@ -250,6 +286,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   const [selectedItemType, setSelectedItemType] = useState<'all' | 'boutique' | 'annonce' | 'pub'>('all');
   const [minPrice, setMinPrice] = useState<number | ''>('');
   const [maxPrice, setMaxPrice] = useState<number | ''>('');
+  const [selectedCondition, setSelectedCondition] = useState<ProductCondition>('all');
   const [showCategoryCharts, setShowCategoryCharts] = useState<boolean>(false);
 
   // Track incremental product arrivals for smooth Framer Motion entrance feedback
@@ -312,6 +349,35 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
     setMaxPrice('');
   }, []);
 
+  // Condition (Neuf / Occasion / Reconditionné) real-time distribution
+  const conditionCounts = useMemo(() => {
+    let neuf = 0;
+    let occasion = 0;
+    let reconditionne = 0;
+    for (let i = 0; i < activeProducts.length; i++) {
+      const c = extractCondition(activeProducts[i]);
+      if (c === 'neuf') neuf++;
+      else if (c === 'reconditionne') reconditionne++;
+      else occasion++;
+    }
+    return { neuf, occasion, reconditionne, total: activeProducts.length };
+  }, [activeProducts]);
+
+  // Reset all advanced filters in one click
+  const handleResetAllFilters = useCallback(() => {
+    setSelectedWilaya('all');
+    setSelectedCondition('all');
+    setMinPrice('');
+    setMaxPrice('');
+    setSearchTerm('');
+    setTitleFilter('');
+    setSelectedCategory('all');
+    setSortBy('recent');
+    setSelectedItemType('all');
+    setOnlyDiscounted(false);
+    setOnlyFavorites(false);
+  }, []);
+
   // Breakdown of Boutiques, Annonces and Pubs in catalog
   const typeCounts = useMemo(() => {
     let boutique = 0;
@@ -345,7 +411,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   // Reset visibleCount whenever filters change
   useEffect(() => {
     setVisibleCount(CHUNK_SIZE);
-  }, [searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, selectedItemType, onlyFavorites, dataSourceMode]);
+  }, [searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, selectedItemType, onlyFavorites, dataSourceMode, selectedCondition]);
 
 
   // Overall dataset min/max price for the range filter slider bounds
@@ -447,6 +513,10 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
         const matchesFavorites = !onlyFavorites || favorites.has(p.id);
 
+        const productCondition = extractCondition(p);
+        const matchesCondition =
+          selectedCondition === 'all' || productCondition === selectedCondition;
+
         return (
           matchesTitle &&
           matchesSearch &&
@@ -457,7 +527,8 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           matchesMaxPrice &&
           matchesDiscount &&
           matchesItemType &&
-          matchesFavorites
+          matchesFavorites &&
+          matchesCondition
         );
       })
 
@@ -502,13 +573,23 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         if (sortBy === 'price_asc') return a.currentPrice - b.currentPrice;
         if (sortBy === 'price_desc') return b.currentPrice - a.currentPrice;
 
-        // 6. Tri par date d'aspiration
+        // 6. Tris par État (Neuf d'abord ou Occasion d'abord)
+        if (sortBy === 'condition_neuf_first') {
+          const condOrder: Record<string, number> = { neuf: 0, reconditionne: 1, occasion: 2 };
+          return (condOrder[extractCondition(a)] ?? 2) - (condOrder[extractCondition(b)] ?? 2);
+        }
+        if (sortBy === 'condition_occ_first') {
+          const condOrder: Record<string, number> = { occasion: 0, reconditionne: 1, neuf: 2 };
+          return (condOrder[extractCondition(a)] ?? 2) - (condOrder[extractCondition(b)] ?? 2);
+        }
+
+        // 7. Tri par date d'aspiration
         if (sortBy === 'oldest') {
           return new Date(a.scrapedAt).getTime() - new Date(b.scrapedAt).getTime();
         }
         return new Date(b.scrapedAt).getTime() - new Date(a.scrapedAt).getTime();
       });
-  }, [activeProducts, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, onlyDiscounted, minDiscountPercent, selectedItemType, onlyFavorites, favorites]);
+  }, [activeProducts, searchTerm, titleFilter, selectedCategory, selectedWilaya, selectedCurrency, sortBy, minPrice, maxPrice, onlyDiscounted, minDiscountPercent, selectedItemType, onlyFavorites, favorites, selectedCondition]);
 
   // Grouped products for "Vue Groupée" (either by Category or by Wilaya)
   const groupedProducts = useMemo(() => {
@@ -1454,6 +1535,30 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ============================================================== */}
+      {/* 2.4 PANNEAU DE FILTRES AVANCÉ // WILAYA • PRIX • ÉTAT         */}
+      {/* ============================================================== */}
+      <AdvancedCatalogFilterPanel
+        selectedWilaya={selectedWilaya}
+        onWilayaChange={setSelectedWilaya}
+        wilayaStats={wilayaStats}
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        onMinPriceChange={setMinPrice}
+        onMaxPriceChange={setMaxPrice}
+        datasetMinPrice={datasetPriceStats.min}
+        datasetMaxPrice={datasetPriceStats.max}
+        selectedCurrency={selectedCurrency}
+        selectedCondition={selectedCondition}
+        onConditionChange={setSelectedCondition}
+        conditionCounts={conditionCounts}
+        sortBy={sortBy}
+        onSortByChange={setSortBy}
+        totalProductsCount={activeProducts.length}
+        filteredCount={filteredProducts.length}
+        onResetAllFilters={handleResetAllFilters}
+      />
 
       {/* ============================================================== */}
       {/* 2.5 PRICE RANGE, DISCOUNT & BUDGET FILTER CONTROLLER           */}

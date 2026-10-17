@@ -13,21 +13,36 @@ interface AnimatedAspirationCounterProps {
 }
 
 /**
- * High-performance animated counter hook with cubic ease-out numeric roll
+ * Ensures any input value is strictly a non-negative finite integer.
+ * Guarantees zero if NaN, null, undefined, negative, or non-numeric.
+ */
+export function toSafeNonNegativeInt(val: unknown): number {
+  if (typeof val !== 'number' || Number.isNaN(val) || !Number.isFinite(val)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(val));
+}
+
+/**
+ * High-performance animated counter hook with cubic ease-out numeric roll.
+ * Guaranteed to never output negative numbers, NaN, or sudden negative fluctuations.
  */
 export function useAnimatedNumber(targetValue: number, duration: number = 420) {
-  const [displayValue, setDisplayValue] = useState(Math.max(0, targetValue));
-  const [isIncrementing, setIsIncrementing] = useState(false);
+  const safeTarget = toSafeNonNegativeInt(targetValue);
+  const [displayValue, setDisplayValue] = useState<number>(safeTarget);
+  const [isIncrementing, setIsIncrementing] = useState<boolean>(false);
   const [recentDelta, setRecentDelta] = useState<number>(0);
-  const lastTargetRef = useRef(Math.max(0, targetValue));
-  const currentDisplayRef = useRef(displayValue);
-  const highestSeenRef = useRef(Math.max(0, targetValue));
+  const lastTargetRef = useRef<number>(safeTarget);
+  const currentDisplayRef = useRef<number>(safeTarget);
+  const highestSeenRef = useRef<number>(safeTarget);
 
-  currentDisplayRef.current = displayValue;
+  currentDisplayRef.current = toSafeNonNegativeInt(displayValue);
 
   useEffect(() => {
+    const cleanTarget = toSafeNonNegativeInt(targetValue);
+
     // If user explicitly reset/cleared catalogue to 0
-    if (targetValue === 0) {
+    if (cleanTarget === 0) {
       highestSeenRef.current = 0;
       lastTargetRef.current = 0;
       setDisplayValue(0);
@@ -36,35 +51,35 @@ export function useAnimatedNumber(targetValue: number, duration: number = 420) {
       return;
     }
 
-    // Monotonic aspiration: during active scraping, the total counter must NEVER decrease or show negative numbers
-    const cleanTarget = Math.max(0, targetValue);
-    highestSeenRef.current = Math.max(highestSeenRef.current, cleanTarget);
+    // Monotonic aspiration: during active scraping, the total counter must NEVER decrease or show negative numbers/NaN
+    highestSeenRef.current = Math.max(toSafeNonNegativeInt(highestSeenRef.current), cleanTarget);
     const effectiveTarget = highestSeenRef.current;
 
-    const prevTarget = lastTargetRef.current;
+    const prevTarget = toSafeNonNegativeInt(lastTargetRef.current);
     lastTargetRef.current = effectiveTarget;
 
-    if (effectiveTarget === currentDisplayRef.current) return;
+    const currentVal = toSafeNonNegativeInt(currentDisplayRef.current);
+    if (effectiveTarget === currentVal) return;
 
-    const diff = Math.max(0, effectiveTarget - currentDisplayRef.current);
+    const diff = Math.max(0, effectiveTarget - currentVal);
     if (diff > 0) {
       setIsIncrementing(true);
-      const delta = effectiveTarget - prevTarget > 0 ? effectiveTarget - prevTarget : diff;
-      setRecentDelta(Math.max(0, delta));
+      const delta = effectiveTarget > prevTarget ? effectiveTarget - prevTarget : diff;
+      setRecentDelta(Math.max(0, toSafeNonNegativeInt(delta)));
     }
 
-    const startVal = currentDisplayRef.current;
+    const startVal = currentVal;
     const startTime = performance.now();
     let animId: number;
 
     const step = (timestamp: number) => {
       const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      const progress = Math.min(Math.max(0, elapsed / duration), 1);
       // Ease-out cubic for responsive sci-fi deceleration
       const ease = 1 - Math.pow(1 - progress, 3);
-      const nextVal = Math.round(startVal + diff * ease);
+      const nextVal = toSafeNonNegativeInt(Math.round(startVal + diff * ease));
 
-      setDisplayValue(Math.max(0, nextVal));
+      setDisplayValue(nextVal);
 
       if (progress < 1) {
         animId = requestAnimationFrame(step);
@@ -82,7 +97,11 @@ export function useAnimatedNumber(targetValue: number, duration: number = 420) {
     return () => cancelAnimationFrame(animId);
   }, [targetValue, duration]);
 
-  return { displayValue, isIncrementing, recentDelta };
+  return {
+    displayValue: toSafeNonNegativeInt(displayValue),
+    isIncrementing,
+    recentDelta: toSafeNonNegativeInt(recentDelta),
+  };
 }
 
 export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps> = ({
@@ -94,7 +113,8 @@ export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps>
   className = '',
   size = 'md',
 }) => {
-  const { displayValue, isIncrementing, recentDelta } = useAnimatedNumber(count, 460);
+  const safeCount = toSafeNonNegativeInt(count);
+  const { displayValue, isIncrementing, recentDelta } = useAnimatedNumber(safeCount, 460);
   const [deltaKey, setDeltaKey] = useState(0);
 
   // Trigger floating delta badge whenever delta changes
@@ -106,6 +126,9 @@ export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps>
 
   const isCompact = size === 'sm';
   const isLarge = size === 'lg';
+
+  // Strictly guaranteed non-negative integer for rendering
+  const safeDisplayValue = toSafeNonNegativeInt(displayValue);
 
   return (
     <div
@@ -131,7 +154,7 @@ export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps>
           ? 'px-3.5 sm:px-4 py-2 sm:py-2.5'
           : 'px-2.5 sm:px-3 py-1.5 sm:py-2'
       } ${className}`}
-      title={`${label} : ${count.toLocaleString('fr-DZ')} ${unit} extraits en temps réel`}
+      title={`${label || 'Articles'} : ${safeCount.toLocaleString('fr-DZ')} ${unit} extraits en temps réel`}
     >
       {/* Floating Animated Suction Delta Badge (+N) */}
       <AnimatePresence>
@@ -145,7 +168,7 @@ export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps>
             className="absolute -top-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none px-2 py-0.5 rounded-full bg-gradient-to-r from-[#00ff66] to-cyan-400 text-slate-950 font-mono font-black text-[10px] sm:text-xs shadow-[0_0_15px_#00ff66] flex items-center gap-1 whitespace-nowrap"
           >
             <Zap className="w-2.5 h-2.5 fill-current animate-bounce" />
-            <span>+{recentDelta}</span>
+            <span>+{recentDelta.toLocaleString('fr-DZ')}</span>
             <span className="text-[8px] opacity-80">{unit}</span>
           </motion.div>
         )}
@@ -191,7 +214,7 @@ export const AnimatedAspirationCounter: React.FC<AnimatedAspirationCounterProps>
                 : 'text-base sm:text-xl text-glow-green'
             }`}
           >
-            {displayValue.toLocaleString('fr-DZ')}
+            {safeDisplayValue.toLocaleString('fr-DZ')}
           </motion.span>
           {unit && (
             <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-400 uppercase">
