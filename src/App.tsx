@@ -2234,10 +2234,11 @@ export default function App() {
         </div>
 
         {/* Row 2: REAL-TIME GLOBAL SEARCH BAR + BOUTIQUE OFFICIELLE FILTER + CATEGORY SELECTOR + RECHARTS SUMMARY TRIGGER */}
-        <div className="w-full border-t border-emerald-500/20 bg-slate-950/95 px-2.5 sm:px-6 py-2 flex items-center gap-1.5 sm:gap-2">
-          {/* Main Search Input */}
-          <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 pointer-events-none" />
+        {/* Responsive Design: Sur mobile, la barre de recherche et les filtres disposent chacun de leur propre ligne dédiée (ergonomie 100% tactile) */}
+        <div className="w-full border-t border-emerald-500/20 bg-slate-950/95 px-2.5 sm:px-6 py-2 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-2">
+          {/* Main Search Input: Ligne dédiée complète sur mobile */}
+          <div className="relative w-full sm:flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none" />
             <input
               type="text"
               value={globalSearchTerm}
@@ -2248,13 +2249,13 @@ export default function App() {
                 }
               }}
               placeholder="Rechercher par titre, marque, wilaya, vendeur..."
-              className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 rounded-xl bg-slate-900/90 border border-emerald-500/30 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40 transition-all"
+              className="w-full pl-9 pr-8 py-2 sm:py-2 rounded-xl bg-slate-900/95 border border-emerald-500/30 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40 transition-all min-h-[40px] sm:min-h-[38px]"
             />
             {globalSearchTerm && (
               <button
                 type="button"
                 onClick={() => setGlobalSearchTerm('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs cursor-pointer"
                 title="Effacer la recherche"
               >
                 ✕
@@ -2262,62 +2263,67 @@ export default function App() {
             )}
           </div>
 
-          {/* Boutique Officielle Filter in Global Search Bar (Filtrage sur champ brand ou seller) */}
-          <button
-            type="button"
-            onClick={() => {
-              setFilterOfficialStoresOnly((prev) => !prev);
-              cyberAudio.playClick();
-            }}
-            className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer select-none ${
-              filterOfficialStoresOnly
-                ? 'bg-emerald-500/25 border-[#00ff88] text-[#00ff88] shadow-[0_0_15px_rgba(0,255,102,0.35)] ring-1 ring-emerald-400/50'
-                : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/40'
-            }`}
-            title="Filtrer uniquement les Boutiques Officielles et Stores Certifiés (vérifiés sur la marque ou le vendeur)"
-          >
-            <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${filterOfficialStoresOnly ? 'text-[#00ff88] animate-pulse' : 'text-slate-400'}`} />
-            <span className="hidden sm:inline">Boutique Officielle</span>
-            <span className="sm:hidden">Store Pro</span>
-            <span
-              className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+          {/* Quick Filter Controls: Ligne dédiée complète sur mobile pour ne pas comprimer la recherche */}
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
+            {/* Boutique Officielle Filter in Global Search Bar (Filtrage sur champ brand ou seller) */}
+            <button
+              type="button"
+              onClick={() => {
+                setFilterOfficialStoresOnly((prev) => !prev);
+                cyberAudio.playClick();
+              }}
+              className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer select-none min-h-[40px] sm:min-h-[38px] ${
                 filterOfficialStoresOnly
-                  ? 'bg-emerald-950/90 text-[#00ff88] border border-emerald-400/50 font-bold'
-                  : 'bg-black/60 text-slate-400'
+                  ? 'bg-emerald-500/25 border-[#00ff88] text-[#00ff88] shadow-[0_0_15px_rgba(0,255,102,0.35)] ring-1 ring-emerald-400/50'
+                  : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/40'
               }`}
+              title="Filtrer uniquement les Boutiques Officielles et Stores Certifiés (vérifiés sur la marque ou le vendeur)"
             >
-              {officialStoresCount}
-            </span>
-          </button>
+              <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${filterOfficialStoresOnly ? 'text-[#00ff88] animate-pulse' : 'text-slate-400'}`} />
+              <span className="hidden sm:inline">Boutique Officielle</span>
+              <span className="sm:hidden">Store Pro</span>
+              <span
+                className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                  filterOfficialStoresOnly
+                    ? 'bg-emerald-950/90 text-[#00ff88] border border-emerald-400/50 font-bold'
+                    : 'bg-black/60 text-slate-400'
+                }`}
+              >
+                {officialStoresCount}
+              </span>
+            </button>
 
-          {/* Category Select Filter */}
-          <select
-            value={globalSelectedCategory}
-            onChange={(e) => setGlobalSelectedCategory(e.target.value)}
-            className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-emerald-400 font-mono text-xs focus:outline-none focus:border-emerald-500 shrink-0 max-w-[110px] sm:max-w-[190px] truncate cursor-pointer"
-          >
-            <option value="all">Toutes Catégories</option>
-            {OUEDKNISS_CATEGORIES.map((cat) => (
-              <option key={cat.slug} value={cat.name}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
+            {/* Category Select Filter */}
+            <select
+              value={globalSelectedCategory}
+              onChange={(e) => setGlobalSelectedCategory(e.target.value)}
+              aria-label="Filtrer par catégorie"
+              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-emerald-400 font-mono text-xs focus:outline-none focus:border-emerald-500 min-h-[40px] sm:min-h-[38px] max-w-[150px] sm:max-w-[190px] truncate cursor-pointer font-bold"
+            >
+              <option value="all">Toutes Catégories</option>
+              {OUEDKNISS_CATEGORIES.map((cat) => (
+                <option key={cat.slug} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
 
-          {/* Recharts Summary Charts Trigger Button */}
-          <button
-            type="button"
-            onClick={() => setShowCategoryChartsModal(true)}
-            className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
-              showCategoryChartsModal
-                ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
-                : 'bg-slate-900/90 border-slate-800 text-purple-400 hover:text-white hover:border-purple-400/50'
-            }`}
-            title="Afficher les graphiques récapitulatifs Recharts par catégorie"
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span className="hidden sm:inline">Graphiques Recharts</span>
-          </button>
+            {/* Recharts Summary Charts Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setShowCategoryChartsModal(true)}
+              className={`px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer min-h-[40px] sm:min-h-[38px] ${
+                showCategoryChartsModal
+                  ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                  : 'bg-slate-900/90 border-slate-800 text-purple-400 hover:text-white hover:border-purple-400/50'
+              }`}
+              title="Afficher les graphiques récapitulatifs Recharts par catégorie"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span className="hidden sm:inline">Graphiques Recharts</span>
+              <span className="sm:hidden">Graph</span>
+            </button>
+          </div>
         </div>
       </header>
 

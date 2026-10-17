@@ -2299,84 +2299,94 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </div>
         </div>
 
-        {/* Card Action Buttons with 1-Click Call & 1-Click WhatsApp */}
-        <div className="space-y-1.5 pt-2 border-t border-slate-900 font-mono text-xs" onClick={(e) => e.stopPropagation()}>
-          {/* 1-CLICK CALL BUTTON: Direct click dials phone */}
+        {/* Card Action Buttons with 1-Click Call, 1-Click WhatsApp, Direct Details on dedicated lines */}
+        <div className="space-y-2 pt-2.5 border-t border-slate-900 font-mono text-xs" onClick={(e) => e.stopPropagation()}>
+          {/* Ligne 1: 1-CLICK CALL BUTTON - DÉDIÉ SEUL SUR SA LIGNE */}
           <a
             href={tel}
-            className="w-full py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00ff66] text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(0,255,102,0.25)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer min-w-0 overflow-hidden"
-            title={`Appeler directement : ${seller.phone}`}
+            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,255,102,0.25)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer min-h-[42px] min-w-0 overflow-hidden"
+            title={`Appeler directement le vendeur : ${seller.phone}`}
           >
-            <PhoneCall className="w-3.5 h-3.5 text-slate-950 animate-pulse shrink-0" />
-            <span className="truncate">Appel : {seller.phone}</span>
+            <PhoneCall className="w-4 h-4 text-slate-950 animate-pulse shrink-0" />
+            <span className="truncate">Appel Direct : {seller.phone}</span>
           </a>
 
-          {/* Secondary Action Row: WhatsApp + Email + Full Details */}
-          <div className="grid grid-cols-3 gap-1 sm:gap-1.5 min-w-0">
+          {/* Ligne 2: Messaging Bar (WhatsApp + Email ou Lien Direct) - 2 Colonnes Parfaitement Équilibrées */}
+          <div className="grid grid-cols-2 gap-1.5 min-w-0">
             <a
               href={wa}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-1.5 px-1 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
-              title="Contacter sur WhatsApp"
+              className="py-2 px-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer min-w-0 min-h-[38px] shadow-sm hover:brightness-105"
+              title="Contacter sur WhatsApp en 1 clic"
             >
-              <MessageCircle className="w-3 h-3 shrink-0" />
+              <MessageCircle className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">WhatsApp</span>
             </a>
 
             {seller.email ? (
               <a
                 href={buildMailtoLink(seller, det)}
-                className="py-1.5 px-1 rounded-lg bg-purple-950/60 hover:bg-purple-900/70 border border-purple-500/40 text-purple-300 hover:text-white flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+                className="py-2 px-2 rounded-xl bg-purple-950/70 hover:bg-purple-900/80 border border-purple-500/40 text-purple-300 hover:text-white flex items-center justify-center gap-1.5 text-xs font-bold transition-colors cursor-pointer min-w-0 min-h-[38px]"
                 title={`Envoyer un email : ${seller.email}`}
               >
-                <Mail className="w-3 h-3 text-purple-400 shrink-0" />
-                <span className="truncate">Email</span>
+                <Mail className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="truncate">Email Direct</span>
               </a>
             ) : (
               <a
                 href={originUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-1.5 px-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/50 text-slate-200 hover:text-white flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+                className="py-2 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/50 text-slate-200 hover:text-white flex items-center justify-center gap-1.5 text-xs font-bold transition-colors cursor-pointer min-w-0 min-h-[38px]"
                 title="Ouvrir directement sur Ouedkniss.com sans 404"
               >
-                <ExternalLink className="w-3 h-3 text-emerald-400 shrink-0" />
+                <ExternalLink className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span className="truncate">Ouedkniss</span>
               </a>
             )}
-
-            <button
-              onClick={() => setSelectedDetailProduct(det)}
-              className="py-1.5 px-1 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
-              title="Voir l'annonce complète et ses détails"
-            >
-              <Eye className="w-3 h-3 text-emerald-400 shrink-0" />
-              <span className="truncate">Détails</span>
-            </button>
           </div>
 
-          {/* Technical Options Row: Matrix & Supabase */}
-          <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+          {/* Ligne 3: FICHE & DÉTAILS COMPLETS - SEUL SUR SA LIGNE POUR TOUTES LES CARTES */}
+          <button
+            type="button"
+            onClick={() => setSelectedDetailProduct(det)}
+            className="w-full py-2 px-3 rounded-xl bg-slate-900/90 hover:bg-emerald-950/70 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-[#00ff88] flex items-center justify-between text-xs font-bold transition-all cursor-pointer min-h-[38px] shadow-sm"
+            title="Consulter l'annonce complète, photos et caractéristiques techniques"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <Eye className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="truncate">Fiche & Détails Complets</span>
+            </div>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-[#00ff88] border border-emerald-400/40 shrink-0">
+              100% Vérifié
+            </span>
+          </button>
+
+          {/* Ligne 4: Barre Technique Matrix & Supabase */}
+          <div className="grid grid-cols-2 gap-1.5 pt-0.5 min-w-0">
             <button
+              type="button"
               onClick={() => setInspectingProduct(det)}
-              className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40 flex items-center justify-center gap-1 text-[10px] transition-colors cursor-pointer"
+              className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40 flex items-center justify-center gap-1 text-[11px] transition-colors cursor-pointer min-h-[32px]"
               title="Inspecter ADN Matrix"
             >
-              <Code className="w-2.5 h-2.5 text-cyan-400" /> Matrix
+              <Code className="w-3 h-3 text-cyan-400 shrink-0" />
+              <span>Matrix</span>
             </button>
 
             <button
+              type="button"
               onClick={() => handleSyncProduct(det)}
               disabled={isSyncing}
-              className={`py-1 px-2 rounded-md border flex items-center justify-center gap-1 text-[10px] transition-all cursor-pointer ${
+              className={`px-2 py-1.5 rounded-lg border flex items-center justify-center gap-1 text-[11px] transition-all cursor-pointer min-h-[32px] ${
                 det.syncedToSupabase
                   ? 'bg-emerald-950/40 border-emerald-500/40 text-[#00ff88]'
                   : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/30'
               }`}
             >
-              <Database className="w-2.5 h-2.5" />
-              {isSyncing ? '...' : det.syncedToSupabase ? 'Sync ✓' : 'Supabase'}
+              <Database className="w-3 h-3 shrink-0" />
+              <span>{isSyncing ? '...' : det.syncedToSupabase ? 'Sync ✓' : 'Supabase'}</span>
             </button>
           </div>
         </div>
