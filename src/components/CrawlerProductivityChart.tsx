@@ -83,26 +83,24 @@ export const CrawlerProductivityChart: React.FC<CrawlerProductivityChartProps> =
       dateCatCounts.set(dateKey, new Map<string, number>());
     }
 
-    // Populate counts from products
-    products.forEach((p, idx) => {
+    // Populate counts strictly from authentic product scrapedAt/lastUpdated timestamps
+    products.forEach((p) => {
       let dateKey = now.toISOString().split('T')[0];
-      if (p.scrapedAt) {
+      const rawDate = p.scrapedAt || p.lastUpdated;
+      if (rawDate) {
         try {
-          const parsed = new Date(p.scrapedAt);
+          const parsed = new Date(rawDate);
           if (!isNaN(parsed.getTime())) {
             dateKey = parsed.toISOString().split('T')[0];
           }
         } catch {
-          // fallback
+          // fallback to today
         }
       }
 
-      // If all items share today's date (fresh scrape), distribute them realistically across the 30-day timeline
-      // to reflect authentic crawler history and multi-day scraping performance
+      // If the date is not in our 30-day map, create it so no real data is lost
       if (!dateCatCounts.has(dateKey)) {
-        const daysBack = (idx * 7 + (p.title.length * 3)) % 30;
-        const d = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-        dateKey = d.toISOString().split('T')[0];
+        dateCatCounts.set(dateKey, new Map<string, number>());
       }
 
       const cat = p.category || 'Général';
@@ -112,24 +110,22 @@ export const CrawlerProductivityChart: React.FC<CrawlerProductivityChartProps> =
       }
     });
 
-    // If products were fewer than 100, ensure base crawler productivity timeline
-    const dateKeys = Array.from(dateCatCounts.keys()).sort();
+    // Sort dates chronologically (last 30 days)
+    const allSortedKeys = Array.from(dateCatCounts.keys()).sort();
+    // Keep the most recent 30 days
+    const dateKeys = allSortedKeys.slice(-30);
 
-    dateKeys.forEach((key, dayIdx) => {
+    dateKeys.forEach((key) => {
       const dayMap = dateCatCounts.get(key) || new Map<string, number>();
       const entry: DailyCategoryData = {
         dateStr: key,
-        displayDate: key.slice(5), // MM-DD
+        displayDate: key.length >= 10 ? key.slice(5) : key, // MM-DD
         total: 0,
       };
 
-      categoriesList.forEach((cat, catIdx) => {
-        let count = dayMap.get(cat) || 0;
-        // If dataset has items, reflect actual items; if zero, add realistic crawler baseline
-        if (products.length < 50 && count === 0) {
-          const pseudoCount = Math.max(1, Math.round((Math.sin(dayIdx * 0.4 + catIdx) * 0.5 + 0.6) * 12));
-          count = pseudoCount;
-        }
+      categoriesList.forEach((cat) => {
+        // 100% authentic count: exact number of articles in database for this category & date
+        const count = dayMap.get(cat) || 0;
         entry[cat] = count;
         entry.total += count;
       });

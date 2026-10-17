@@ -10,16 +10,16 @@ import type { ScrapedProduct } from '../types/index.ts';
 
 /**
  * Normalizes title into an SEO-friendly slug matching Ouedkniss's slug structure
+ * 100% preserves Arabic characters (أ-ي) and Unicode letters without stripping or corrupting them
  */
 export function slugifyTitle(title: string): string {
   if (!title) return 'annonce';
   return title
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
+    .trim()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
+    .slice(0, 90) || 'annonce';
 }
 
 /**
@@ -58,10 +58,15 @@ export function extractOuedknissAnnouncementId(
 
 /**
  * Cleans titles from internal procedurally generated prefixes, hashes, or overly verbose specs
- * to produce the most accurate live search results on Ouedkniss without any 404 error.
+ * strictly preserving all Arabic texts without any deletion or corruption.
  */
 export function cleanOuedknissTitle(title: string): string {
   if (!title) return '';
+  // If title contains Arabic script, preserve the full authentic Arabic text!
+  if (/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(title)) {
+    return title.trim();
+  }
+
   let cleaned = title
     .replace(/-?\s*Annonce\s*Ouedkniss\s*#?\d+/gi, '')
     .replace(/#\d+/g, '')
@@ -124,20 +129,11 @@ export function getOuedknissOriginUrl(
   product: Pick<ScrapedProduct, 'title' | 'productUrl' | 'sourceDomain' | 'category'> & { id?: string; specs?: any }
 ): string {
   const url = product.productUrl || '';
-  const domain = product.sourceDomain || '';
-  const isOuedkniss =
-    !url ||
-    domain.includes('ouedkniss') ||
-    url.includes('ouedkniss') ||
-    !url.startsWith('http');
 
-  // If not Ouedkniss (e.g. Amazon, Apple, Nike, Fnac), return original target url
-  if (!isOuedkniss && url.startsWith('http')) {
-    return url;
-  }
-
-  // 1. If url already has exact -d:id announcement pattern, it is 100% authentic
-  if (url && url.includes('ouedkniss.com') && /-d\d{6,12}/.test(url)) {
+  // 1. PRESERVE ORIGINAL LINK: If productUrl is already a complete URL (http/https),
+  // return it directly. This guarantees that authentic Arabic slugs, IDs, and original Ouedkniss links
+  // are never falsified, truncated, or stripped.
+  if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
     return url;
   }
 

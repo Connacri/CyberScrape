@@ -1259,7 +1259,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                 }`}
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                🏪 Boutiques ({typeCounts.boutique})
+                🏪 Boutiques Pro ({typeCounts.boutique})
               </button>
               <button
                 type="button"

@@ -12,7 +12,7 @@ export function normalizeText(str: string | undefined | null): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // strip accents (é->e, à->a, etc.)
-    .replace(/[^a-z0-9\s]/g, ' ') // replace punctuation with spaces
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ') // preserves all Unicode letters (Arabic, Latin) & numbers
     .replace(/\s+/g, ' ')
     .trim();
 }

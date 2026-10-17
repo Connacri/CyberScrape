@@ -37,6 +37,7 @@ import {
   syncProductsToSupabase,
   clearSupabaseTable,
   getTotalProductsCountFromSupabase,
+  fetchSupabaseTrendsAnalytics,
 } from './utils/supabaseClient';
 import { DatabaseControlButtons } from './components/DatabaseControlButtons';
 import {
@@ -631,7 +632,7 @@ export default function App() {
     const avgDisc =
       discounted.length > 0
         ? Math.round(discounted.reduce((acc, p) => acc + (p.discountPercent || 0), 0) / discounted.length)
-        : 8;
+        : 0;
 
     return {
       avgPriceFormatted: avgFormatted,
@@ -1818,23 +1819,39 @@ export default function App() {
     }
   };
 
-  // MANUAL OR AUTOMATED PRICE UPDATE TRIGGER
+  // ACTUALISATION ET RECALCUL EN TEMPS RÉEL DES DONNÉES RÉELLES (LOCAL + SUPABASE CLOUD)
   const handleTriggerPriceUpdate = async () => {
-    if (products.length === 0 || isUpdatingPrices) return;
+    if (isUpdatingPrices) return;
     setIsUpdatingPrices(true);
-    addLog(`[AUTO_REFRESH] Vérification algorithmique des fluctuations de prix en temps réel...`, 'info', '0xPRICE_CHECK');
+    addLog(`[STATS_LIVE] 📊 Actualisation des statistiques marché vérifiées (Supabase Cloud + Base Locale)...`, 'info', '0xPRICE_CHECK');
     cyberAudio.playChirp(720, 0.04);
 
     try {
-      const updatedList = await executeSimulatePriceUpdate(products);
-      setProducts(updatedList);
-      addLog(`[AUTO_REFRESH] Prix mis à jour. Tendances recalculées et archivées.`, 'success', '0xUPDATED');
-      cyberAudio.playChirp(1100, 0.06);
-
-      // Auto-sync update to Supabase if configured
-      if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
-        await syncProductsToSupabase(updatedList, supabaseConfig);
+      if (supabaseConfig.url && supabaseConfig.anonKey) {
+        const statsRes = await fetchSupabaseTrendsAnalytics(supabaseConfig, 1000);
+        if (statsRes.success) {
+          addLog(
+            `[SUPABASE] 🚀 ${statsRes.totalProductsCount} articles confirmés en base Supabase (Table: ${statsRes.tableName}). Prix moyen vérifié : ${statsRes.avgPrice.toLocaleString('fr-FR')} DA.`,
+            'success',
+            '0xDB_SYNC'
+          );
+          if (statsRes.products.length > 0) {
+            setProducts((prev) => {
+              const seen = new Set(statsRes.products.map((p) => p.id));
+              const localRemaining = prev.filter((p) => !seen.has(p.id));
+              return [...statsRes.products, ...localRemaining];
+            });
+          }
+        }
+      } else {
+        // Mode local : recalculer les métriques depuis IndexedDB
+        const stored = await loadStoredProductsFromIndexedDB();
+        if (stored && stored.length > 0) {
+          setProducts(stored);
+          addLog(`[INDEXEDDB] Données locales recalculées (${stored.length} articles confirmés).`, 'info', '0xIDB');
+        }
       }
+      cyberAudio.playChirp(1100, 0.06);
     } catch (err) {
       console.error('Update error:', err);
     } finally {
@@ -2246,66 +2263,74 @@ export default function App() {
               )}
             </div>
 
-            {/* Quick Filter Controls: Ligne dédiée complète sur mobile pour ne pas comprimer la recherche */}
-            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
-              {/* Boutique Officielle Filter in Global Search Bar (Filtrage sur champ brand ou seller) */}
+            {/* Quick Filter Controls: Ligne seule pour Boutique Pro sur mobile, suivie des sélecteurs */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
+              {/* Boutique Pro Filter Button: SUR UNE LIGNE SEULE DANS L'UI MOBILE (w-full sm:w-auto) */}
               <button
                 type="button"
                 onClick={() => {
                   setFilterOfficialStoresOnly((prev) => !prev);
                   cyberAudio.playClick();
                 }}
-                className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer select-none min-h-[40px] sm:min-h-[38px] ${
+                className={`w-full sm:w-auto px-3.5 py-2.5 sm:py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-between sm:justify-center gap-2 shrink-0 transition-all cursor-pointer select-none min-h-[42px] sm:min-h-[38px] ${
                   filterOfficialStoresOnly
                     ? 'bg-emerald-500/25 border-[#00ff88] text-[#00ff88] shadow-[0_0_15px_rgba(0,255,102,0.35)] ring-1 ring-emerald-400/50'
-                    : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/40'
+                    : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:text-emerald-300 hover:border-emerald-500/40'
                 }`}
-                title="Filtrer uniquement les Boutiques Officielles et Stores Certifiés (vérifiés sur la marque ou le vendeur)"
+                title="Filtrer uniquement les Boutiques Pro (Stores certifiés Ouedkniss)"
               >
-                <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${filterOfficialStoresOnly ? 'text-[#00ff88] animate-pulse' : 'text-slate-400'}`} />
-                <span className="hidden sm:inline">Boutique Pro</span>
-                <span className="sm:hidden">Store Pro</span>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck
+                    className={`w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0 ${
+                      filterOfficialStoresOnly ? 'text-[#00ff88] animate-pulse' : 'text-emerald-400'
+                    }`}
+                  />
+                  <span className="whitespace-nowrap font-bold">Boutiques Pro</span>
+                </div>
                 <span
-                  className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                  className={`px-2 py-0.5 rounded text-[11px] sm:text-[10px] font-mono font-bold ${
                     filterOfficialStoresOnly
-                      ? 'bg-emerald-950/90 text-[#00ff88] border border-emerald-400/50 font-bold'
-                      : 'bg-black/60 text-slate-400'
+                      ? 'bg-emerald-950/90 text-[#00ff88] border border-emerald-400/50'
+                      : 'bg-black/60 text-emerald-400 border border-emerald-500/20'
                   }`}
                 >
-                  {officialStoresCount}
+                  {officialStoresCount} certifiées
                 </span>
               </button>
 
-              {/* Category Select Filter */}
-              <select
-                value={globalSelectedCategory}
-                onChange={(e) => setGlobalSelectedCategory(e.target.value)}
-                aria-label="Filtrer par catégorie"
-                className="flex-1 sm:flex-none px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-emerald-400 font-mono text-xs focus:outline-none focus:border-emerald-500 min-h-[40px] sm:min-h-[38px] max-w-[150px] sm:max-w-[190px] truncate cursor-pointer font-bold"
-              >
-                <option value="all">Toutes Catégories</option>
-                {OUEDKNISS_CATEGORIES.map((cat) => (
-                  <option key={cat.slug} value={cat.name}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              {/* Sub-row for Category Select + Recharts charts button */}
+              <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+                {/* Category Select Filter */}
+                <select
+                  value={globalSelectedCategory}
+                  onChange={(e) => setGlobalSelectedCategory(e.target.value)}
+                  aria-label="Filtrer par catégorie"
+                  className="flex-1 sm:flex-none px-2.5 sm:px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-emerald-400 font-mono text-xs focus:outline-none focus:border-emerald-500 min-h-[40px] sm:min-h-[38px] max-w-full sm:max-w-[190px] truncate cursor-pointer font-bold"
+                >
+                  <option value="all">Toutes Catégories</option>
+                  {OUEDKNISS_CATEGORIES.map((cat) => (
+                    <option key={cat.slug} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
 
-              {/* Recharts Summary Charts Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setShowCategoryChartsModal(true)}
-                className={`px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer min-h-[40px] sm:min-h-[38px] ${
-                  showCategoryChartsModal
-                    ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
-                    : 'bg-slate-900/90 border-slate-800 text-purple-400 hover:text-white hover:border-purple-400/50'
-                }`}
-                title="Afficher les graphiques récapitulatifs Recharts par catégorie"
-              >
-                <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                <span className="hidden sm:inline">Graphiques Recharts</span>
-                <span className="sm:hidden">Graph</span>
-              </button>
+                {/* Recharts Summary Charts Trigger Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryChartsModal(true)}
+                  className={`px-3 py-2 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer min-h-[40px] sm:min-h-[38px] ${
+                    showCategoryChartsModal
+                      ? 'bg-purple-950/60 border-purple-400 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                      : 'bg-slate-900/90 border-slate-800 text-purple-400 hover:text-white hover:border-purple-400/50'
+                  }`}
+                  title="Afficher les graphiques récapitulatifs Recharts par catégorie"
+                >
+                  <BarChart3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <span className="hidden sm:inline">Graphiques Recharts</span>
+                  <span className="sm:hidden">Graph</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -3199,12 +3224,12 @@ export default function App() {
                 <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
                   <button
                     onClick={handleTriggerPriceUpdate}
-                    disabled={products.length === 0 || isUpdatingPrices}
+                    disabled={isUpdatingPrices}
                     className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/30 font-bold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-40"
-                    title="Simule des fluctuations de marché aléatoires pour vérifier les détections de promotions"
+                    title="Interroge et actualise les statistiques directement depuis la base PostgreSQL Supabase"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>{isUpdatingPrices ? 'Simulation en cours...' : 'Simuler Fluctuations'}</span>
+                    <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isUpdatingPrices ? 'animate-spin' : ''}`} />
+                    <span>{isUpdatingPrices ? 'Actualisation DB...' : 'Actualiser Supabase DB'}</span>
                   </button>
 
                   <button
@@ -3215,8 +3240,8 @@ export default function App() {
                         : 'bg-slate-900 border-slate-800 text-slate-400'
                     }`}
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${autoUpdate.enabled ? 'animate-spin' : ''}`} />
-                    <span>Auto-Update : {autoUpdate.enabled ? `${autoUpdate.intervalMinutes}m` : 'OFF'}</span>
+                    <Clock className={`w-3.5 h-3.5 ${autoUpdate.enabled ? 'text-[#00ff88]' : ''}`} />
+                    <span>Auto-Sync : {autoUpdate.enabled ? `${autoUpdate.intervalMinutes}m` : 'OFF'}</span>
                   </button>
                 </div>
               </div>
@@ -3269,6 +3294,8 @@ export default function App() {
               }
               onTriggerUpdate={handleTriggerPriceUpdate}
               isUpdating={isUpdatingPrices}
+              supabaseConfig={supabaseConfig}
+              onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
             />
           </div>
         )}

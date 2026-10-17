@@ -1126,9 +1126,9 @@ export function generateOuedknissItems(count: number = 28, page: number = 1, cat
     const announcementId = (30000000 + catCode * 100000) + (globalIdx * 23) + (i * 7) + (page * 13);
     const cleanSlug = `${brand}-${baseModel}`
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/[^\p{L}\p{N}]+/gu, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 48);
+      .slice(0, 64);
 
     // Real direct item details URL: https://www.ouedkniss.com/:category/:slug-d:id
     const directProductUrl = `https://www.ouedkniss.com/${catKey}/${cleanSlug}-d${announcementId}`;
