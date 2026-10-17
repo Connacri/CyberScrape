@@ -37,6 +37,7 @@ import {
   Cpu,
   RefreshCw,
   Zap,
+  Mail,
 } from 'lucide-react';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories';
 import { ALGERIA_69_WILAYAS } from '../data/algeriaWilayas';
@@ -49,6 +50,7 @@ import {
   ensureProductDetails,
   buildTelLink,
   buildWhatsAppLink,
+  buildMailtoLink,
   isOfficialStoreProduct,
 } from '../utils/sellerGenerator';
 import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
@@ -447,34 +449,64 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   }, [activeProducts]);
 
-  // Category map with count & price analytics
+  // Unified Category map with canonical Ouedkniss categories + custom discovered categories
   const categoryStats = useMemo(() => {
-    const map = new Map<string, { count: number; minPrice: number; maxPrice: number; totalSum: number }>();
+    const map = new Map<string, { slug: string; count: number; minPrice: number; maxPrice: number; totalSum: number }>();
 
+    // 1. Seed all 17 canonical categories
+    OUEDKNISS_CATEGORIES.forEach((c) => {
+      map.set(c.name, {
+        slug: c.slug,
+        count: 0,
+        minPrice: 0,
+        maxPrice: 0,
+        totalSum: 0,
+      });
+    });
+
+    // 2. Count active products for each category using smart matchCategory
     activeProducts.forEach((p) => {
-      const cat = p.category || 'Général';
-      const existing = map.get(cat);
-      if (!existing) {
-        map.set(cat, {
-          count: 1,
-          minPrice: p.currentPrice,
-          maxPrice: p.currentPrice,
-          totalSum: p.currentPrice,
-        });
-      } else {
-        existing.count += 1;
-        existing.minPrice = Math.min(existing.minPrice, p.currentPrice);
-        existing.maxPrice = Math.max(existing.maxPrice, p.currentPrice);
-        existing.totalSum += p.currentPrice;
+      let matchedCanonical = false;
+      for (const c of OUEDKNISS_CATEGORIES) {
+        if (matchCategory(p.category, c.slug, p.title, p.brand, p.specs)) {
+          const entry = map.get(c.name);
+          if (entry) {
+            entry.count += 1;
+            entry.minPrice = entry.minPrice === 0 ? p.currentPrice : Math.min(entry.minPrice, p.currentPrice);
+            entry.maxPrice = Math.max(entry.maxPrice, p.currentPrice);
+            entry.totalSum += p.currentPrice;
+            matchedCanonical = true;
+          }
+        }
+      }
+
+      // If product has a custom category that didn't match any canonical, add it
+      if (!matchedCanonical && p.category && p.category !== 'Général') {
+        const existing = map.get(p.category);
+        if (!existing) {
+          map.set(p.category, {
+            slug: p.category.toLowerCase().replace(/\s+/g, '-'),
+            count: 1,
+            minPrice: p.currentPrice,
+            maxPrice: p.currentPrice,
+            totalSum: p.currentPrice,
+          });
+        } else {
+          existing.count += 1;
+          existing.minPrice = existing.minPrice === 0 ? p.currentPrice : Math.min(existing.minPrice, p.currentPrice);
+          existing.maxPrice = Math.max(existing.maxPrice, p.currentPrice);
+          existing.totalSum += p.currentPrice;
+        }
       }
     });
 
     return Array.from(map.entries()).map(([name, stats]) => ({
       name,
+      slug: stats.slug,
       count: stats.count,
       minPrice: stats.minPrice,
       maxPrice: stats.maxPrice,
-      avgPrice: Math.round(stats.totalSum / stats.count),
+      avgPrice: stats.count > 0 ? Math.round(stats.totalSum / stats.count) : 0,
     }));
   }, [activeProducts]);
 
@@ -2279,35 +2311,49 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             <span className="truncate">Appel : {seller.phone}</span>
           </a>
 
-          {/* Secondary Action Row: WhatsApp + Full Details + Ouedkniss Live */}
-          <div className="grid grid-cols-3 gap-1.5 min-w-0">
+          {/* Secondary Action Row: WhatsApp + Email + Full Details */}
+          <div className="grid grid-cols-3 gap-1 sm:gap-1.5 min-w-0">
             <a
               href={wa}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-1.5 px-1 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+              className="py-1.5 px-1 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
               title="Contacter sur WhatsApp"
             >
-              <MessageCircle className="w-3 h-3 shrink-0" /> <span className="truncate">WhatsApp</span>
+              <MessageCircle className="w-3 h-3 shrink-0" />
+              <span className="truncate">WhatsApp</span>
             </a>
+
+            {seller.email ? (
+              <a
+                href={buildMailtoLink(seller, det)}
+                className="py-1.5 px-1 rounded-lg bg-purple-950/60 hover:bg-purple-900/70 border border-purple-500/40 text-purple-300 hover:text-white flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+                title={`Envoyer un email : ${seller.email}`}
+              >
+                <Mail className="w-3 h-3 text-purple-400 shrink-0" />
+                <span className="truncate">Email</span>
+              </a>
+            ) : (
+              <a
+                href={originUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-1.5 px-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/50 text-slate-200 hover:text-white flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+                title="Ouvrir directement sur Ouedkniss.com sans 404"
+              >
+                <ExternalLink className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span className="truncate">Ouedkniss</span>
+              </a>
+            )}
 
             <button
               onClick={() => setSelectedDetailProduct(det)}
-              className="py-1.5 px-1 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
+              className="py-1.5 px-1 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
               title="Voir l'annonce complète et ses détails"
             >
-              <Eye className="w-3 h-3 text-emerald-400 shrink-0" /> <span className="truncate">Détails</span>
+              <Eye className="w-3 h-3 text-emerald-400 shrink-0" />
+              <span className="truncate">Détails</span>
             </button>
-
-            <a
-              href={originUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-1.5 px-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/50 text-slate-200 hover:text-white flex items-center justify-center gap-1 text-[11px] font-bold transition-colors cursor-pointer min-w-0 truncate"
-              title="Ouvrir directement sur Ouedkniss.com sans 404"
-            >
-              <ExternalLink className="w-3 h-3 text-emerald-400 shrink-0" /> <span className="truncate">Ouedkniss</span>
-            </a>
           </div>
 
           {/* Technical Options Row: Matrix & Supabase */}

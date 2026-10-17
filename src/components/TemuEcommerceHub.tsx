@@ -1296,8 +1296,8 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
           </div>
         </div>
       ) : viewMode === 'grid' ? (
-        /* TEMU HIGH DENSITY GRID VIEW */
-        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        /* TEMU HIGH DENSITY GRID VIEW - Ergonomic Mobile 1-Col, Tablet 2/3-Col */
+        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {lazyProducts.map((p) => {
             const det = ensureProductDetails(p);
             const seller = det.seller!;

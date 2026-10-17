@@ -28,6 +28,7 @@ import {
   TrendingUp,
   LineChart,
   Heart,
+  Mail,
 } from 'lucide-react';
 import { ProductPriceHistoryChart } from './ProductPriceHistoryChart';
 import {
@@ -36,6 +37,7 @@ import {
   buildTelLink,
   buildTelLink2,
   buildSmsLink,
+  buildMailtoLink,
 } from '../utils/sellerGenerator';
 import { getOuedknissOriginUrl } from '../utils/ouedknissUrls';
 
@@ -65,6 +67,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [copiedPhone2, setCopiedPhone2] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'priceHistory' | 'seller' | 'specs' | 'json'>('details');
 
@@ -88,6 +91,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   };
 
+  const handleCopyEmail = () => {
+    if (seller.email) {
+      navigator.clipboard.writeText(seller.email);
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2500);
+    }
+  };
+
   const handleShareLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopiedLink(true);
@@ -98,6 +109,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const telLink2 = buildTelLink2(seller);
   const whatsAppLink = buildWhatsAppLink(seller, product);
   const smsLink = buildSmsLink(seller, product);
+  const mailtoLink = buildMailtoLink(seller, product);
 
   return (
     <div
@@ -439,6 +451,38 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     <MessageCircle className="w-4 h-4 text-white" />
                     <span>WhatsApp Direct (Message pré-rempli)</span>
                   </a>
+
+                  {/* DIRECT EMAIL ROW */}
+                  {seller.email && (
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={mailtoLink}
+                        className="flex-1 py-3 px-3.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/70 border border-purple-500/40 text-purple-300 font-mono font-bold text-xs sm:text-sm flex items-center justify-between gap-2 transition-all cursor-pointer truncate"
+                        title={`Envoyer un email directement à ${seller.email}`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Mail className="w-4 h-4 text-purple-400 shrink-0" />
+                          <span className="truncate">{seller.email}</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded bg-purple-900/80 text-purple-200 font-mono text-[10px] uppercase font-bold shrink-0">
+                          Email
+                        </span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={handleCopyEmail}
+                        className="h-[44px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-mono text-xs flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                        title="Copier l'adresse email"
+                      >
+                        {copiedEmail ? (
+                          <Check className="w-4 h-4 text-purple-400" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-slate-400" />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="text-[11px] font-mono text-slate-400 text-center flex items-center justify-center gap-1.5">
@@ -634,33 +678,47 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800 text-xs font-mono">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-slate-800 text-xs font-mono">
                     <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
                       <span className="text-slate-500 block text-[10px]">TÉLÉPHONE PRINCIPAL</span>
-                      <strong className="text-emerald-400 text-sm">{seller.phone}</strong>
+                      <strong className="text-emerald-400 text-sm truncate block">{seller.phone}</strong>
+                    </div>
+                    {seller.phone2 && (
+                      <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                        <span className="text-slate-500 block text-[10px]">2ÈME LIGNE</span>
+                        <strong className="text-cyan-400 text-sm truncate block">{seller.phone2}</strong>
+                      </div>
+                    )}
+                    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                      <span className="text-slate-500 block text-[10px]">EMAIL DIRECT</span>
+                      <strong className="text-purple-300 text-xs truncate block">{seller.email || 'contact@ouedkniss.dz'}</strong>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
                       <span className="text-slate-500 block text-[10px]">LOCALISATION</span>
-                      <strong className="text-white text-sm">{seller.wilaya}</strong>
-                    </div>
-                    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                      <span className="text-slate-500 block text-[10px]">RÉACTIVITÉ</span>
-                      <strong className="text-cyan-400 text-sm">{seller.responseTime}</strong>
+                      <strong className="text-white text-sm truncate block">{seller.wilaya}</strong>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-3 pt-2">
+                  <div className="flex flex-wrap gap-2.5 pt-2">
                     <a
                       href={telLink}
-                      className="flex-1 py-3 px-4 rounded-xl bg-emerald-500 text-slate-950 font-mono font-bold text-center hover:bg-emerald-400 transition-colors cursor-pointer"
+                      className="flex-1 min-w-[140px] py-3 px-4 rounded-xl bg-emerald-500 text-slate-950 font-mono font-bold text-center hover:bg-emerald-400 transition-colors cursor-pointer"
                     >
                       Appeler {seller.phone}
                     </a>
+                    {seller.email && (
+                      <a
+                        href={mailtoLink}
+                        className="py-3 px-4 rounded-xl bg-purple-950/60 hover:bg-purple-900/70 border border-purple-500/40 text-purple-300 font-mono font-bold text-center transition-colors cursor-pointer"
+                      >
+                        Email Direct
+                      </a>
+                    )}
                     <a
                       href={whatsAppLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-3 px-4 rounded-xl bg-[#25D366] text-white font-mono font-bold text-center hover:bg-[#20ba59] transition-colors cursor-pointer"
+                      className="flex-1 min-w-[140px] py-3 px-4 rounded-xl bg-[#25D366] text-white font-mono font-bold text-center hover:bg-[#20ba59] transition-colors cursor-pointer"
                     >
                       WhatsApp ({seller.name})
                     </a>

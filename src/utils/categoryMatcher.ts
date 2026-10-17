@@ -200,6 +200,35 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'pure', 'fruit', 'fruits', 'legume', 'legumes', 'biskra', 'kabylie',
     'tracteur', 'engrais', 'semence', 'plante', 'plants'
   ],
+  'vetements-mode': [
+    'vetement', 'vetements', 'mode', 'habit', 'habits', 'chaussure', 'chaussures',
+    'basket', 'baskets', 'sneaker', 'sneakers', 'montre', 'montres', 'rolex',
+    'nike', 'adidas', 'puma', 'lacoste', 'zara', 'pull', 'veste', 'manteau',
+    'pantalon', 'jean', 'jeans', 't shirt', 'chemise', 'costume', 'robe', 'sac',
+    'maroquinerie', 'bijou', 'bijoux', 'parfum', 'tn', 'air max', 'jordan'
+  ],
+  'maison-meubles': [
+    'maison', 'fourniture', 'fournitures', 'meuble', 'meubles', 'mobilier',
+    'salon', 'salons', 'canape', 'canapes', 'fauteuil', 'chambre', 'chambres',
+    'lit', 'lits', 'matelas', 'armoire', 'armoires', 'dressing', 'table', 'tables',
+    'chaise', 'chaises', 'cuisine', 'decoration', 'tapis', 'rideau', 'rideaux',
+    'luminaire', 'lustre', 'led', 'bois', 'velours'
+  ],
+  materiaux: [
+    'materiau', 'materiaux', 'equipement', 'equipements', 'outillage', 'outil', 'outils',
+    'groupe electrogene', 'cummins', 'poste a souder', 'inverter', 'soudure',
+    'compresseur', 'perceuse', 'meuleuse', 'visseuse', 'echafaudage', 'btp',
+    'chantier', 'bosch pro', 'makita', 'dewalt', 'stanley', 'karcher'
+  ],
+  animaux: [
+    'animal', 'animaux', 'chien', 'chiens', 'chiot', 'chiots', 'chat', 'chats', 'chaton',
+    'oiseau', 'oiseaux', 'perruche', 'canari', 'cheval', 'poulain', 'croquette', 'croquettes',
+    'cage', 'aquarium', 'berger allemand', 'huskie', 'persan'
+  ],
+  'bebes-enfants': [
+    'bebe', 'bebes', 'enfant', 'enfants', 'poussette', 'poussettes', 'lit bebe', 'berceau',
+    'jouet', 'jouets', 'chicco', 'biberon', 'siege auto', 'puericulture', 'transat'
+  ],
   emploi: [
     'emploi', 'recrutement', 'travail', 'poste', 'offre', 'offres', 'candidature',
     'developpeur', 'ingenieur', 'commercial', 'comptable', 'secretaire',
@@ -599,6 +628,66 @@ export const TEMU_OFFICIAL_DEPARTMENTS: TemuDepartment[] = [
       'Peinture Stucco & BA13',
       'Plomberie & Chauffage Central',
       'Développement Web & Applications',
+    ],
+  },
+  {
+    id: 'materiaux',
+    name: '🔨 Matériaux & Équipement Pro',
+    slug: 'materiaux',
+    iconName: 'Hammer',
+    badge: 'Pro & BTP',
+    color: '#f97316',
+    subcategories: [
+      'Groupes Électrogènes Cummins',
+      'Postes à Souder Inverter',
+      'Outillage Industriel & CNC',
+      'Matériaux de Construction',
+      'Matériel de Restauration',
+    ],
+  },
+  {
+    id: 'animaux',
+    name: '🐾 Animaux & Accessoires',
+    slug: 'animaux',
+    iconName: 'Dog',
+    badge: 'Élevage',
+    color: '#d97706',
+    subcategories: [
+      'Chiens & Chiots LOF',
+      'Chats de Race & Chatons',
+      'Oiseaux & Perruches',
+      'Accessoires & Cages',
+      'Croquettes & Alimentation',
+    ],
+  },
+  {
+    id: 'bebes-enfants',
+    name: '👶 Bébés & Enfants',
+    slug: 'bebes-enfants',
+    iconName: 'Baby',
+    badge: 'Puériculture',
+    color: '#f472b6',
+    subcategories: [
+      'Poussettes Chicco Trio',
+      'Lits & Chambres Bébé',
+      'Vêtements Bébé & Enfants',
+      'Jouets d\'Éveil',
+      'Sièges Auto & Biberons',
+    ],
+  },
+  {
+    id: 'emploi',
+    name: '👔 Emploi & Recrutement',
+    slug: 'emploi',
+    iconName: 'Briefcase',
+    badge: 'Carrières DZ',
+    color: '#06b6d4',
+    subcategories: [
+      'Informatique & Tech',
+      'Génie Civil & BTP',
+      'Commerce & Vente',
+      'Gestion & Finance',
+      'Transport & Logistique',
     ],
   },
 ];

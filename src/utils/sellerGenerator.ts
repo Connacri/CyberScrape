@@ -123,6 +123,28 @@ function hashString(str: string): number {
 }
 
 /**
+ * Generates realistic Algerian seller email
+ */
+export function generateSellerEmail(name: string, type: string, seed: number): string {
+  const cleanName = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '.')
+    .replace(/\.+/g, '.')
+    .replace(/^\.|\.$/g, '');
+  
+  const domains = ['gmail.com', 'outlook.com', 'yahoo.fr', 'store.dz', 'contact.dz'];
+  const domain = domains[Math.abs(seed) % domains.length];
+  
+  if (type === 'Particulier') {
+    const year = 1975 + (Math.abs(seed) % 30);
+    return `${cleanName}.${year}@${domain}`;
+  }
+  return `contact.${cleanName}@${domain}`;
+}
+
+/**
  * Generates rich seller information for any product
  */
 export function generateSellerForProduct(
@@ -203,6 +225,7 @@ export function generateSellerForProduct(
     phone2: phoneData2.formatted,
     phone2Clean: phoneData2.clean,
     whatsappClean: phoneData.whatsapp,
+    email: generateSellerEmail(name, type, seed),
     wilaya,
     commune,
     memberSince,
@@ -277,8 +300,8 @@ export function generateGalleryImages(primaryImage: string, seed: number): strin
  */
 export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
   if (product.seller) {
+    const seed = hashString(product.id || product.title);
     if (!product.seller.phone2) {
-      const seed = hashString(product.id || product.title);
       const seed2 = seed * 13 + 37;
       const phoneData2 = generateAlgerianPhone(seed2);
       product.seller.phone2 = phoneData2.formatted;
@@ -286,6 +309,9 @@ export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
       product.seller.operator2 = phoneData2.operator === product.seller.operator
         ? (product.seller.operator === 'Mobilis' ? 'Djezzy' : product.seller.operator === 'Djezzy' ? 'Ooredoo' : 'Mobilis')
         : phoneData2.operator;
+    }
+    if (!product.seller.email) {
+      product.seller.email = generateSellerEmail(product.seller.name, product.seller.type, seed);
     }
     if (!product.productUrl || (product.sourceDomain.includes('ouedkniss') && !product.productUrl.includes('keywords='))) {
       product.productUrl = getOuedknissOriginUrl(product);
@@ -367,6 +393,21 @@ export function buildTelLink2(seller: SellerInfo): string {
 export function buildSmsLink(seller: SellerInfo, product: ScrapedProduct): string {
   const message = `Bonjour, je suis intéressé par votre annonce Ouedkniss : ${product.title}`;
   return `sms:${seller.phoneClean}?body=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Builds direct Mailto URI with pre-filled subject and message
+ */
+export function buildMailtoLink(seller: SellerInfo, product?: ScrapedProduct): string {
+  const email = seller.email || 'contact@ouedkniss-vendeur.dz';
+  const subject = product
+    ? `Demande d'information - Annonce Ouedkniss : ${product.title}`
+    : `Contact vendeur Ouedkniss : ${seller.name}`;
+  const priceText = product ? `${new Intl.NumberFormat('fr-DZ').format(product.currentPrice)} ${product.currency}` : '';
+  const body = product
+    ? `Salem Alikoum / Bonjour ${seller.name},\n\nJe vous contacte concernant votre annonce Ouedkniss :\n"${product.title}" (${priceText}).\n\nL'article est-il toujours disponible ?\n\nMerci d'avance pour votre réponse.\nCordialement,`
+    : `Salem Alikoum / Bonjour ${seller.name},\n\nJe vous contacte depuis la plateforme Ouedkniss concernant vos annonces en ligne.\n\nCordialement,`;
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 /**

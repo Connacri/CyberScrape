@@ -76,6 +76,7 @@ import {
   executeScrapeRequest,
   executeSimulatePriceUpdate,
 } from './utils/scraperEngine';
+import { SellerProfilesDirectory } from './components/SellerProfilesDirectory';
 import {
   Zap,
   Radio,
@@ -118,6 +119,7 @@ import {
   Search,
   Cloud,
   BarChart3,
+  Users,
 } from 'lucide-react';
 
 // Preset E-Commerce Target URLs
@@ -311,7 +313,7 @@ export default function App() {
   const [sweepCompletedCategories, setSweepCompletedCategories] = useState<string[]>([]);
   const [isSweepComplete, setIsSweepComplete] = useState<boolean>(false);
   const [replaceCatalog, setReplaceCatalog] = useState<boolean>(false); // Par défaut: Fusion incrémentale intelligente
-  const [activeTab, setActiveTab] = useState<'vacuum' | 'temu' | 'trends' | 'catalog'>('vacuum');
+  const [activeTab, setActiveTab] = useState<'vacuum' | 'temu' | 'trends' | 'catalog' | 'sellers'>('vacuum');
   const [selectedModalProduct, setSelectedModalProduct] = useState<ScrapedProduct | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [isVoiceActive, setIsVoiceActive] = useState<boolean>(true);
@@ -387,7 +389,7 @@ export default function App() {
 
 
   // Futuristic tab selection with tactile sci-fi sound
-  const handleSelectTab = (tab: 'vacuum' | 'temu' | 'trends' | 'catalog') => {
+  const handleSelectTab = (tab: 'vacuum' | 'temu' | 'trends' | 'catalog' | 'sellers') => {
     setActiveTab(tab);
     cyberAudio.playTabSwitch();
   };
@@ -2088,6 +2090,19 @@ export default function App() {
 
             <button
               type="button"
+              onClick={() => handleSelectTab('sellers')}
+              className={`px-2.5 lg:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
+                activeTab === 'sellers'
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                  : 'text-purple-400 hover:text-purple-200 hover:bg-purple-950/30'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 shrink-0" />
+              <span>Vendeurs</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => handleSelectTab('trends')}
               className={`px-2.5 lg:px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[36px] ${
                 activeTab === 'trends'
@@ -2404,6 +2419,23 @@ export default function App() {
                   </div>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-300">
                     Android
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSelectTab('sellers');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 hover:bg-purple-900/40 flex items-center justify-between font-bold cursor-pointer transition-all active:scale-98"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className="w-4 h-4 text-purple-400" />
+                    <span>Profils Vendeurs & Carnet</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 border border-purple-400/40 text-purple-300">
+                    Dédupliqué
                   </span>
                 </button>
 
@@ -3056,6 +3088,23 @@ export default function App() {
         )}
 
         {/* ============================================================== */}
+        {/* TAB: ANNUAIRE DÉDUPLIQUÉ DES PROFILS VENDEURS & CONTACTS        */}
+        {/* ============================================================== */}
+        {activeTab === 'sellers' && (
+          <div className="space-y-5 animate-fadeIn">
+            <SellerProfilesDirectory
+              products={products}
+              onSelectProduct={(p) => setSelectedModalProduct(p)}
+              onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+              supabaseConfig={supabaseConfig}
+              onNavigateToCatalogWithSeller={(_sellerName) => {
+                setActiveTab('catalog');
+              }}
+            />
+          </div>
+        )}
+
+        {/* ============================================================== */}
         {/* TAB 4: TABLEAU DE BORD & TENDANCES DE PRIX EN TEMPS RÉEL        */}
         {/* ============================================================== */}
         {activeTab === 'trends' && (
@@ -3306,7 +3355,7 @@ export default function App() {
         aria-label="Navigation principale mobile"
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-emerald-500/30 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] pb-[env(safe-area-inset-bottom,0px)]"
       >
-        <div className="grid grid-cols-5 h-16 max-w-lg mx-auto px-1">
+        <div className="grid grid-cols-6 h-16 max-w-xl mx-auto px-1">
           {/* Tab 1: Vortex & IA */}
           <button
             type="button"
@@ -3318,7 +3367,7 @@ export default function App() {
             }`}
           >
             {activeTab === 'vacuum' && (
-              <span className="absolute top-0 inset-x-2 h-0.5 bg-gradient-to-r from-emerald-500 to-[#00ff88] rounded-full shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
+              <span className="absolute top-0 inset-x-1.5 h-0.5 bg-gradient-to-r from-emerald-500 to-[#00ff88] rounded-full shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
             )}
             <Cpu className="w-5 h-5 shrink-0" />
             <span className="text-[10px] font-mono font-bold tracking-tight">Vortex</span>
@@ -3335,7 +3384,7 @@ export default function App() {
             }`}
           >
             {activeTab === 'catalog' && (
-              <span className="absolute top-0 inset-x-2 h-0.5 bg-gradient-to-r from-emerald-500 to-[#00ff88] rounded-full shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
+              <span className="absolute top-0 inset-x-1.5 h-0.5 bg-gradient-to-r from-emerald-500 to-[#00ff88] rounded-full shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
             )}
             <div className="relative">
               <ShoppingBag className="w-5 h-5 shrink-0" />
@@ -3359,7 +3408,7 @@ export default function App() {
             }`}
           >
             {activeTab === 'temu' && (
-              <span className="absolute top-0 inset-x-2 h-0.5 bg-gradient-to-r from-[#fb5200] to-[#ff7300] rounded-full shadow-[0_0_8px_rgba(251,82,0,0.8)]" />
+              <span className="absolute top-0 inset-x-1.5 h-0.5 bg-gradient-to-r from-[#fb5200] to-[#ff7300] rounded-full shadow-[0_0_8px_rgba(251,82,0,0.8)]" />
             )}
             <div className="relative">
               <Zap className="w-5 h-5 fill-current shrink-0" />
@@ -3368,7 +3417,24 @@ export default function App() {
             <span className="text-[10px] font-mono font-bold tracking-tight">TEMU-DZ</span>
           </button>
 
-          {/* Tab 4: Tendances */}
+          {/* Tab 4: Vendeurs */}
+          <button
+            type="button"
+            onClick={() => handleSelectTab('sellers')}
+            className={`flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative min-h-[48px] ${
+              activeTab === 'sellers'
+                ? 'text-purple-400'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {activeTab === 'sellers' && (
+              <span className="absolute top-0 inset-x-1.5 h-0.5 bg-gradient-to-r from-purple-500 to-purple-300 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
+            )}
+            <Users className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-mono font-bold tracking-tight">Vendeurs</span>
+          </button>
+
+          {/* Tab 5: Tendances */}
           <button
             type="button"
             onClick={() => handleSelectTab('trends')}
@@ -3379,7 +3445,7 @@ export default function App() {
             }`}
           >
             {activeTab === 'trends' && (
-              <span className="absolute top-0 inset-x-2 h-0.5 bg-gradient-to-r from-cyan-500 to-cyan-300 rounded-full shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
+              <span className="absolute top-0 inset-x-1.5 h-0.5 bg-gradient-to-r from-cyan-500 to-cyan-300 rounded-full shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
             )}
             <LineChart className="w-5 h-5 shrink-0" />
             <span className="text-[10px] font-mono font-bold tracking-tight">Tendances</span>

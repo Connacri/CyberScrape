@@ -12,6 +12,7 @@ export interface SellerInfo {
   phone2?: string; // 2nd phone number (e.g. "0661 98 76 54")
   phone2Clean?: string; // e.g. "0661987654" for direct tel:
   whatsappClean: string; // e.g. "213550123456" for https://wa.me/213550123456
+  email?: string; // Direct email address for seller communication
   wilaya: string;
   commune?: string;
   memberSince?: string;
