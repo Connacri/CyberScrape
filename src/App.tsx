@@ -1828,7 +1828,11 @@ export default function App() {
 
     try {
       if (supabaseConfig.url && supabaseConfig.anonKey) {
-        const statsRes = await fetchSupabaseTrendsAnalytics(supabaseConfig, 1000);
+        const statsRes = await fetchSupabaseTrendsAnalytics(
+          supabaseConfig,
+          1000,
+          selectedCategorySlug === 'all' ? undefined : selectedCategorySlug
+        );
         if (statsRes.success) {
           addLog(
             `[SUPABASE] 🚀 ${statsRes.totalProductsCount} articles confirmés en base Supabase (Table: ${statsRes.tableName}). Prix moyen vérifié : ${statsRes.avgPrice.toLocaleString('fr-FR')} DA.`,
@@ -3296,6 +3300,8 @@ export default function App() {
               isUpdating={isUpdatingPrices}
               supabaseConfig={supabaseConfig}
               onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+              initialCategory={selectedCategorySlug}
+              onSelectCategory={(cat) => setSelectedCategorySlug(cat)}
             />
           </div>
         )}

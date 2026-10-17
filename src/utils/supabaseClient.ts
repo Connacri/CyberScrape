@@ -870,21 +870,57 @@ export async function fetchProductsFromSupabase(
   }
 }
 
+export interface PriceBracketStat {
+  label: string;
+  minPrice: number;
+  maxPrice: number;
+  count: number;
+  percentage: number;
+  totalValuation: number;
+  avgPrice: number;
+}
+
+export interface CategoryDataAnalysisSummary {
+  categoryName: string;
+  totalCount: number;
+  avgPrice: number;
+  medianPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  boutiquesCount: number;
+  particuliersCount: number;
+  proRatio: number;
+  marketTrend: 'HAUSSIER' | 'BAISSIER' | 'STABLE';
+  volatilityRate: number;
+  negotiationPower: 'FORTE' | 'MODÉRÉE' | 'FAIBLE';
+  priceDropsCount: number;
+  topDiscountItem?: { title: string; discountPercent: number; currentPrice: number; originalPrice: number };
+  insights: string[];
+}
+
 export interface SupabaseTrendsAnalyticsResult {
   success: boolean;
   isConnected: boolean;
   tableName: string;
+  selectedCategory?: string;
   totalProductsCount: number;
   avgPrice: number;
+  medianPrice: number;
+  minPrice: number;
+  maxPrice: number;
   totalValuation: number;
   avgDiscount: number;
   maxDiscount: number;
   inStockCount: number;
   inStockRate: number;
   priceDropsCount: number;
+  boutiquesCount: number;
+  particuliersCount: number;
   products: ScrapedProduct[];
   categoryStats: { name: string; count: number; totalValuation: number; avgPrice: number }[];
   brandStats: { name: string; count: number; totalValuation: number; avgPrice: number }[];
+  priceBrackets: PriceBracketStat[];
+  dataAnalysis: CategoryDataAnalysisSummary;
   lastSyncedAt: string;
   error?: string;
 }
@@ -892,72 +928,87 @@ export interface SupabaseTrendsAnalyticsResult {
 /**
  * Directly queries Supabase Cloud Database to retrieve 100% authentic market statistics,
  * aggregated valuations, price averages, category distributions and true product histories.
+ * Supports filtering by category with real SQL queries and comprehensive Data Analysis synthesis.
  */
 export async function fetchSupabaseTrendsAnalytics(
   config: SupabaseConfig,
-  limit: number = 2000
+  limit: number = 2500,
+  category?: string
 ): Promise<SupabaseTrendsAnalyticsResult> {
   const tableName = config.tableName || 'scraped_products';
+  const targetCategory = category && category !== 'all' ? category.trim() : undefined;
+
+  const emptyResult = (errorMsg?: string): SupabaseTrendsAnalyticsResult => ({
+    success: false,
+    isConnected: Boolean(config.url && config.anonKey),
+    tableName,
+    selectedCategory: targetCategory || 'all',
+    totalProductsCount: 0,
+    avgPrice: 0,
+    medianPrice: 0,
+    minPrice: 0,
+    maxPrice: 0,
+    totalValuation: 0,
+    avgDiscount: 0,
+    maxDiscount: 0,
+    inStockCount: 0,
+    inStockRate: 0,
+    priceDropsCount: 0,
+    boutiquesCount: 0,
+    particuliersCount: 0,
+    products: [],
+    categoryStats: [],
+    brandStats: [],
+    priceBrackets: [],
+    dataAnalysis: {
+      categoryName: targetCategory || 'Toutes les catégories',
+      totalCount: 0,
+      avgPrice: 0,
+      medianPrice: 0,
+      minPrice: 0,
+      maxPrice: 0,
+      boutiquesCount: 0,
+      particuliersCount: 0,
+      proRatio: 0,
+      marketTrend: 'STABLE',
+      volatilityRate: 0,
+      negotiationPower: 'MODÉRÉE',
+      priceDropsCount: 0,
+      insights: ['Aucune donnée disponible pour cette sélection en base Supabase.'],
+    },
+    lastSyncedAt: new Date().toISOString(),
+    error: errorMsg,
+  });
 
   if (!config.url || !config.anonKey) {
-    return {
-      success: false,
-      isConnected: false,
-      tableName,
-      totalProductsCount: 0,
-      avgPrice: 0,
-      totalValuation: 0,
-      avgDiscount: 0,
-      maxDiscount: 0,
-      inStockCount: 0,
-      inStockRate: 0,
-      priceDropsCount: 0,
-      products: [],
-      categoryStats: [],
-      brandStats: [],
-      lastSyncedAt: new Date().toISOString(),
-      error: 'Supabase non configuré (URL ou clé Anon manquante)',
-    };
+    return emptyResult('Supabase non configuré (URL ou clé Anon manquante)');
   }
 
   const client = getSupabaseClient(config);
   if (!client) {
-    return {
-      success: false,
-      isConnected: false,
-      tableName,
-      totalProductsCount: 0,
-      avgPrice: 0,
-      totalValuation: 0,
-      avgDiscount: 0,
-      maxDiscount: 0,
-      inStockCount: 0,
-      inStockRate: 0,
-      priceDropsCount: 0,
-      products: [],
-      categoryStats: [],
-      brandStats: [],
-      lastSyncedAt: new Date().toISOString(),
-      error: 'Impossible d\'initialiser le client Supabase',
-    };
+    return emptyResult("Impossible d'initialiser le client Supabase");
   }
 
   try {
-    // 1. Get exact total row count in Supabase table
+    // 1. Get exact total row count in Supabase table (filtered by category if requested)
     let totalCount = 0;
     try {
-      const countRes = await client
-        .from(tableName)
-        .select('*', { count: 'exact', head: true });
+      let countQuery = client.from(tableName).select('*', { count: 'exact', head: true });
+      if (targetCategory) {
+        countQuery = countQuery.ilike('category', `%${targetCategory}%`);
+      }
+      const countRes = await countQuery;
       if (!countRes.error && typeof countRes.count === 'number') {
         totalCount = countRes.count;
       }
     } catch {
       // fallback to planned count
       try {
-        const plannedRes = await client
-          .from(tableName)
-          .select('*', { count: 'planned', head: true });
+        let plannedQuery = client.from(tableName).select('*', { count: 'planned', head: true });
+        if (targetCategory) {
+          plannedQuery = plannedQuery.ilike('category', `%${targetCategory}%`);
+        }
+        const plannedRes = await plannedQuery;
         if (!plannedRes.error && typeof plannedRes.count === 'number') {
           totalCount = plannedRes.count;
         }
@@ -972,11 +1023,11 @@ export async function fetchSupabaseTrendsAnalytics(
     let queryError: any = null;
 
     try {
-      const res = await client
-        .from(tableName)
-        .select(selectFields)
-        .order('id', { ascending: false })
-        .limit(limit);
+      let query = client.from(tableName).select(selectFields);
+      if (targetCategory) {
+        query = query.ilike('category', `%${targetCategory}%`);
+      }
+      const res = await query.order('id', { ascending: false }).limit(limit);
 
       if (res.error) {
         queryError = res.error;
@@ -990,10 +1041,11 @@ export async function fetchSupabaseTrendsAnalytics(
     // Fallback without order if index is missing
     if (queryError || dataRows.length === 0) {
       try {
-        const fallbackRes = await client
-          .from(tableName)
-          .select(selectFields)
-          .limit(limit);
+        let fallbackQuery = client.from(tableName).select(selectFields);
+        if (targetCategory) {
+          fallbackQuery = fallbackQuery.ilike('category', `%${targetCategory}%`);
+        }
+        const fallbackRes = await fallbackQuery.limit(limit);
         if (!fallbackRes.error && fallbackRes.data) {
           dataRows = fallbackRes.data;
           queryError = null;
@@ -1003,25 +1055,23 @@ export async function fetchSupabaseTrendsAnalytics(
       }
     }
 
+    // If a category was requested but returned 0 results, also try exact match fallback
+    if (dataRows.length === 0 && targetCategory) {
+      try {
+        const exactRes = await client
+          .from(tableName)
+          .select(selectFields)
+          .eq('category', targetCategory)
+          .limit(limit);
+        if (!exactRes.error && exactRes.data && exactRes.data.length > 0) {
+          dataRows = exactRes.data;
+          queryError = null;
+        }
+      } catch {}
+    }
+
     if (queryError && dataRows.length === 0) {
-      return {
-        success: false,
-        isConnected: true,
-        tableName,
-        totalProductsCount: totalCount,
-        avgPrice: 0,
-        totalValuation: 0,
-        avgDiscount: 0,
-        maxDiscount: 0,
-        inStockCount: 0,
-        inStockRate: 0,
-        priceDropsCount: 0,
-        products: [],
-        categoryStats: [],
-        brandStats: [],
-        lastSyncedAt: new Date().toISOString(),
-        error: queryError.message || 'Erreur lors de la lecture des données Supabase',
-      };
+      return emptyResult(queryError.message || 'Erreur lors de la lecture des données Supabase');
     }
 
     // Map rows to ScrapedProduct model
@@ -1078,15 +1128,24 @@ export async function fetchSupabaseTrendsAnalytics(
     let maxDiscount = 0;
     let priceDropsCount = 0;
     let inStockCount = 0;
+    let boutiquesCount = 0;
+    let particuliersCount = 0;
+    let topDiscountItem: { title: string; discountPercent: number; currentPrice: number; originalPrice: number } | undefined;
 
+    const validPrices: number[] = [];
     const catMap = new Map<string, { count: number; totalVal: number }>();
     const brandMap = new Map<string, { count: number; totalVal: number }>();
 
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
-      const price = p.currentPrice || 0;
-      const disc = p.discountPercent || 0;
+      const price = Number(p.currentPrice) || 0;
+      const originalPrice = Number(p.originalPrice) || price;
+      const disc = Number(p.discountPercent) || 0;
       totalValuation += price;
+
+      if (price > 0) {
+        validPrices.push(price);
+      }
 
       if (disc > 0) {
         priceDropsCount++;
@@ -1094,9 +1153,20 @@ export async function fetchSupabaseTrendsAnalytics(
       }
       if (disc > maxDiscount) {
         maxDiscount = disc;
+        topDiscountItem = {
+          title: p.title,
+          discountPercent: disc,
+          currentPrice: price,
+          originalPrice,
+        };
       }
       if (p.inStock) {
         inStockCount++;
+      }
+      if (p.isOfficialStore || (p.seller && p.seller.type !== 'Particulier')) {
+        boutiquesCount++;
+      } else {
+        particuliersCount++;
       }
 
       // Category breakdown
@@ -1114,9 +1184,95 @@ export async function fetchSupabaseTrendsAnalytics(
       brandMap.set(br, existingBrand);
     }
 
+    // Median, Min, Max calculation
+    validPrices.sort((a, b) => a - b);
+    const minPrice = validPrices.length > 0 ? validPrices[0] : 0;
+    const maxPrice = validPrices.length > 0 ? validPrices[validPrices.length - 1] : 0;
+    let medianPrice = 0;
+    if (validPrices.length > 0) {
+      const mid = Math.floor(validPrices.length / 2);
+      medianPrice =
+        validPrices.length % 2 !== 0
+          ? validPrices[mid]
+          : Math.round((validPrices[mid - 1] + validPrices[mid]) / 2);
+    }
+
     const avgPrice = products.length > 0 ? Math.round(totalValuation / products.length) : 0;
     const avgDiscount = priceDropsCount > 0 ? Math.round(totalDiscountSum / priceDropsCount) : 0;
     const inStockRate = products.length > 0 ? Math.round((inStockCount / products.length) * 100) : 100;
+    const proRatio = products.length > 0 ? Math.round((boutiquesCount / products.length) * 100) : 0;
+
+    // Price Brackets Segmentation (Adaptable for Algerian Market Dinars)
+    const bracketDefs = [
+      { label: 'Économique (< 25 000 DA)', minPrice: 0, maxPrice: 25000 },
+      { label: 'Entrée de gamme (25k - 60k DA)', minPrice: 25000, maxPrice: 60000 },
+      { label: 'Milieu de gamme (60k - 120k DA)', minPrice: 60000, maxPrice: 120000 },
+      { label: 'Haut de gamme (120k - 250k DA)', minPrice: 120000, maxPrice: 250000 },
+      { label: 'Flagship / Luxe (> 250 000 DA)', minPrice: 250000, maxPrice: Number.MAX_SAFE_INTEGER },
+    ];
+
+    const priceBrackets: PriceBracketStat[] = bracketDefs.map((b) => {
+      const inBracket = products.filter((p) => p.currentPrice >= b.minPrice && p.currentPrice < b.maxPrice);
+      const bCount = inBracket.length;
+      const bVal = inBracket.reduce((acc, curr) => acc + (curr.currentPrice || 0), 0);
+      return {
+        label: b.label,
+        minPrice: b.minPrice,
+        maxPrice: b.maxPrice,
+        count: bCount,
+        percentage: products.length > 0 ? Math.round((bCount / products.length) * 1000) / 10 : 0,
+        totalValuation: bVal,
+        avgPrice: bCount > 0 ? Math.round(bVal / bCount) : 0,
+      };
+    });
+
+    // Algorithmic Data Analysis synthesis
+    const volatilityRate = products.length > 0 ? Math.round((priceDropsCount / products.length) * 100) : 0;
+    const marketTrend: 'HAUSSIER' | 'BAISSIER' | 'STABLE' =
+      volatilityRate > 35 ? 'BAISSIER' : proRatio > 60 ? 'HAUSSIER' : 'STABLE';
+    const negotiationPower: 'FORTE' | 'MODÉRÉE' | 'FAIBLE' =
+      volatilityRate > 30 || avgDiscount > 12 ? 'FORTE' : volatilityRate > 10 ? 'MODÉRÉE' : 'FAIBLE';
+
+    const insights: string[] = [];
+    if (products.length > 0) {
+      insights.push(
+        `Volume réel : ${effectiveTotalCount.toLocaleString('fr-FR')} annonces certifiées en base Supabase.`
+      );
+      insights.push(
+        `Prix moyen de ${avgPrice.toLocaleString('fr-FR')} DA (Médiane : ${medianPrice.toLocaleString('fr-FR')} DA), s'étendant de ${minPrice.toLocaleString('fr-FR')} DA à ${maxPrice.toLocaleString('fr-FR')} DA.`
+      );
+      if (priceDropsCount > 0) {
+        insights.push(
+          `${priceDropsCount} annonces (${volatilityRate}%) présentent une décote active avec une baisse moyenne de -${avgDiscount}%.`
+        );
+      }
+      insights.push(
+        `Structure de l'offre : ${boutiquesCount} Boutiques Pro (${proRatio}%) vs ${particuliersCount} Vendeurs Particuliers (${100 - proRatio}%).`
+      );
+      if (topDiscountItem) {
+        insights.push(
+          `Plus forte opportunité : -${topDiscountItem.discountPercent}% sur "${topDiscountItem.title.slice(0, 36)}..." (${topDiscountItem.currentPrice.toLocaleString('fr-FR')} DA).`
+        );
+      }
+    }
+
+    const dataAnalysis: CategoryDataAnalysisSummary = {
+      categoryName: targetCategory || 'Toutes les catégories',
+      totalCount: effectiveTotalCount,
+      avgPrice,
+      medianPrice,
+      minPrice,
+      maxPrice,
+      boutiquesCount,
+      particuliersCount,
+      proRatio,
+      marketTrend,
+      volatilityRate,
+      negotiationPower,
+      priceDropsCount,
+      topDiscountItem,
+      insights,
+    };
 
     const categoryStats = Array.from(catMap.entries())
       .map(([name, data]) => ({
@@ -1140,39 +1296,30 @@ export async function fetchSupabaseTrendsAnalytics(
       success: true,
       isConnected: true,
       tableName,
+      selectedCategory: targetCategory || 'all',
       totalProductsCount: effectiveTotalCount,
       avgPrice,
+      medianPrice,
+      minPrice,
+      maxPrice,
       totalValuation,
       avgDiscount,
       maxDiscount,
       inStockCount,
       inStockRate,
       priceDropsCount,
+      boutiquesCount,
+      particuliersCount,
       products,
       categoryStats,
       brandStats,
+      priceBrackets,
+      dataAnalysis,
       lastSyncedAt: new Date().toISOString(),
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erreur de calcul Supabase';
-    return {
-      success: false,
-      isConnected: true,
-      tableName,
-      totalProductsCount: 0,
-      avgPrice: 0,
-      totalValuation: 0,
-      avgDiscount: 0,
-      maxDiscount: 0,
-      inStockCount: 0,
-      inStockRate: 0,
-      priceDropsCount: 0,
-      products: [],
-      categoryStats: [],
-      brandStats: [],
-      lastSyncedAt: new Date().toISOString(),
-      error: message,
-    };
+    return emptyResult(message);
   }
 }
 
