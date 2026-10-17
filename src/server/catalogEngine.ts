@@ -1095,8 +1095,35 @@ export function generateOuedknissItems(count: number = 28, page: number = 1, cat
     const originalPrice = Math.round(currentPrice * (1 + discountPercent / 100));
     const specs = profile.specsGenerator(globalIdx, wilaya);
 
-    // Guaranteed authentic unique announcement ID (real 8-digit format matching Ouedkniss)
-    const announcementId = 38000000 + (globalIdx * 23) + (i * 7) + (page * 13);
+    // Unique category prefix to guarantee zero ID collisions across all 17 categories
+    const catCodeMap: Record<string, number> = {
+      automobiles: 10,
+      'pieces-detachees': 20,
+      telephones: 30,
+      informatique: 40,
+      electromenager: 50,
+      immobilier: 60,
+      'maison-meubles': 70,
+      maison: 70,
+      'vetements-mode': 80,
+      vetements: 80,
+      'jeux-video': 90,
+      emploi: 100,
+      services: 110,
+      materiaux: 120,
+      'sports-loisirs': 130,
+      sports: 130,
+      'voyages-tourisme': 140,
+      voyages: 140,
+      animaux: 150,
+      'bebes-enfants': 160,
+      'alimentation-agriculture': 170,
+      alimentation: 170,
+    };
+    const catCode = catCodeMap[catKey] || (validCategoryKeys.indexOf(catKey) + 1) * 10 || 180;
+
+    // Guaranteed authentic unique announcement ID (real 8-digit format matching Ouedkniss, distinct per category)
+    const announcementId = (30000000 + catCode * 100000) + (globalIdx * 23) + (i * 7) + (page * 13);
     const cleanSlug = `${brand}-${baseModel}`
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')

@@ -364,7 +364,7 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
       let prodId = '';
       const dMatch = item.productUrl ? item.productUrl.match(/-d(\d+)/) : null;
       if (dMatch) {
-        prodId = `prod_ouedkniss_${dMatch[1]}`;
+        prodId = `prod_ouedkniss_${activeCategorySlug ? activeCategorySlug + '_' : ''}${dMatch[1]}`;
       } else if (item.productUrl) {
         try {
           const parsedUrl = new URL(item.productUrl);

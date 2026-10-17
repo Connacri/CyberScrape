@@ -1695,7 +1695,7 @@ export default function App() {
       setIsInitialScanRunning(false);
     }
 
-    let accumulated: ScrapedProduct[] = initialAccumulated.filter((p) => p.currency === 'DA');
+    let accumulated: ScrapedProduct[] = (initialAccumulated && initialAccumulated.length > 0 ? initialAccumulated : products).filter((p) => p.currency === 'DA');
     const completedSet = new Set<string>(initialCompleted);
 
     for (let catIdx = startCatIndex; catIdx < endCatIndex; catIdx++) {
@@ -1825,7 +1825,7 @@ export default function App() {
               accumulated = [...newUniqueBatch, ...accumulated];
               categoryTotalNew += newUniqueBatch.length;
               setSweepNewItemsCount((prev) => prev + newUniqueBatch.length);
-              setLiveAspiratedCount(accumulated.length);
+              setLiveAspiratedCount((prev) => Math.max(prev, accumulated.length));
               cyberAudio.playItemAspirated();
               setProducts(accumulated);
               saveScrapedProductsBatch(newUniqueBatch);
@@ -1977,14 +1977,15 @@ export default function App() {
   // THE ONE AND ONLY MASTER SCRAPING TRIGGERS (LE BOUTON UNIQUE)
   // ========================================================
   const handleStartMasterScrape = async (scope: 'all' | 'single', singleCatSlug?: string) => {
-    clearSweepCheckpoint();
-    setSavedCheckpoint(null);
     if (scope === 'single') {
       const slug = singleCatSlug || selectedCategorySlug || OUEDKNISS_CATEGORIES[0].slug;
       const catIdx = OUEDKNISS_CATEGORIES.findIndex((c) => c.slug === slug);
       const targetIdx = catIdx !== -1 ? catIdx : 0;
-      await runAllCategoriesSweep(targetIdx, 1, replaceCatalog ? [] : [...products], [], targetIdx);
+      const resumePage = getCategoryResumePage(slug);
+      await runAllCategoriesSweep(targetIdx, resumePage, [...products], [], targetIdx);
     } else {
+      clearSweepCheckpoint();
+      setSavedCheckpoint(null);
       await runAllCategoriesSweep(0, 1, replaceCatalog ? [] : [...products], []);
     }
   };
@@ -1992,14 +1993,23 @@ export default function App() {
   const handleResumeMasterScrape = async () => {
     const cp = loadSweepCheckpoint();
     if (!cp) {
-      await handleStartMasterScrape('all');
+      const catSlug = selectedCategorySlug || OUEDKNISS_CATEGORIES[0].slug;
+      const catIdx = OUEDKNISS_CATEGORIES.findIndex((c) => c.slug === catSlug);
+      const targetIdx = catIdx !== -1 ? catIdx : 0;
+      const resumePage = getCategoryResumePage(catSlug);
+      addLog(
+        `[REPRISE] Reprise de l'aspiration pour "${catSlug}" à la page ${resumePage} sans recommencer à zéro (${products.length.toLocaleString('fr-FR')} articles conservés)`,
+        'cyber',
+        '0xRESUME'
+      );
+      await runAllCategoriesSweep(targetIdx, resumePage, [...products], [], targetIdx);
       return;
     }
     const catIdx = Math.max(0, Math.min(OUEDKNISS_CATEGORIES.length - 1, cp.categoryIndex));
     const page = Math.max(1, cp.currentPage);
     const completed = cp.completedCategorySlugs || [];
     addLog(
-      `[REPRISE_SESSION] Reprise automatique de l'aspiration à la catégorie ${catIdx + 1}/${OUEDKNISS_CATEGORIES.length} (${cp.categoryName}), page ${page}`,
+      `[REPRISE_SESSION] ⚡ Reprise de l'aspiration à la catégorie ${catIdx + 1}/${OUEDKNISS_CATEGORIES.length} ("${cp.categoryName}"), page ${page} sans recommencer à zéro (${products.length.toLocaleString('fr-FR')} articles conservés)`,
       'cyber',
       '0xRESUME'
     );
@@ -2021,7 +2031,6 @@ export default function App() {
     await handleResumeMasterScrape();
   };
 
-
   // ========================================================
   // START QUANTUM SCRAPE & ASPIRATION PIPELINE
   // ========================================================
@@ -2029,8 +2038,15 @@ export default function App() {
     setSelectedCategorySlug(category.slug);
     setTargetUrl(category.url);
     cyberAudio.playHoloTap(880);
-    addLog(`[ACTION DIRECTE] Lancement de l'aspiration instantanée pour "${category.name}"`, 'cyber', `0xCAT_${category.slug}`);
-    await handleStartScrape(category.url, category.slug);
+    const catIdx = OUEDKNISS_CATEGORIES.findIndex((c) => c.slug === category.slug);
+    const targetIdx = catIdx !== -1 ? catIdx : 0;
+    const resumePage = getCategoryResumePage(category.slug);
+    addLog(
+      `[ACTION DIRECTE] Lancement de l'aspiration pour "${category.name}" (Reprise page ${resumePage} • ${products.length.toLocaleString('fr-FR')} articles conservés)...`,
+      'cyber',
+      `0xCAT_${category.slug}`
+    );
+    await runAllCategoriesSweep(targetIdx, resumePage, [...products], [], targetIdx);
   };
 
   const handleStartScrape = async (overrideUrl?: string, overrideCategorySlug?: string | null) => {

@@ -16,24 +16,41 @@ interface AnimatedAspirationCounterProps {
  * High-performance animated counter hook with cubic ease-out numeric roll
  */
 export function useAnimatedNumber(targetValue: number, duration: number = 420) {
-  const [displayValue, setDisplayValue] = useState(targetValue);
+  const [displayValue, setDisplayValue] = useState(Math.max(0, targetValue));
   const [isIncrementing, setIsIncrementing] = useState(false);
   const [recentDelta, setRecentDelta] = useState<number>(0);
-  const lastTargetRef = useRef(targetValue);
+  const lastTargetRef = useRef(Math.max(0, targetValue));
   const currentDisplayRef = useRef(displayValue);
+  const highestSeenRef = useRef(Math.max(0, targetValue));
 
   currentDisplayRef.current = displayValue;
 
   useEffect(() => {
+    // If user explicitly reset/cleared catalogue to 0
+    if (targetValue === 0) {
+      highestSeenRef.current = 0;
+      lastTargetRef.current = 0;
+      setDisplayValue(0);
+      setIsIncrementing(false);
+      setRecentDelta(0);
+      return;
+    }
+
+    // Monotonic aspiration: during active scraping, the total counter must NEVER decrease or show negative numbers
+    const cleanTarget = Math.max(0, targetValue);
+    highestSeenRef.current = Math.max(highestSeenRef.current, cleanTarget);
+    const effectiveTarget = highestSeenRef.current;
+
     const prevTarget = lastTargetRef.current;
-    lastTargetRef.current = targetValue;
+    lastTargetRef.current = effectiveTarget;
 
-    if (targetValue === currentDisplayRef.current) return;
+    if (effectiveTarget === currentDisplayRef.current) return;
 
-    const diff = targetValue - currentDisplayRef.current;
+    const diff = Math.max(0, effectiveTarget - currentDisplayRef.current);
     if (diff > 0) {
       setIsIncrementing(true);
-      setRecentDelta(targetValue - prevTarget > 0 ? targetValue - prevTarget : diff);
+      const delta = effectiveTarget - prevTarget > 0 ? effectiveTarget - prevTarget : diff;
+      setRecentDelta(Math.max(0, delta));
     }
 
     const startVal = currentDisplayRef.current;
@@ -47,12 +64,12 @@ export function useAnimatedNumber(targetValue: number, duration: number = 420) {
       const ease = 1 - Math.pow(1 - progress, 3);
       const nextVal = Math.round(startVal + diff * ease);
 
-      setDisplayValue(nextVal);
+      setDisplayValue(Math.max(0, nextVal));
 
       if (progress < 1) {
         animId = requestAnimationFrame(step);
       } else {
-        setDisplayValue(targetValue);
+        setDisplayValue(effectiveTarget);
         const timer = setTimeout(() => {
           setIsIncrementing(false);
           setRecentDelta(0);
