@@ -629,6 +629,51 @@ export async function syncProductsToSupabase(
 }
 
 /**
+ * Supprime tous les articles de la table Supabase Cloud
+ */
+export async function clearSupabaseTable(
+  config: SupabaseConfig
+): Promise<{ success: boolean; count?: number; error?: string }> {
+  if (!config.url || !config.anonKey) {
+    return { success: false, error: 'Configuration Supabase manquante (URL ou Anon Key absente).' };
+  }
+
+  const client = getSupabaseClient(config);
+  if (!client) {
+    return { success: false, error: 'Impossible d\'initialiser le client Supabase.' };
+  }
+
+  const tableName = config.tableName || 'scraped_products';
+
+  try {
+    // PostgREST exige un filtre WHERE pour un DELETE global
+    const { error, count } = await client
+      .from(tableName)
+      .delete({ count: 'exact' })
+      .neq('id', '___CYBER_PURGE_FILTER_IMPOSSIBLE___');
+
+    if (error) {
+      // Fallback avec filtre .not('id', 'is', null)
+      const fallbackRes = await client
+        .from(tableName)
+        .delete({ count: 'exact' })
+        .not('id', 'is', null);
+
+      if (fallbackRes.error) {
+        return { success: false, error: fallbackRes.error.message };
+      }
+      return { success: true, count: fallbackRes.count ?? 0 };
+    }
+
+    return { success: true, count: count ?? 0 };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Erreur de connexion Supabase';
+    return { success: false, error: msg };
+  }
+}
+
+
+/**
  * Fast O(1) total count from Supabase using planned/estimated count to avoid timeout
  */
 export async function getTotalProductsCountFromSupabase(config: SupabaseConfig): Promise<number> {

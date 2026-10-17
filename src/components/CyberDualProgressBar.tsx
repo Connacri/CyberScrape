@@ -30,6 +30,7 @@ export interface CyberDualProgressBarProps {
     percent: number;
     statusText?: string;
   };
+  onSkipSyncWait?: () => void;
 }
 
 export const CyberDualProgressBar: React.FC<CyberDualProgressBarProps> = ({
@@ -42,6 +43,7 @@ export const CyberDualProgressBar: React.FC<CyberDualProgressBarProps> = ({
   onStopScraping,
   isSyncingSupabase,
   supabaseSyncProgress,
+  onSkipSyncWait,
 }) => {
   // Only render if either scraping or Supabase syncing is in progress
   const isVisible = isScraping || isSyncingSupabase;
@@ -97,6 +99,22 @@ export const CyberDualProgressBar: React.FC<CyberDualProgressBarProps> = ({
                       {supabaseSyncProgress.total.toLocaleString('fr-FR')}
                     </span>
                     <span className="text-slate-400 hidden sm:inline">articles scellés</span>
+
+                    {onSkipSyncWait && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSkipSyncWait();
+                          cyberAudio.playClick();
+                        }}
+                        className="h-6 px-2.5 rounded-lg bg-cyan-950/90 border border-cyan-400/60 hover:bg-cyan-900/90 text-cyan-200 hover:text-white flex items-center gap-1.5 text-[10px] font-bold cursor-pointer transition-all active:scale-95 shrink-0 shadow-sm ml-1"
+                        title="Démarrer l'aspiration de la catégorie suivante sans attendre la fin du sync Supabase"
+                      >
+                        <Zap className="w-3 h-3 text-cyan-400 fill-cyan-400" />
+                        <span className="hidden sm:inline">Passer sans attendre</span>
+                        <span className="sm:hidden">Passer</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 

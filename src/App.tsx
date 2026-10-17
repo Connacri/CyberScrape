@@ -35,8 +35,10 @@ import {
   saveScrapedProductsBatch,
   clearStoredProducts,
   syncProductsToSupabase,
+  clearSupabaseTable,
   getTotalProductsCountFromSupabase,
 } from './utils/supabaseClient';
+import { DatabaseControlButtons } from './components/DatabaseControlButtons';
 import {
   saveSweepCheckpoint,
   loadSweepCheckpoint,
@@ -1207,6 +1209,18 @@ export default function App() {
   const isDbHydrated = useRef<boolean>(false);
   const abortScrapingRef = useRef<boolean>(false);
   const lotPageRef = useRef<Record<string, number>>({});
+  const skipCategorySyncWaitRef = useRef<boolean>(false);
+  const skipCategorySyncResolverRef = useRef<(() => void) | null>(null);
+
+  const handleSkipCategorySyncWait = useCallback(() => {
+    skipCategorySyncWaitRef.current = true;
+    if (skipCategorySyncResolverRef.current) {
+      skipCategorySyncResolverRef.current();
+      skipCategorySyncResolverRef.current = null;
+    }
+    cyberAudio.playClick();
+  }, []);
+
   const [savedCheckpoint, setSavedCheckpoint] = useState<ScrapeSweepCheckpoint | null>(() => loadSweepCheckpoint());
   const [liveAspiratedCount, setLiveAspiratedCount] = useState<number>(() => {
     try {
