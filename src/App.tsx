@@ -1294,6 +1294,9 @@ export default function App() {
   const [supabaseTotalCount, setSupabaseTotalCount] = useState<number>(0);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
+  const [isSyncingAndClearing, setIsSyncingAndClearing] = useState<boolean>(false);
+  const [temuRefreshTrigger, setTemuRefreshTrigger] = useState<number>(0);
+  const [syncNotice, setSyncNotice] = useState<{ message: string; type: 'success' | 'warn'; count?: number } | null>(null);
 
   // Synchronize planned total count from Supabase (fast, non-blocking)
   useEffect(() => {
@@ -2643,10 +2646,6 @@ export default function App() {
   };
 
   // SEND ALL PRODUCTS TO SUPABASE & PURGE LOCAL MEMORY/INDEXEDDB TO LIGHTEN PAGE
-  const [isSyncingAndClearing, setIsSyncingAndClearing] = useState<boolean>(false);
-  const [temuRefreshTrigger, setTemuRefreshTrigger] = useState<number>(0);
-  const [syncNotice, setSyncNotice] = useState<{ message: string; type: 'success' | 'warn'; count?: number } | null>(null);
-
   const handleSendToSupabaseAndClearMemory = async () => {
     if (products.length === 0) {
       addLog("Aucun article en mémoire locale à envoyer.", 'warn');
