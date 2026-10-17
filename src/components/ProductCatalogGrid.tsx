@@ -190,6 +190,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
   });
 
   const [cloudProducts, setCloudProducts] = useState<ScrapedProduct[]>([]);
+  const [totalCloudCount, setTotalCloudCount] = useState<number>(0);
   const [isLoadingCloud, setIsLoadingCloud] = useState<boolean>(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
 
@@ -202,6 +203,9 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
       const res = await fetchProductsFromSupabase(supabaseConfig);
       if (res.success) {
         setCloudProducts(res.products);
+        if (typeof res.totalCount === 'number' && res.totalCount > 0) {
+          setTotalCloudCount(res.totalCount);
+        }
       } else {
         setCloudError(res.error || 'Erreur lors de la lecture Supabase');
       }
@@ -847,7 +851,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                 }`}
               >
                 <Cloud className="w-3.5 h-3.5" />
-                <span>Supabase Cloud ({cloudProducts.length})</span>
+                <span>Supabase Cloud ({(totalCloudCount || cloudProducts.length).toLocaleString('fr-FR')})</span>
               </button>
 
               <button
@@ -911,7 +915,7 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
           </div>
 
           <div className="text-[10px] text-cyan-300">
-            {dataSourceMode === 'supabase' ? `Table: ${supabaseConfig?.tableName || 'scraped_products'}` : `RAM: ${products.length} articles`}
+            {dataSourceMode === 'supabase' ? `Table: ${supabaseConfig?.tableName || 'scraped_products'} (${(totalCloudCount || cloudProducts.length).toLocaleString('fr-FR')} articles)` : `RAM: ${products.length} articles`}
           </div>
         </div>
       </div>
@@ -927,11 +931,17 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
             <Sparkles className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-black font-mono text-[#00ff88] mt-1.5 tracking-tight drop-shadow-sm">
-            {activeProducts.length.toLocaleString('fr-FR')}
+            {dataSourceMode === 'supabase'
+              ? (totalCloudCount || cloudProducts.length).toLocaleString('fr-FR')
+              : activeProducts.length.toLocaleString('fr-FR')}
           </div>
           <div className="text-[10px] font-mono text-slate-400 mt-1 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>{dataSourceMode === 'supabase' ? 'Supabase Cloud' : 'Mémoire RAM'}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${dataSourceMode === 'supabase' ? 'bg-[#00ff88]' : 'bg-cyan-400'}`} />
+            <span>
+              {dataSourceMode === 'supabase'
+                ? `Supabase Cloud (${cloudProducts.length} chargés)`
+                : 'Mémoire RAM'}
+            </span>
           </div>
         </div>
 

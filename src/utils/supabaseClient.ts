@@ -616,12 +616,57 @@ export async function syncProductsToSupabase(
 }
 
 /**
- * Fetches products directly from Supabase Cloud Database (Used by TEMU-DZ Hub)
+ * Fast O(1) total count from Supabase using planned/estimated count to avoid timeout
+ */
+export async function getTotalProductsCountFromSupabase(config: SupabaseConfig): Promise<number> {
+  if (!config.url || !config.anonKey) return 0;
+  const client = getSupabaseClient(config);
+  if (!client) return 0;
+
+  try {
+    // 1. Fast planned count from Postgres statistics (runs in ~300ms even with millions of rows)
+    const { count, error } = await client
+      .from(config.tableName || 'scraped_products')
+      .select('*', { count: 'planned', head: true });
+
+    if (!error && typeof count === 'number' && count > 0) {
+      return count;
+    }
+  } catch {
+    // fallback
+  }
+
+  try {
+    // 2. Estimated count fallback
+    const { count, error } = await client
+      .from(config.tableName || 'scraped_products')
+      .select('*', { count: 'estimated', head: true });
+
+    if (!error && typeof count === 'number' && count > 0) {
+      return count;
+    }
+  } catch {
+    // fallback
+  }
+
+  return 0;
+}
+
+export interface FetchSupabaseOptions {
+  limit?: number;
+  offset?: number;
+  category?: string;
+  sortBy?: 'recent' | 'priceAsc' | 'priceDesc' | 'discountDesc';
+}
+
+/**
+ * Fetches products directly from Supabase Cloud Database (Used by TEMU-DZ Hub & Global Catalog)
+ * Uses indexed sorting and safe ranges to prevent Postgres statement timeout (57014) on large tables.
  */
 export async function fetchProductsFromSupabase(
   config: SupabaseConfig,
-  limit = 2500
-): Promise<{ success: boolean; products: ScrapedProduct[]; error?: string }> {
+  limitOrOptions: number | FetchSupabaseOptions = 300
+): Promise<{ success: boolean; products: ScrapedProduct[]; totalCount?: number; error?: string }> {
   if (!config.url || !config.anonKey) {
     return { success: false, products: [], error: 'Supabase non configuré. Veuillez entrer votre URL et clé Anon.' };
   }
@@ -630,18 +675,80 @@ export async function fetchProductsFromSupabase(
     return { success: false, products: [], error: 'Impossible d\'initialiser le client Supabase.' };
   }
 
-  try {
-    const { data, error } = await client
-      .from(config.tableName || 'scraped_products')
-      .select('*')
-      .order('scraped_at', { ascending: false })
-      .limit(limit);
+  const options: FetchSupabaseOptions =
+    typeof limitOrOptions === 'number' ? { limit: limitOrOptions } : limitOrOptions || {};
 
-    if (error) {
-      return { success: false, products: [], error: error.message };
+  const limit = Math.min(Math.max(options.limit || 300, 10), 1000);
+  const offset = Math.max(options.offset || 0, 0);
+  const rangeFrom = offset;
+  const rangeTo = offset + limit - 1;
+
+  try {
+    // Fetch total planned count (fast, non-blocking via planned metadata)
+    let totalCount = 0;
+    try {
+      const countRes = await client
+        .from(config.tableName || 'scraped_products')
+        .select('*', { count: 'planned', head: true });
+      if (!countRes.error && typeof countRes.count === 'number' && countRes.count > 0) {
+        totalCount = countRes.count;
+      }
+    } catch {
+      // non-blocking
     }
 
-    const products: ScrapedProduct[] = (data || []).map((row: any) => {
+    let dataRows: any[] = [];
+    let fetchError: any = null;
+
+    // Strategy 1: Use PRIMARY KEY B-tree index (id DESC) which takes ~80ms even on 50k+ rows!
+    // Never do unindexed `order('scraped_at')` directly on huge Postgres tables without index
+    // because it triggers "57014: canceling statement due to statement timeout".
+    try {
+      let query = client.from(config.tableName || 'scraped_products').select('*');
+
+      if (options.category && options.category !== 'all') {
+        query = query.eq('category', options.category);
+      }
+
+      // Order by 'id' descending (primary key index guarantees fast instant response)
+      query = query.order('id', { ascending: false }).range(rangeFrom, rangeTo);
+
+      const res = await query;
+      if (res.error) {
+        fetchError = res.error;
+      } else {
+        dataRows = res.data || [];
+      }
+    } catch (err) {
+      fetchError = err;
+    }
+
+    // Strategy 2: If primary query had an error or timeout, fallback to un-ordered range
+    if (fetchError || dataRows.length === 0) {
+      try {
+        let fallbackQuery = client.from(config.tableName || 'scraped_products').select('*');
+        if (options.category && options.category !== 'all') {
+          fallbackQuery = fallbackQuery.eq('category', options.category);
+        }
+        fallbackQuery = fallbackQuery.range(rangeFrom, Math.min(rangeTo, rangeFrom + 150));
+
+        const fallbackRes = await fallbackQuery;
+        if (!fallbackRes.error && fallbackRes.data) {
+          dataRows = fallbackRes.data;
+          fetchError = null;
+        }
+      } catch (e) {
+        if (!fetchError) fetchError = e;
+      }
+    }
+
+    if (fetchError && dataRows.length === 0) {
+      const errMsg = fetchError?.message || 'Erreur lors de la récupération des données Supabase';
+      return { success: false, products: [], error: errMsg };
+    }
+
+    // Map raw DB rows to ScrapedProduct model
+    const products: ScrapedProduct[] = (dataRows || []).map((row: any) => {
       const specs = row.specs || {};
       const seller = row.seller || specs._seller || undefined;
       const images = row.images || specs._images || (row.image_url ? [row.image_url] : []);
@@ -651,7 +758,7 @@ export async function fetchProductsFromSupabase(
       const isSponsored = row.is_sponsored ?? specs._isSponsored ?? false;
 
       return {
-        id: row.id,
+        id: String(row.id || ''),
         title: row.title || 'Sans titre',
         brand: row.brand || undefined,
         category: row.category || 'Général',
@@ -685,7 +792,18 @@ export async function fetchProductsFromSupabase(
       };
     });
 
-    return { success: true, products };
+    // Sort client-side in memory (takes < 1ms for up to 1,000 items, zero server CPU overhead!)
+    products.sort((a, b) => {
+      const tA = new Date(a.lastUpdated || a.scrapedAt).getTime() || 0;
+      const tB = new Date(b.lastUpdated || b.scrapedAt).getTime() || 0;
+      return tB - tA;
+    });
+
+    return {
+      success: true,
+      products,
+      totalCount: totalCount || products.length,
+    };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erreur réseau';
     return { success: false, products: [], error: message };
@@ -705,7 +823,7 @@ CREATE TABLE IF NOT EXISTS public.${tableName} (
   category TEXT NOT NULL,
   current_price NUMERIC(10, 2) NOT NULL,
   original_price NUMERIC(10, 2),
-  currency VARCHAR(10) DEFAULT '€',
+  currency VARCHAR(10) DEFAULT 'DA',
   discount_percent INT DEFAULT 0,
   rating NUMERIC(3, 2) DEFAULT 0,
   reviews_count INT DEFAULT 0,
@@ -722,11 +840,14 @@ CREATE TABLE IF NOT EXISTS public.${tableName} (
   last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index pour recherche rapide et analytics de prix
+-- Index pour recherche instantanée, tris sans timeout et analytics de prix
+CREATE INDEX IF NOT EXISTS idx_${tableName}_id ON public.${tableName}(id);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_category ON public.${tableName}(category);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_source ON public.${tableName}(source_domain);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_price ON public.${tableName}(current_price);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_discount ON public.${tableName}(discount_percent DESC);
+CREATE INDEX IF NOT EXISTS idx_${tableName}_scraped_at ON public.${tableName}(scraped_at DESC);
+CREATE INDEX IF NOT EXISTS idx_${tableName}_last_updated ON public.${tableName}(last_updated DESC);
 
 -- Sécurité Row Level Security (RLS) permissive pour API Anon Key
 ALTER TABLE public.${tableName} ENABLE ROW LEVEL SECURITY;

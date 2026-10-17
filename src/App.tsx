@@ -34,6 +34,7 @@ import {
   saveScrapedProductsBatch,
   clearStoredProducts,
   syncProductsToSupabase,
+  getTotalProductsCountFromSupabase,
 } from './utils/supabaseClient';
 import {
   saveSweepCheckpoint,
@@ -1290,8 +1291,22 @@ export default function App() {
 
   // Supabase State
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getStoredSupabaseConfig);
+  const [supabaseTotalCount, setSupabaseTotalCount] = useState<number>(0);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
+
+  // Synchronize planned total count from Supabase (fast, non-blocking)
+  useEffect(() => {
+    if (supabaseConfig.url && supabaseConfig.anonKey) {
+      getTotalProductsCountFromSupabase(supabaseConfig)
+        .then((cnt) => {
+          if (cnt > 0) {
+            setSupabaseTotalCount(cnt);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [supabaseConfig.url, supabaseConfig.anonKey, supabaseConfig.tableName, temuRefreshTrigger]);
 
   // Products State with full persistence strategy from IndexedDB & LocalStorage
   const [products, setProducts] = useState<ScrapedProduct[]>(() => {
@@ -2666,12 +2681,13 @@ export default function App() {
         // Clear React in-memory state
         setProducts([]);
         setLiveAspiratedCount(0);
+        setSupabaseTotalCount((prev) => (prev > 0 ? prev + res.count : res.count));
         cyberAudio.playComplete();
 
         // Increment trigger to notify Temu to reload fresh data directly from Supabase Cloud
         setTemuRefreshTrigger((prev) => prev + 1);
 
-        addLog(`[PURGE RAM & SUPABASE] ${res.count} articles envoyés à Supabase avec succès ! Mémoire RAM & IndexedDB libérées à 100%.`, 'success');
+        addLog(`[PURGE RAM & SUPABASE] ${res.count} articles envoyés à Supabase avec succès ! Mémoire RAM & IndexedDB libérées à 100%. Total Cloud: ${supabaseTotalCount + res.count}`, 'success');
         setSyncNotice({
           message: `${res.count} articles sauvegardés avec succès dans Supabase ! Mémoire vive de la page libérée à 100%.`,
           type: 'success',
@@ -2753,9 +2769,23 @@ export default function App() {
             </button>
           </div>
 
-          {/* ZONE 2: ANIMATED ASPIRATION COUNTER IN TOPBAR */}
+          {/* ZONE 2: ANIMATED ASPIRATION COUNTER IN TOPBAR (CLAIRE, GRANDE ET SANS ERREUR) */}
           <AnimatedAspirationCounter
-            count={Math.max(liveAspiratedCount, products.length)}
+            count={
+              supabaseConfig.url && supabaseConfig.anonKey
+                ? Math.max(supabaseTotalCount + products.length, liveAspiratedCount, products.length)
+                : Math.max(liveAspiratedCount, products.length)
+            }
+            label={
+              supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
+                ? 'Cloud Supabase'
+                : 'Articles Aspirés'
+            }
+            unit={
+              supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
+                ? 'CLOUD'
+                : 'ADS'
+            }
             isLiveScraping={isContinuousScraping || job.status === 'aspirating' || job.status === 'scanning'}
             onClick={() => handleSelectTab('catalog')}
           />
@@ -2786,7 +2816,9 @@ export default function App() {
             >
               <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
               <span>Catalogue</span>
-              <span className="text-[10px] text-slate-400 font-mono-numbers">({products.length})</span>
+              <span className="text-[10px] text-slate-400 font-mono-numbers">
+                ({supabaseConfig.url && supabaseConfig.anonKey ? (supabaseTotalCount || products.length) : products.length})
+              </span>
             </button>
 
             <button
@@ -2800,6 +2832,11 @@ export default function App() {
             >
               <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
               <span>MARKET TEMU-DZ</span>
+              {supabaseConfig.url && supabaseConfig.anonKey && supabaseTotalCount > 0 && (
+                <span className="text-[10px] bg-black/40 px-1.5 py-0.5 rounded text-white font-mono">
+                  ({supabaseTotalCount.toLocaleString('fr-FR')})
+                </span>
+              )}
             </button>
 
             <button
@@ -3914,17 +3951,23 @@ export default function App() {
         data={categorySyncPromptData}
         supabaseConfig={supabaseConfig}
         onClose={() => setCategorySyncPromptData(null)}
-        onSyncAndClearLocal={async () => {
+        onSyncAndClearLocal={async (syncedCount) => {
           clearStoredProducts();
           setProducts([]);
           setLiveAspiratedCount(0);
+          if (typeof syncedCount === 'number' && syncedCount > 0) {
+            setSupabaseTotalCount((prev) => (prev > 0 ? prev + syncedCount : syncedCount));
+          }
           setTemuRefreshTrigger((prev) => prev + 1);
           setSyncNotice({
             message: `Articles synchronisés vers Supabase Cloud ! Mémoire RAM libérée à 100%. L'application tourne à 60 FPS.`,
             type: 'success',
           });
         }}
-        onSyncKeepLocal={async () => {
+        onSyncKeepLocal={async (syncedCount) => {
+          if (typeof syncedCount === 'number' && syncedCount > 0) {
+            setSupabaseTotalCount((prev) => (prev > 0 ? prev + syncedCount : syncedCount));
+          }
           setTemuRefreshTrigger((prev) => prev + 1);
           setSyncNotice({
             message: `Articles synchronisés vers Supabase Cloud avec succès !`,

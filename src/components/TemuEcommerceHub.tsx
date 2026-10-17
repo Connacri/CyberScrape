@@ -63,24 +63,43 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
 
   // Supabase Direct Cloud State (Articles récupérés depuis Supabase, pas depuis le local)
   const [cloudProducts, setCloudProducts] = useState<ScrapedProduct[]>([]);
+  const [totalCloudCount, setTotalCloudCount] = useState<number>(0);
   const [isLoadingSupabase, setIsLoadingSupabase] = useState<boolean>(false);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
 
   const isConfigured = Boolean(supabaseConfig.url && supabaseConfig.anonKey);
 
-  // Fetch real articles directly from Supabase Cloud
-  const loadFromSupabase = useCallback(async () => {
+  // Fetch real articles directly from Supabase Cloud (with safe limits & pagination)
+  const loadFromSupabase = useCallback(async (isLoadMore: boolean = false) => {
     if (!supabaseConfig.url || !supabaseConfig.anonKey) {
       setCloudProducts([]);
+      setTotalCloudCount(0);
       return;
     }
-    setIsLoadingSupabase(true);
-    setSupabaseError(null);
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoadingSupabase(true);
+      setSupabaseError(null);
+    }
     try {
-      const res = await fetchProductsFromSupabase(supabaseConfig);
+      const offset = isLoadMore ? cloudProducts.length : 0;
+      const res = await fetchProductsFromSupabase(supabaseConfig, { limit: 300, offset });
       if (res.success) {
-        setCloudProducts(res.products);
+        if (isLoadMore) {
+          setCloudProducts((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const newItems = res.products.filter((p) => !existingIds.has(p.id));
+            return [...prev, ...newItems];
+          });
+        } else {
+          setCloudProducts(res.products);
+        }
+        if (typeof res.totalCount === 'number' && res.totalCount > 0) {
+          setTotalCloudCount(res.totalCount);
+        }
         setLastFetchedAt(new Date());
       } else {
         setSupabaseError(res.error || 'Erreur lors de la lecture Supabase');
@@ -90,16 +109,18 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       setSupabaseError(msg);
     } finally {
       setIsLoadingSupabase(false);
+      setIsLoadingMore(false);
     }
-  }, [supabaseConfig]);
+  }, [supabaseConfig, cloudProducts.length]);
 
   useEffect(() => {
     if (isConfigured) {
-      loadFromSupabase();
+      loadFromSupabase(false);
     } else {
       setCloudProducts([]);
+      setTotalCloudCount(0);
     }
-  }, [isConfigured, supabaseConfig.url, supabaseConfig.anonKey, supabaseConfig.tableName, refreshTrigger, loadFromSupabase]);
+  }, [isConfigured, supabaseConfig.url, supabaseConfig.anonKey, supabaseConfig.tableName, refreshTrigger]);
 
   // Senior Virtual Lazy Windowing State
   const [visibleCount, setVisibleCount] = useState<number>(LAZY_CHUNK_SIZE);
@@ -336,7 +357,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
             </div>
             <p className="text-[11px] text-slate-400 font-sans truncate">
               {isConfigured
-                ? `Table "${supabaseConfig.tableName || 'scraped_products'}" • ${cloudProducts.length} articles en ligne${
+                ? `Table "${supabaseConfig.tableName || 'scraped_products'}" • ${(totalCloudCount || cloudProducts.length).toLocaleString('fr-FR')} articles en base Cloud (${cloudProducts.length} chargés)${
                     lastFetchedAt ? ` • Mis à jour à ${lastFetchedAt.toLocaleTimeString('fr-FR')}` : ''
                   }`
                 : 'Connectez Supabase pour charger le catalogue distant.'}
@@ -348,7 +369,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
           {isConfigured ? (
             <button
               type="button"
-              onClick={loadFromSupabase}
+              onClick={() => loadFromSupabase(false)}
               disabled={isLoadingSupabase}
               className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-orange-500/20 border border-orange-500/60 text-orange-300 hover:bg-orange-500/30 hover:text-white transition-all flex items-center justify-center gap-2 font-bold cursor-pointer disabled:opacity-50 text-xs shadow-sm"
               title="Recharger le catalogue en direct depuis Supabase Cloud"
@@ -380,11 +401,11 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
             <Cloud className="w-4 h-4 text-orange-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-black font-mono text-orange-400 mt-1.5 tracking-tight">
-            {cloudProducts.length.toLocaleString('fr-FR')}
+            {(totalCloudCount || cloudProducts.length).toLocaleString('fr-FR')}
           </div>
           <div className="text-[10px] font-mono text-slate-400 mt-1 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-            <span>En direct de Supabase</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+            <span>{cloudProducts.length} chargés • Base Supabase</span>
           </div>
         </div>
 
@@ -662,7 +683,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
           <p className="text-xs text-rose-300 max-w-md mx-auto">{supabaseError}</p>
           <button
             type="button"
-            onClick={loadFromSupabase}
+            onClick={() => loadFromSupabase(false)}
             className="px-4 py-2 rounded-xl bg-rose-500 text-white font-bold text-xs hover:bg-rose-600 transition-all cursor-pointer inline-flex items-center gap-1.5"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -919,15 +940,37 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
         </div>
       )}
 
-      {/* Sentinel for Infinite Virtual Lazy Loading */}
-      <div ref={bottomSentinelRef} className="h-12 flex items-center justify-center text-xs text-slate-500 font-mono">
+      {/* Sentinel & Load More from Supabase */}
+      <div ref={bottomSentinelRef} className="py-6 flex flex-col items-center justify-center gap-3 text-xs text-slate-400 font-mono">
         {visibleCount < filteredProducts.length ? (
           <div className="flex items-center gap-2 text-orange-400">
             <span className="w-2 h-2 rounded-full bg-orange-400 animate-ping" />
-            <span>Défilement lazy continu ({visibleCount} / {filteredProducts.length} articles)...</span>
+            <span>Défilement lazy fluide ({visibleCount} / {filteredProducts.length} articles affichés)...</span>
           </div>
         ) : filteredProducts.length > 0 ? (
-          <span className="text-slate-600">✓ Tous les {filteredProducts.length} articles sont affichés sans ralentissement</span>
+          <div className="text-center space-y-3">
+            <div className="text-emerald-400 flex items-center justify-center gap-1.5 font-bold">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{filteredProducts.length} articles affichés dans la vitrine</span>
+            </div>
+            {totalCloudCount > cloudProducts.length && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => loadFromSupabase(true)}
+                  disabled={isLoadingMore}
+                  className="px-5 py-2.5 rounded-xl bg-orange-500/20 border border-orange-500/60 text-orange-300 hover:bg-orange-500/30 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md disabled:opacity-50 mx-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingMore ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isLoadingMore
+                      ? 'Chargement des 300 suivants...'
+                      : `Charger +300 articles depuis Supabase (${cloudProducts.length} / ${totalCloudCount.toLocaleString('fr-FR')} en Cloud)`}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
         ) : null}
       </div>
     </div>
