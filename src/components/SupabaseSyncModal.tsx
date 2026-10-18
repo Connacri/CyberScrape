@@ -32,7 +32,8 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
-  const [activeTab, setActiveTab] = useState<'config' | 'sql'>('config');
+  const [copiedFixSql, setCopiedFixSql] = useState(false);
+  const [activeTab, setActiveTab] = useState<'config' | 'sql' | 'fix'>('config');
 
   if (!isOpen) return null;
 
@@ -60,6 +61,14 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
     navigator.clipboard.writeText(sql);
     setCopiedSql(true);
     setTimeout(() => setCopiedSql(false), 2000);
+  };
+
+  const handleCopyFixSql = () => {
+    const sql = `-- CYBER-VACUUM // Correction SQLSTATE 23505 (schema_migrations_pkey version 001)
+DELETE FROM supabase_migrations.schema_migrations WHERE version = '001';`;
+    navigator.clipboard.writeText(sql);
+    setCopiedFixSql(true);
+    setTimeout(() => setCopiedFixSql(false), 2000);
   };
 
   return (
@@ -100,6 +109,16 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
             }`}
           >
             Générateur Schema SQL
+          </button>
+          <button
+            onClick={() => setActiveTab('fix')}
+            className={`px-4 py-2 font-mono text-xs border-b-2 font-semibold transition-colors ${
+              activeTab === 'fix'
+                ? 'border-amber-400 text-amber-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Dépannage Erreur 23505
           </button>
         </div>
 
@@ -179,7 +198,7 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'sql' ? (
           <div className="space-y-3 mt-4">
             <div className="flex items-center justify-between text-[11px] text-slate-400">
               <span>Script de création de table PostgreSQL / Supabase :</span>
@@ -199,6 +218,34 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({
             <p className="text-[10px] text-slate-500">
               Ouvrez votre dashboard Supabase &gt; SQL Editor &gt; Nouveau query, collez ce code et cliquez sur "Run".
             </p>
+          </div>
+        ) : (
+          <div className="space-y-3 mt-4">
+            <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40 text-amber-300 text-[11px] leading-relaxed">
+              <span className="font-bold">Résolution de l'erreur SQLSTATE 23505 (schema_migrations_pkey) :</span>
+              <p className="mt-1 text-slate-300">
+                Cette erreur survient lorsqu'une migration avec la version <code className="text-amber-300 bg-black/50 px-1 py-0.5 rounded">001</code> existe déjà dans la table interne Supabase.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <span>Commande SQL corrective à exécuter dans Supabase SQL Editor :</span>
+              <button
+                onClick={handleCopyFixSql}
+                className="px-2.5 py-1 rounded bg-slate-900 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 flex items-center gap-1.5 transition-all"
+              >
+                {copiedFixSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedFixSql ? 'Copié !' : 'Copier Correction SQL'}
+              </button>
+            </div>
+
+            <div className="p-3 rounded-lg bg-black/80 border border-slate-800 text-amber-400 font-mono text-[11px] leading-relaxed select-text">
+              <pre>{`-- Nettoyage de la clé de migration en conflit :
+DELETE FROM supabase_migrations.schema_migrations WHERE version = '001';
+
+-- Ou avec Supabase CLI :
+-- supabase migration repair --status applied 001`}</pre>
+            </div>
           </div>
         )}
 

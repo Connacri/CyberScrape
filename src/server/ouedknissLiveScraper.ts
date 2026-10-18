@@ -10,7 +10,20 @@ import type { SellerInfo } from '../types/index.ts';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories.ts';
 
 const OUEDKNISS_GRAPHQL_ENDPOINT = 'https://api.ouedkniss.com/graphql';
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const BROWSER_HEADERS: Record<string, string> = {
+  'Content-Type': 'application/json',
+  'Accept': 'application/json, text/plain, */*',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Origin': 'https://www.ouedkniss.com',
+  'Referer': 'https://www.ouedkniss.com/',
+  'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7,ar;q=0.6',
+  'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': '"Windows"',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'same-site',
+};
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Phone = { phone?: string; hasWhatsapp?: boolean; hasViber?: boolean };
@@ -36,7 +49,7 @@ export interface StoreContactInfo {
   url?: string;
 }
 
-/** POST GraphQL avec timeout, retries (réseau, 429, 5xx) et backoff exponentiel. Jamais silencieux. */
+/** POST GraphQL avec en-têtes navigateur complets, retries avec jitter sur 405/429/5xx/fetch failed. */
 async function gql(query: string, variables: Record<string, unknown>, label: string, retries = 4, timeoutMs = 20000):
   Promise<{ ok: true; json: any } | { ok: false; error: string; status?: number }> {
   let last = 'inconnu';
@@ -47,7 +60,7 @@ async function gql(query: string, variables: Record<string, unknown>, label: str
     try {
       const res = await fetch(OUEDKNISS_GRAPHQL_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'User-Agent': UA, Accept: 'application/json' },
+        headers: BROWSER_HEADERS,
         body: JSON.stringify({ query, variables }),
         signal: controller.signal,
       });
@@ -57,34 +70,48 @@ async function gql(query: string, variables: Record<string, unknown>, label: str
         const json = await res.json();
         if (json?.errors?.length && !json?.data) {
           last = `GraphQL: ${json.errors.map((e: { message: string }) => e.message).join(' | ')}`;
-          break; // erreur de requête : inutile de réessayer
+          break; // erreur de syntaxe requête : pas de retry
         }
         return { ok: true, json };
       }
       last = `HTTP ${res.status}`;
-      if (res.status !== 429 && res.status < 500) break;
+      // Sur 400 ou 404 réel, pas de retry
+      if (res.status === 400 || res.status === 404) break;
     } catch (err) {
       clearTimeout(timer);
       last = err instanceof Error ? err.message : String(err);
     }
     console.warn(`[Ouedkniss:${label}] tentative ${attempt}/${retries} échouée : ${last}`);
-    if (attempt < retries) await sleep(1000 * 2 ** (attempt - 1));
+    if (attempt < retries) {
+      // Backoff progressif avec gigue pour contourner les limitations Cloudflare / proxy
+      const delay = Math.round(600 * 2 ** (attempt - 1) + Math.random() * 400);
+      await sleep(delay);
+    }
   }
   console.error(`[Ouedkniss:${label}] ABANDON : ${last}`);
   return { ok: false, error: last, status };
 }
 
 const storeContactCache = new Map<string, StoreContactInfo>();
+const failedStoreCache = new Set<string>();
 
-/** Contacts d'une boutique via storeGet. null = ÉCHEC de récupération (distinct de « aucun contact »). */
+/** Contacts d'une boutique via storeGet. Rapide, non-bloquant pour le débit d'aspiration. */
 async function fetchStoreContacts(storeId: string): Promise<StoreContactInfo | null> {
   if (storeContactCache.has(storeId)) return storeContactCache.get(storeId)!;
+  if (failedStoreCache.has(storeId)) return null;
+
   const query = `query GetStoreDetails($id: ID!) { storeGet(id: $id) { id name slug url description imageUrl
     mainLocation { id phones { id phone hasWhatsapp } } locations { id phones { id phone hasWhatsapp } } } }`;
-  const r = await gql(query, { id: storeId }, `store:${storeId}`, 3, 15000);
-  if ('error' in r) return null;
+  const r = await gql(query, { id: storeId }, `store:${storeId}`, 1, 3500);
+  if ('error' in r) {
+    failedStoreCache.add(storeId);
+    return null;
+  }
   const store = r.json?.data?.storeGet;
-  if (!store) return null;
+  if (!store) {
+    failedStoreCache.add(storeId);
+    return null;
+  }
 
   const phoneList: Array<{ phone: string; hasWhatsapp: boolean }> = [];
   const seen = new Set<string>();
@@ -268,13 +295,16 @@ export async function scrapeOuedknissLiveAnnouncements(options: LiveScrapeOption
   const base = { totalEstimated: Number(pag.total) || 0, lastPage: Number(pag.lastPage) || 0, hasMore: Boolean(pag.hasMorePages) };
   if (dataList.length === 0) return { products: [], sellers: new Map(), success: true, ...base, hasMore: false };
 
-  // Contacts de TOUTES les boutiques de la page (pas de plafond silencieux), 5 requêtes en parallèle.
+  // Contacts des boutiques : uniquement celles non encore en cache (mémoire partagée entre pages)
   const storeIds = Array.from(new Set(dataList.map((i) => i.store?.id).filter(Boolean) as string[]));
+  const uncached = storeIds.filter((id) => !storeContactCache.has(id) && !failedStoreCache.has(id));
   const failedStores = new Set<string>();
-  for (let i = 0; i < storeIds.length; i += 5) {
-    const chunk = storeIds.slice(i, i + 5);
-    const res = await Promise.all(chunk.map((id) => fetchStoreContacts(id)));
-    res.forEach((v, k) => { if (!v) failedStores.add(chunk[k]); });
+  if (uncached.length > 0) {
+    for (let i = 0; i < uncached.length; i += 4) {
+      const chunk = uncached.slice(i, i + 4);
+      const res = await Promise.all(chunk.map((id) => fetchStoreContacts(id)));
+      res.forEach((v, k) => { if (!v) failedStores.add(chunk[k]); });
+    }
   }
 
   const catName = OUEDKNISS_CATEGORIES.find((c) => c.slug === categorySlug || c.id === categorySlug)?.name || categorySlug || '';
