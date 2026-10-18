@@ -283,7 +283,9 @@ export async function scrapeOuedknissLiveAnnouncements(options: LiveScrapeOption
   const filter: Record<string, unknown> = { page: Math.max(1, page), count: Math.min(100, Math.max(10, count)) };
   if (categorySlug && categorySlug !== 's' && categorySlug !== 'all') filter.categorySlug = categorySlug;
   const variables: Record<string, unknown> = { filter };
-  if (keywords && keywords.trim()) variables.q = keywords.trim();
+  // FIX: toujours envoyer "q" (chaîne vide au lieu de l'omettre) — l'API peut renvoyer
+  // une réponse vide sans erreur quand la variable est absente.
+  variables.q = (keywords ?? '').trim();
 
   const r = await gql(SEARCH_QUERY, variables, `search:${categorySlug || 'all'}:p${page}`);
   if ('error' in r) return fail(r.error);
@@ -293,7 +295,16 @@ export async function scrapeOuedknissLiveAnnouncements(options: LiveScrapeOption
   const dataList: OuedknissAnnouncementRaw[] = ann.data || [];
   const pag = ann.paginatorInfo || {};
   const base = { totalEstimated: Number(pag.total) || 0, lastPage: Number(pag.lastPage) || 0, hasMore: Boolean(pag.hasMorePages) };
-  if (dataList.length === 0) return { products: [], sellers: new Map(), success: true, ...base, hasMore: false };
+  if (dataList.length === 0) {
+    // FIX: l'API peut ignorer silencieusement un categorySlug inconnu et renvoyer
+    // une réponse vide SANS erreur. Retry sans filtre de catégorie pour distinguer
+    // « catégorie réellement vide » d'un blocage silencieux.
+    if (filter.categorySlug && page <= 1 && !base.totalEstimated) {
+      console.warn(`[Ouedkniss] 0 résultat avec categorySlug="${String(filter.categorySlug)}" — retry sans filtre de catégorie`);
+      return scrapeOuedknissLiveAnnouncements({ keywords, page, count });
+    }
+    return { products: [], sellers: new Map(), success: true, ...base, hasMore: false };
+  }
 
   // Contacts des boutiques : uniquement celles non encore en cache (mémoire partagée entre pages)
   const storeIds = Array.from(new Set(dataList.map((i) => i.store?.id).filter(Boolean) as string[]));
