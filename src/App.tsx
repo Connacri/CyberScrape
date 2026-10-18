@@ -912,14 +912,14 @@ export default function App() {
 
       setCurrentCategoryTotalPages(audit.totalPages);
       setCurrentCategoryTotalArticles(audit.totalArticles);
-      setCurrentCategoryBoutiques(audit.boutiquesCount);
-      setCurrentCategoryAdsPubs(audit.adsPubsCount);
+      setCurrentCategoryBoutiques(0);
+      setCurrentCategoryAdsPubs(0);
       setCurrentCategoryNewItemsCount(0);
 
       const firstPage = catIdx === startCatIndex ? Math.max(1, startPage) : 1;
 
       addLog(
-        `[CATÉGORIE_${catIdx + 1}/${totalCats}] ⚡ Démarrage de "${cat.name}" // Exactement ${audit.totalPages.toLocaleString('fr-FR')} Pages existantes (${audit.totalArticles.toLocaleString('fr-FR')} Articles à 28 annonces/page) • ${audit.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ${audit.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées`,
+        `[CATÉGORIE_${catIdx + 1}/${totalCats}] ⚡ Démarrage de "${cat.name}" // Estimation locale ${audit.totalPages.toLocaleString('fr-FR')} Pages existantes (${audit.totalArticles.toLocaleString('fr-FR')} Articles à 28 annonces/page) • ${audit.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ${audit.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées`,
         'cyber',
         `0xCAT_${catIdx + 1}`
       );
@@ -972,7 +972,7 @@ export default function App() {
         }));
 
         try {
-          const reqs: Promise<{ products?: ScrapedProduct[]; isClientSideFallback?: boolean; hasMore?: boolean }>[] = [];
+          const reqs: Promise<{ products?: ScrapedProduct[]; isClientSideFallback?: boolean; hasMore?: boolean; totalCategoryPages?: number; totalCatalogEstimated?: number }>[] = [];
           for (let c = 0; c < CONCURRENCY; c++) {
             const pNum = page + c;
             if (pNum <= catMaxPages) {
@@ -998,6 +998,11 @@ export default function App() {
           }
 
           batchFailures = 0;
+          const sweepMeta = results.find((r) => r && r.totalCategoryPages);
+          if (sweepMeta) {
+            setCurrentCategoryTotalPages(sweepMeta.totalCategoryPages || 0);
+            setCurrentCategoryTotalArticles(sweepMeta.totalCatalogEstimated || 0);
+          }
           const reachedEnd = results.some((r) => r && r.hasMore === false);
           if (pageProducts.length === 0 && !reachedEnd) {
             emptyBatchesStreak++;
@@ -1462,8 +1467,8 @@ export default function App() {
         if (audit) {
           setCurrentCategoryTotalPages(audit.totalPages);
           setCurrentCategoryTotalArticles(audit.totalArticles);
-          setCurrentCategoryBoutiques(audit.boutiquesCount);
-          setCurrentCategoryAdsPubs(audit.adsPubsCount);
+          setCurrentCategoryBoutiques(0);
+          setCurrentCategoryAdsPubs(0);
           setCurrentCategoryNewItemsCount(0);
         }
 
@@ -1475,7 +1480,7 @@ export default function App() {
           `0xPRE_${currentCatSlug}`
         );
         addLog(
-          `[RÉSULTAT_PRÉ-VOL] 🎯 "${catName}" : Exactement ${totalCatPages.toLocaleString('fr-FR')} pages existantes répertoriées (${totalCatArticles.toLocaleString('fr-FR')} articles à 28 annonces/page) • ~${audit?.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ~${audit?.particuliersCount.toLocaleString('fr-FR')} Annonces Particuliers • ~${audit?.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées. Lancement de l'aspiration...`,
+          `[RÉSULTAT_PRÉ-VOL] 🎯 "${catName}" : Estimation locale ${totalCatPages.toLocaleString('fr-FR')} pages existantes répertoriées (${totalCatArticles.toLocaleString('fr-FR')} articles à 28 annonces/page) • ~${audit?.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ~${audit?.particuliersCount.toLocaleString('fr-FR')} Annonces Particuliers • ~${audit?.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées. Lancement de l'aspiration...`,
           'success',
           `0xAUDIT_${currentCatSlug}`
         );
@@ -1483,9 +1488,10 @@ export default function App() {
 
         // Récupérer le point de reprise pour ne jamais recommencer à zéro
         const startPage = lotPageRef.current[currentCatSlug] || getCategoryResumePage(currentCatSlug) || 1;
-        // Limite stricte : nombre réel de pages existantes (ex: 473 pages pour téléphones)
-        const pagesToRun = audit ? audit.totalPages : 473;
+        // La fin d'une catégorie est donnée par l'API (hasMore=false), jamais par une estimation codée en dur.
+        const pagesToRun = 100000;
         let emptyStreak = 0;
+        let lotBatchFailures = 0;
 
         addLog(
           `[PIPELINE_SENIOR_START] Démarrage de "${catName}" à la page ${startPage}/${totalCatPages} (${totalCatPages} pages existantes, max ${totalCatArticles.toLocaleString('fr-FR')} articles)...`,
@@ -1512,7 +1518,7 @@ export default function App() {
           }));
 
           try {
-            const pageRequests: Promise<{ products?: ScrapedProduct[] }>[] = [];
+            const pageRequests: Promise<{ products?: ScrapedProduct[]; hasMore?: boolean; totalCategoryPages?: number; totalCatalogEstimated?: number }>[] = [];
             for (let c = 0; c < CONCURRENT_PAGES; c++) {
               const pNum = page + c;
               if (pNum <= pagesToRun) {
@@ -1537,10 +1543,19 @@ export default function App() {
               }
             }
 
-            if (pageProducts.length === 0) {
+            lotBatchFailures = 0;
+            const apiMeta = results.find((r) => r && r.totalCategoryPages);
+            if (apiMeta) {
+              setCurrentCategoryTotalPages(apiMeta.totalCategoryPages || 0);
+              setCurrentCategoryTotalArticles(apiMeta.totalCatalogEstimated || 0);
+            }
+            const lotReachedEnd = results.some((r) => r && r.hasMore === false);
+            if (pageProducts.length === 0 && !lotReachedEnd) {
               emptyStreak++;
+              addLog(`[ANOMALIE] Lot vide sans fin annoncée par l'API ("${catName}", page ${page}) — ${emptyStreak}/3`, 'warn', '0xEMPTY');
               if (emptyStreak >= 3) {
-                addLog(`[FIN_CATÉGORIE] Fin des annonces pour "${catName}" à la page ${page}.`, 'info', '0xEND');
+                addLog(`[ARRÊT_INATTENDU] 3 lots vides consécutifs pour "${catName}" : arrêt SANS déclarer la catégorie terminée.`, 'warn', '0xHALT');
+                abortScrapingRef.current = true;
                 break;
               }
             } else {
@@ -1569,6 +1584,8 @@ export default function App() {
 
                 categoryTotalNew += newCount;
                 setCurrentCategoryNewItemsCount((prev) => prev + newCount);
+                setCurrentCategoryBoutiques((prev) => prev + boutiqueCount);
+                setCurrentCategoryAdsPubs((prev) => prev + pubCount);
                 setLastPageBatchStats({
                   page,
                   itemsCount: pageProducts.length,
@@ -1598,12 +1615,37 @@ export default function App() {
               saveCategoryProgress(currentCatSlug, nextResumePage, pageProducts.length);
             }
 
+            if (lotReachedEnd) {
+              addLog(`[FIN_CATÉGORIE] L'API signale la dernière page pour "${catName}" (lot ${page}-${page + CONCURRENT_PAGES - 1}).`, 'info', '0xEND');
+              break;
+            }
+
             // Micro-yield non-bloquant pour garantir 60 FPS sans coupure
             await new Promise((r) => setTimeout(r, 0));
           } catch (pageErr) {
-            console.warn('Page fetch issue:', pageErr);
-            break;
+            lotBatchFailures++;
+            const msg = pageErr instanceof Error ? pageErr.message : String(pageErr);
+            addLog(`[ERREUR_LOT] ${msg} (tentative ${lotBatchFailures}/3 du lot ${page}-${page + CONCURRENT_PAGES - 1})`, 'warn', '0xERR');
+            if (lotBatchFailures >= 3) {
+              lotPageRef.current[currentCatSlug] = page;
+              saveCategoryProgress(currentCatSlug, page, 0);
+              abortScrapingRef.current = true;
+              break;
+            }
+            await new Promise((r) => setTimeout(r, 5000));
+            page -= CONCURRENT_PAGES; // rejoue exactement le même lot, aucune page sautée
           }
+        }
+
+        if (abortScrapingRef.current) {
+          // Arrêt (échecs répétés ou demande utilisateur) : la catégorie n'est PAS déclarée terminée, reprise possible.
+          addLog(`[PAUSE_SÉCURISÉE] "${catName}" interrompue : progression enregistrée, reprise possible sans perte.`, 'warn', '0xPAUSE');
+          setIsContinuousScraping(false);
+          setJob((prev) => ({ ...prev, status: 'idle', aiAgentAction: 'Aspiration interrompue — reprise possible depuis le point enregistré.' }));
+          if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.autoSync) {
+            await syncProductsToSupabase(accumulated, supabaseConfig);
+          }
+          return;
         }
 
         cyberAudio.playCategoryUnlocked();
@@ -1674,10 +1716,10 @@ export default function App() {
     if (lotAudit) {
       setCurrentCategoryTotalPages(lotAudit.totalPages);
       setCurrentCategoryTotalArticles(lotAudit.totalArticles);
-      setCurrentCategoryBoutiques(lotAudit.boutiquesCount);
-      setCurrentCategoryAdsPubs(lotAudit.adsPubsCount);
+      setCurrentCategoryBoutiques(0);
+      setCurrentCategoryAdsPubs(0);
       addLog(
-        `[SCAN_PRÉ-VOL] 🎯 "${lotCatName}" : Exactement ${lotTotalPages.toLocaleString('fr-FR')} pages existantes répertoriées (${lotTotalArticles.toLocaleString('fr-FR')} articles à 28 annonces/page) • ~${lotAudit.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ~${lotAudit.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées. Page actuelle: ${currentLotPage}/${lotTotalPages}`,
+        `[SCAN_PRÉ-VOL] 🎯 "${lotCatName}" : Estimation locale ${lotTotalPages.toLocaleString('fr-FR')} pages existantes répertoriées (${lotTotalArticles.toLocaleString('fr-FR')} articles à 28 annonces/page) • ~${lotAudit.boutiquesCount.toLocaleString('fr-FR')} Boutiques Pro • ~${lotAudit.adsPubsCount.toLocaleString('fr-FR')} Pubs Sponsorisées. Page actuelle: ${currentLotPage}/${lotTotalPages}`,
         'cyber',
         `0xPRE_${lotCatMeta?.slug}`
       );
