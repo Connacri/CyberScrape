@@ -83,7 +83,7 @@ function getApiEndpoint(route: string): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const MAX_ATTEMPTS = 3;
-const TIMEOUT_MS = 25000;
+const TIMEOUT_MS = 12000; // 12s max par tentative avec AbortController individuel anti-gel
 
 export async function executeScrapeRequest(params: ScrapeRequestParams): Promise<ScrapeResultResponse> {
   const custom = getCustomBackendUrl();

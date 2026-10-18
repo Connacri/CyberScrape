@@ -931,8 +931,8 @@ export default function App() {
       let emptyBatchesStreak = 0;
       let batchFailures = 0;
 
-      // Pipeline haute vitesse concurrent : 4 pages en parallèle par lot
-      const CONCURRENCY = 4;
+      // Pipeline haute vitesse concurrent agressif : 6 flux parallèles avec timeout AbortController
+      const CONCURRENCY = 6;
       for (let page = firstPage; page <= catMaxPages; page += CONCURRENCY) {
         if (abortScrapingRef.current) {
           const cp: ScrapeSweepCheckpoint = {
@@ -1501,8 +1501,8 @@ export default function App() {
           `0xSTART_P${startPage}`
         );
 
-        // Architecture Senior Haute Performance : 4 flux parallèles sans coupure
-        const CONCURRENT_PAGES = 4;
+        // Architecture Senior Haute Performance : 6 flux parallèles avec timeout AbortController anti-gel
+        const CONCURRENT_PAGES = 6;
         let categoryTotalNew = 0;
         for (let page = startPage; page <= pagesToRun; page += CONCURRENT_PAGES) {
           if (abortScrapingRef.current) break;
