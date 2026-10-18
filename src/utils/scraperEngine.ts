@@ -61,6 +61,11 @@ export function setCustomBackendUrl(url: string): void {
   }
 }
 
+export function isStaticHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname.includes('github.io') || window.location.protocol === 'file:';
+}
+
 function getApiEndpoint(route: string): string {
   const custom = getCustomBackendUrl();
   if (custom) {
@@ -72,21 +77,24 @@ function getApiEndpoint(route: string): string {
     return `${base.VITE_API_BASE_URL.replace(/\/+$/, '')}/${route.replace(/^\//, '')}`;
   }
 
-  // Détection automatique GitHub Pages ou APK local : redirige vers le backend Cloud Run live avec CORS
-  if (typeof window !== 'undefined' && (window.location.hostname.includes('github.io') || window.location.protocol === 'file:' || window.location.hostname === 'localhost' && window.location.port !== '3000')) {
-    return `${LIVE_FALLBACK_BACKEND}/${route.replace(/^\//, '')}`;
-  }
-
   const root = (base?.BASE_URL || '/').replace(/\/?$/, '/');
   return `${root}${route.replace(/^\//, '')}`;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const MAX_ATTEMPTS = 4;
-const TIMEOUT_MS = 30000;
+const MAX_ATTEMPTS = 3;
+const TIMEOUT_MS = 25000;
 
 export async function executeScrapeRequest(params: ScrapeRequestParams): Promise<ScrapeResultResponse> {
-  let endpoint = getApiEndpoint('/api/scrape');
+  const custom = getCustomBackendUrl();
+  if (isStaticHost() && !custom) {
+    throw new ScrapeError(
+      "Relais backend requis sur GitHub Pages : GitHub Pages est un hébergement statique sans serveur Node.js (bloqué par CORS navigateur). Configurez l'URL d'un relais dans l'onglet 'Moteur Turbo' ou lancez le script Python fast_scraper.py.",
+      400
+    );
+  }
+
+  const endpoint = getApiEndpoint('/api/scrape');
   let lastError = 'Erreur inconnue';
   let lastStatus: number | undefined;
 
@@ -110,23 +118,13 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
         let detail = '';
         try { detail = (await res.json())?.error || ''; } catch { /* ignore */ }
         lastError = `HTTP ${res.status}${detail ? ` : ${detail}` : ''}`;
-
-        // Si l'hôte renvoie 404 (cas de GitHub Pages où aucun serveur Node n'existe sur le domaine),
-        // basculer automatiquement sur le backend Cloud Run live pour assurer le fonctionnement immédiat
-        if (res.status === 404 && !endpoint.startsWith(LIVE_FALLBACK_BACKEND)) {
-          endpoint = `${LIVE_FALLBACK_BACKEND}/api/scrape`;
-          continue;
-        }
-        if (res.status === 400) break; // erreur de requête : inutile de réessayer
+        if (res.status === 400 || res.status === 404) break; // inutile de retenter en boucle sur 400/404
       }
     } catch (err) {
       clearTimeout(timer);
       lastError = err instanceof Error ? err.message : String(err);
-      if (!endpoint.startsWith(LIVE_FALLBACK_BACKEND)) {
-        endpoint = `${LIVE_FALLBACK_BACKEND}/api/scrape`;
-      }
     }
-    if (attempt < MAX_ATTEMPTS) await sleep(1000 * 2 ** (attempt - 1)); // 1s, 2s, 4s
+    if (attempt < MAX_ATTEMPTS) await sleep(1000 * 2 ** (attempt - 1));
   }
   throw new ScrapeError(`Aspiration impossible (page ${params.page ?? 1}, ${params.categorySlug ?? 'all'}) : ${lastError}`, lastStatus);
 }

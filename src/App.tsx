@@ -65,6 +65,7 @@ import {
   CategorySyncPromptData,
 } from './components/CategorySyncPromptModal';
 import { ApkReleaseModal } from './components/ApkReleaseModal';
+import { TurboCrawlerModal } from './components/TurboCrawlerModal';
 import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
 import { CyberVacuumLogo, CyberVacuumAppIcon } from './components/CyberVacuumLogo';
 import { CategoryDistributionPieChart } from './components/CategoryDistributionPieChart';
@@ -324,6 +325,7 @@ export default function App() {
   const [categoryCompletionAlert, setCategoryCompletionAlert] = useState<CategoryCompletionAlertData | null>(null);
   const [categorySyncPromptData, setCategorySyncPromptData] = useState<CategorySyncPromptData | null>(null);
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
+  const [isTurboModalOpen, setIsTurboModalOpen] = useState<boolean>(false);
   const [showSplashScreen, setShowSplashScreen] = useState<boolean>(false);
   const [isCategoryAuditModalOpen, setIsCategoryAuditModalOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
@@ -2226,6 +2228,21 @@ export default function App() {
               </span>
             </button>
 
+            {/* Bouton Moteur Turbo & Relais GitHub Pages */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsTurboModalOpen(true);
+                cyberAudio.playClick();
+              }}
+              className="h-9 px-2.5 sm:px-3 rounded-xl border border-cyan-500/50 bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 hover:text-white text-xs flex items-center gap-1.5 transition-all shrink-0 cursor-pointer shadow-[0_0_12px_rgba(0,240,255,0.25)] font-bold"
+              title="Moteur d'Aspiration Ultra-Rapide (60+ art/s) & Guide GitHub Pages"
+              aria-label="Ouvrir Moteur Turbo"
+            >
+              <Zap className="w-3.5 h-3.5 text-cyan-400 animate-pulse fill-cyan-400/40" />
+              <span className="font-mono hidden sm:inline">Turbo</span>
+            </button>
+
             {/* Quick Audio Toggle */}
             <button
               type="button"
@@ -2622,6 +2639,23 @@ export default function App() {
                   </div>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/40 text-cyan-300">
                     17 Catégories
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTurboModalOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full min-h-[46px] p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/50 text-cyan-300 hover:bg-cyan-900/40 flex items-center justify-between font-bold cursor-pointer transition-all active:scale-98 shadow-[0_0_12px_rgba(0,240,255,0.2)]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Zap className="w-4 h-4 text-cyan-400" />
+                    <span>Moteur Turbo & GitHub Pages</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/40 text-cyan-300">
+                    60+ art/s
                   </span>
                 </button>
 
@@ -3643,6 +3677,13 @@ export default function App() {
           if (cat) handleStartCategoryScrape(cat);
         }}
         currentActiveCategorySlug={selectedCategorySlug}
+      />
+
+      {/* Turbo Crawler & GitHub Pages Guide Modal */}
+      <TurboCrawlerModal
+        isOpen={isTurboModalOpen}
+        onClose={() => setIsTurboModalOpen(false)}
+        onLogAdd={(msg, type) => addLog(msg, type, '0xTURBO')}
       />
     </div>
   );
