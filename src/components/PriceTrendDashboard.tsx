@@ -31,6 +31,7 @@ import {
 import { CrawlerProductivityChart } from './CrawlerProductivityChart';
 import { CategoryDistributionPieChart } from './CategoryDistributionPieChart';
 import { BrandMarketShareDonutChart } from './BrandMarketShareDonutChart';
+import { ScrapingTelemetryPanel } from './ScrapingTelemetryPanel';
 import {
   fetchSupabaseTrendsAnalytics,
   SupabaseTrendsAnalyticsResult,
@@ -590,6 +591,11 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
   return (
     <div className="space-y-6 min-w-0 font-mono">
       {/* ============================================================== */}
+      {/* 0. REAL-TIME CRAWLING TELEMETRY (RPS, KB/S & DOMAIN LATENCIES) */}
+      {/* ============================================================== */}
+      <ScrapingTelemetryPanel />
+
+      {/* ============================================================== */}
       {/* 1. SUPABASE CLOUD DATABASE TELEMETRY & CONTROLLER               */}
       {/* ============================================================== */}
       <div className="rounded-2xl bg-slate-950/90 border border-cyan-500/40 p-4 sm:p-5 backdrop-blur-xl shadow-[0_0_25px_rgba(0,240,255,0.1)]">
@@ -1094,7 +1100,7 @@ export const PriceTrendDashboard: React.FC<PriceTrendDashboardProps> = ({
           <div className="mt-4 p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs min-w-0 overflow-hidden">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
               <img
-                src={activeProduct.imageUrl}
+                src={activeProduct.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=60'}
                 alt={activeProduct.title}
                 className="w-11 h-11 object-cover rounded-lg bg-slate-800 border border-slate-700 shrink-0"
                 onError={(e) => {

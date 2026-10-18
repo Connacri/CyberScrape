@@ -517,7 +517,7 @@ const VacuumVisualizerComponent: React.FC<VacuumVisualizerProps> = ({
 
               <div className="flex gap-2.5 items-start mt-1 min-w-0">
                 <img
-                  src={latestProduct.imageUrl}
+                  src={latestProduct.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=60'}
                   alt={latestProduct.title}
                   className="w-12 h-12 object-cover rounded-lg bg-slate-800 border border-slate-700 flex-shrink-0"
                   onError={(e) => {

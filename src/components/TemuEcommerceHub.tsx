@@ -1277,7 +1277,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                   className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-orange-500/60 cursor-pointer transition-all"
                 >
                   <img
-                    src={rec.imageUrl}
+                    src={rec.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80'}
                     alt={rec.title}
                     className="w-full aspect-square rounded-lg object-cover mb-2"
                   />
@@ -1312,7 +1312,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                   {/* Thumbnail image with discount ribbon */}
                   <div className="relative aspect-square w-full rounded-xl bg-slate-900 overflow-hidden mb-2.5">
                     <img
-                      src={det.imageUrl}
+                      src={det.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80'}
                       alt={det.title}
                       loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -1459,7 +1459,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                 <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                   <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-slate-900 overflow-hidden shrink-0">
                     <img
-                      src={det.imageUrl}
+                      src={det.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80'}
                       alt={det.title}
                       loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -1606,7 +1606,7 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
                       className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3"
                     >
                       <img
-                        src={item.product.imageUrl}
+                        src={item.product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=80'}
                         alt={item.product.title}
                         className="w-14 h-14 rounded-xl object-cover shrink-0"
                       />

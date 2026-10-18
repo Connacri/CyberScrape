@@ -1090,6 +1090,11 @@ export default function App() {
           batchFailures++;
           const msg = catErr instanceof Error ? catErr.message : String(catErr);
           addLog(`[ERREUR_LOT] ${msg} (tentative ${batchFailures}/3 du lot ${page}-${page + CONCURRENCY - 1})`, 'warn', '0xERR');
+          if (msg.includes('Relais backend requis sur GitHub Pages')) {
+            setIsTurboModalOpen(true);
+            abortScrapingRef.current = true;
+            break;
+          }
           if (batchFailures >= 3) {
             const cp: ScrapeSweepCheckpoint = {
               categoryIndex: catIdx, categorySlug: cat.slug, categoryName: cat.name, currentPage: page,
@@ -1631,6 +1636,11 @@ export default function App() {
             lotBatchFailures++;
             const msg = pageErr instanceof Error ? pageErr.message : String(pageErr);
             addLog(`[ERREUR_LOT] ${msg} (tentative ${lotBatchFailures}/3 du lot ${page}-${page + CONCURRENT_PAGES - 1})`, 'warn', '0xERR');
+            if (msg.includes('Relais backend requis sur GitHub Pages')) {
+              setIsTurboModalOpen(true);
+              abortScrapingRef.current = true;
+              break;
+            }
             if (lotBatchFailures >= 3) {
               lotPageRef.current[currentCatSlug] = page;
               saveCategoryProgress(currentCatSlug, page, 0);

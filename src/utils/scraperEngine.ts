@@ -5,6 +5,7 @@
  * Erreur réseau / HTTP => retries avec backoff, puis ScrapeError. Réponse vide valide => liste vide (+ hasMore:false).
  */
 import type { ScrapedProduct } from '../types';
+import { telemetryTracker } from './telemetryTracker';
 
 export interface ScrapeRequestParams {
   url: string;
@@ -98,9 +99,18 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
   let lastError = 'Erreur inconnue';
   let lastStatus: number | undefined;
 
+  let requestDomain = 'api.ouedkniss.com';
+  try {
+    requestDomain = new URL(endpoint, window.location.href).hostname;
+  } catch {
+    // fallback
+  }
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const tStart = Date.now();
+
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -109,8 +119,27 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
         signal: controller.signal,
       });
       clearTimeout(timer);
+      const latencyMs = Math.max(1, Date.now() - tStart);
+
       if (res.ok) {
-        const data = (await res.json()) as ScrapeResultResponse;
+        const text = await res.text();
+        const bytes = text.length;
+        let data: ScrapeResultResponse | null = null;
+        try {
+          data = JSON.parse(text) as ScrapeResultResponse;
+        } catch {
+          // ignore
+        }
+
+        telemetryTracker.recordSample({
+          timestamp: Date.now(),
+          domain: requestDomain,
+          latencyMs,
+          bytesReceived: bytes || 35000,
+          statusCode: res.status,
+          success: Boolean(data && Array.isArray(data.products)),
+        });
+
         if (data && Array.isArray(data.products)) return data;
         lastError = 'Réponse du serveur invalide';
       } else {
@@ -118,11 +147,31 @@ export async function executeScrapeRequest(params: ScrapeRequestParams): Promise
         let detail = '';
         try { detail = (await res.json())?.error || ''; } catch { /* ignore */ }
         lastError = `HTTP ${res.status}${detail ? ` : ${detail}` : ''}`;
-        if (res.status === 400 || res.status === 404) break; // inutile de retenter en boucle sur 400/404
+
+        telemetryTracker.recordSample({
+          timestamp: Date.now(),
+          domain: requestDomain,
+          latencyMs,
+          bytesReceived: 512,
+          statusCode: res.status,
+          success: false,
+        });
+
+        if (res.status === 400 || res.status === 404) break;
       }
     } catch (err) {
       clearTimeout(timer);
+      const latencyMs = Math.max(1, Date.now() - tStart);
       lastError = err instanceof Error ? err.message : String(err);
+
+      telemetryTracker.recordSample({
+        timestamp: Date.now(),
+        domain: requestDomain,
+        latencyMs,
+        bytesReceived: 0,
+        statusCode: 0,
+        success: false,
+      });
     }
     if (attempt < MAX_ATTEMPTS) await sleep(1000 * 2 ** (attempt - 1));
   }

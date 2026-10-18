@@ -179,7 +179,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {/* Large Image Showcase */}
               <div className="relative aspect-square w-full rounded-2xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-inner group">
                 <img
-                  src={activeImage}
+                  src={activeImage || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80'}
                   alt={product.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   onError={(e) => {
@@ -215,7 +215,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           : 'border-slate-800 opacity-60 hover:opacity-100 hover:border-slate-600'
                       }`}
                     >
-                      <img src={img} alt={`Aperçu ${idx + 1}`} className="w-full h-full object-cover" />
+                      <img
+                        src={img || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=80'}
+                        alt={`Aperçu ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                     </button>
                   ))}
                 </div>
@@ -320,7 +324,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <img
-                        src={seller.avatarUrl}
+                        src={seller.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                         alt={seller.name}
                         className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400 shadow-md"
                       />
@@ -664,7 +668,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4">
                   <div className="flex items-center gap-4">
                     <img
-                      src={seller.avatarUrl}
+                      src={seller.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                       alt={seller.name}
                       className="w-16 h-16 rounded-full object-cover border-2 border-emerald-400"
                     />

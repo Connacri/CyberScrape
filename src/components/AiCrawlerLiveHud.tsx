@@ -335,7 +335,7 @@ export const AiCrawlerLiveHud: React.FC<AiCrawlerLiveHudProps> = ({
                         {/* Real Photo Thumbnail */}
                         <div className="relative aspect-square w-full rounded-lg bg-slate-950 overflow-hidden mb-1.5 border border-slate-800">
                           <img
-                            src={item.img}
+                            src={item.img || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80'}
                             alt={item.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                             onError={(e) => {
