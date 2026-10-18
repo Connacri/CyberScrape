@@ -40,6 +40,7 @@ import {
   ScrapeSweepCheckpoint,
   getScrapedCategoriesRegistry,
   markCategoryAsScraped,
+  markCategoriesBatchAsScraped,
 } from '../utils/scrapeCheckpoint';
 
 interface OuedknissCategoryHubProps {
@@ -137,6 +138,17 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
   });
 
   React.useEffect(() => {
+    // If any categories have count > 0 in current catalog, ensure they are registered in persistent storage
+    const activeSlugs: string[] = [];
+    OUEDKNISS_CATEGORIES.forEach((cat) => {
+      if ((categoryCounts[cat.id] || 0) > 0) {
+        activeSlugs.push(cat.id, cat.slug, cat.name);
+      }
+    });
+    if (activeSlugs.length > 0) {
+      markCategoriesBatchAsScraped(activeSlugs);
+    }
+
     const refreshRegistry = () => {
       setPersistentScrapedSlugs(getScrapedCategoriesRegistry());
     };
@@ -147,7 +159,7 @@ export const OuedknissCategoryHub: React.FC<OuedknissCategoryHubProps> = ({
       window.removeEventListener('storage', refreshRegistry);
       window.removeEventListener('focus', refreshRegistry);
     };
-  }, [products]);
+  }, [products, categoryCounts]);
 
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(false);
 

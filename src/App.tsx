@@ -1613,6 +1613,9 @@ export default function App() {
               const nextResumePage = page + CONCURRENT_PAGES;
               lotPageRef.current[currentCatSlug] = nextResumePage;
               saveCategoryProgress(currentCatSlug, nextResumePage, pageProducts.length);
+              markCategoryAsScraped(currentCatSlug);
+              if (catMeta?.id) markCategoryAsScraped(catMeta.id);
+              if (catName) markCategoryAsScraped(catName);
             }
 
             if (lotReachedEnd) {
@@ -1836,6 +1839,15 @@ export default function App() {
 
       // Prompt modal to send/sync to Supabase and flush local memory
       if (extractedProducts.length > 0) {
+        if (effectiveCategorySlug) {
+          markCategoryAsScraped(effectiveCategorySlug);
+        }
+        if (lotCatMeta?.id) {
+          markCategoryAsScraped(lotCatMeta.id);
+        }
+        if (lotCatName) {
+          markCategoryAsScraped(lotCatName);
+        }
         const foundCat = OUEDKNISS_CATEGORIES.find((c) => c.slug === effectiveCategorySlug) || {
           name: extractedProducts[0]?.category || 'Articles Ouedkniss',
           slug: effectiveCategorySlug || 'all',
@@ -2086,14 +2098,12 @@ export default function App() {
                 cyberAudio.playTabSwitch();
               }}
               title="Retour à l'accueil Vortex & IA"
-              className="relative flex items-center gap-2 h-9 sm:h-10 px-2 sm:px-2.5 rounded-xl bg-black/90 border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.35)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+              className="relative flex items-center gap-2.5 h-10 px-2 sm:px-3 rounded-xl bg-black/90 border border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,102,0.35)] shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
             >
-              <CyberVacuumAppIcon size={30} glow={true} roundedClass="rounded-lg" />
+              <CyberVacuumAppIcon size={32} glow={true} roundedClass="rounded-lg" />
               <div className="flex flex-col text-left">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs sm:text-sm font-black tracking-widest text-white font-mono whitespace-nowrap">
-                    CYBER-VACUUM
-                  </span>
+                <div className="flex items-center gap-2">
+                  <CyberVacuumLogo size="sm" height={16} width={82} glow={true} />
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-500/40 text-[#00ff88]">
                     MK-IV
                   </span>
