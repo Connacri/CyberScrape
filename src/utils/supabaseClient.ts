@@ -7,11 +7,11 @@ const STORAGE_KEY_PRODUCTS = 'cyber_vacuum_products_cache';
 export function getStoredSupabaseConfig(): SupabaseConfig {
   const envUrl =
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
-    'https://uzouxpnsgloselhhltyw.supabase.co';
+    '';
   const envKey =
     (typeof import.meta !== 'undefined' &&
       (import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env?.VITE_SUPABASE_ANON_KEY)) ||
-    'sb_publishable_r9R1bhGboPX75YU6_STg8Q_Ga6tG4TM';
+    '';
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY_SUPABASE);
@@ -542,6 +542,28 @@ export async function testSupabaseConnection(config: SupabaseConfig): Promise<{ 
   }
 }
 
+/**
+ * Écriture Supabase côté SERVEUR uniquement (clé service_role jamais exposée au navigateur).
+ * Le serveur Express expose POST /api/supabase/sync (voir server.ts).
+ */
+async function upsertViaServer(tableName: string, rows: unknown[]): Promise<{ error: { message: string } | null }> {
+  try {
+    const base = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string; BASE_URL?: string } }).env;
+    const root = (base?.VITE_API_BASE_URL || base?.BASE_URL || '/').replace(/\/?$/, '/');
+    const res = await fetch(`${root}api/supabase/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tableName, rows }),
+    });
+    if (res.ok) return { error: null };
+    let detail = '';
+    try { detail = (await res.json())?.error || ''; } catch { /* ignore */ }
+    return { error: { message: detail || `HTTP ${res.status}` } };
+  } catch (err) {
+    return { error: { message: err instanceof Error ? err.message : String(err) } };
+  }
+}
+
 export async function syncProductsToSupabase(
   products: ScrapedProduct[],
   config: SupabaseConfig,
@@ -549,10 +571,6 @@ export async function syncProductsToSupabase(
 ): Promise<{ success: boolean; count: number; error?: string }> {
   if (!config.url || !config.anonKey) {
     return { success: false, count: 0, error: 'Supabase non configuré.' };
-  }
-  const client = getSupabaseClient(config);
-  if (!client) {
-    return { success: false, count: 0, error: 'Impossible d\'initialiser le client Supabase.' };
   }
 
   try {
@@ -592,8 +610,8 @@ export async function syncProductsToSupabase(
           original_price: p.originalPrice,
           currency: p.currency,
           discount_percent: p.discountPercent,
-          rating: p.rating,
-          reviews_count: p.reviewsCount,
+          rating: p.rating || null,
+          reviews_count: p.reviewsCount || null,
           in_stock: p.inStock,
           stock_level: p.stockLevel,
           image_url: p.imageUrl,
@@ -610,11 +628,11 @@ export async function syncProductsToSupabase(
           is_official_store: Boolean(p.isOfficialStore),
           is_sponsored: Boolean(p.isSponsored),
           published_date: p.publishedDate || null,
-          price_type: p.priceType || 'Fixe',
-          delivery_available: p.deliveryAvailable !== false,
+          price_type: p.priceType || null,
+          delivery_available: p.deliveryAvailable ?? null,
           price_history: p.priceHistory || [],
           specs: enrichedSpecs,
-          ai_confidence: p.aiConfidence,
+          ai_confidence: p.aiConfidence || null,
           matrix_hash: p.matrixHash || null,
           scraped_at: p.scrapedAt,
           last_updated: new Date().toISOString(),
@@ -622,9 +640,7 @@ export async function syncProductsToSupabase(
       });
 
       const tableName = config.tableName || 'scraped_products';
-      let upsertRes = await client
-        .from(tableName)
-        .upsert(rows, { onConflict: 'id' });
+      let upsertRes = await upsertViaServer(tableName, rows);
 
       // If Postgres returns missing column error on older schemas, fallback to core columns
       if (upsertRes.error && /column.*does not exist/i.test(upsertRes.error.message)) {
@@ -651,7 +667,7 @@ export async function syncProductsToSupabase(
           scraped_at: r.scraped_at,
           last_updated: r.last_updated,
         }));
-        upsertRes = await client.from(tableName).upsert(coreRows, { onConflict: 'id' });
+        upsertRes = await upsertViaServer(tableName, coreRows);
       }
 
       if (upsertRes.error) {
@@ -676,44 +692,12 @@ export async function syncProductsToSupabase(
  * Supprime tous les articles de la table Supabase Cloud
  */
 export async function clearSupabaseTable(
-  config: SupabaseConfig
+  _config: SupabaseConfig
 ): Promise<{ success: boolean; count?: number; error?: string }> {
-  if (!config.url || !config.anonKey) {
-    return { success: false, error: 'Configuration Supabase manquante (URL ou Anon Key absente).' };
-  }
-
-  const client = getSupabaseClient(config);
-  if (!client) {
-    return { success: false, error: 'Impossible d\'initialiser le client Supabase.' };
-  }
-
-  const tableName = config.tableName || 'scraped_products';
-
-  try {
-    // PostgREST exige un filtre WHERE pour un DELETE global
-    const { error, count } = await client
-      .from(tableName)
-      .delete({ count: 'exact' })
-      .neq('id', '___CYBER_PURGE_FILTER_IMPOSSIBLE___');
-
-    if (error) {
-      // Fallback avec filtre .not('id', 'is', null)
-      const fallbackRes = await client
-        .from(tableName)
-        .delete({ count: 'exact' })
-        .not('id', 'is', null);
-
-      if (fallbackRes.error) {
-        return { success: false, error: fallbackRes.error.message };
-      }
-      return { success: true, count: fallbackRes.count ?? 0 };
-    }
-
-    return { success: true, count: count ?? 0 };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erreur de connexion Supabase';
-    return { success: false, error: msg };
-  }
+  return {
+    success: false,
+    error: 'Purge cloud désactivée côté navigateur (RLS : écriture réservée au serveur). Utilisez le SQL Editor Supabase (TRUNCATE) si nécessaire.',
+  };
 }
 
 
@@ -868,8 +852,8 @@ export async function fetchProductsFromSupabase(
         originalPrice: Number(row.original_price) || Number(row.current_price) || 0,
         currency: row.currency || 'DA',
         discountPercent: Number(row.discount_percent) || 0,
-        rating: Number(row.rating) || 4.7,
-        reviewsCount: Number(row.reviews_count) || 25,
+        rating: Number(row.rating) || 0,
+        reviewsCount: Number(row.reviews_count) || 0,
         inStock: row.in_stock !== false,
         stockLevel: row.stock_level || 'IN_STOCK',
         imageUrl: row.image_url || '',
@@ -878,15 +862,15 @@ export async function fetchProductsFromSupabase(
         sourceDomain: row.source_domain || 'ouedkniss.com',
         priceHistory: Array.isArray(row.price_history) ? row.price_history : [],
         specs,
-        aiConfidence: Number(row.ai_confidence) || 97,
+        aiConfidence: Number(row.ai_confidence) || 0,
         matrixHash: row.matrix_hash || undefined,
         scrapedAt: row.scraped_at || new Date().toISOString(),
         lastUpdated: row.last_updated || new Date().toISOString(),
         seller,
         description,
-        publishedDate: specs._publishedDate || row.published_date || 'Aujourd\'hui',
-        deliveryAvailable: specs._deliveryAvailable ?? row.delivery_available ?? true,
-        priceType: specs._priceType || row.price_type || (row.discount_percent > 0 ? 'Négociable' : 'Fixe'),
+        publishedDate: specs._publishedDate || row.published_date || undefined,
+        deliveryAvailable: specs._deliveryAvailable ?? row.delivery_available ?? undefined,
+        priceType: specs._priceType || row.price_type || undefined,
         syncedToSupabase: true,
         itemType,
         isOfficialStore,
@@ -1136,8 +1120,8 @@ export async function fetchSupabaseTrendsAnalytics(
         originalPrice: Number(row.original_price) || Number(row.current_price) || 0,
         currency: row.currency || 'DA',
         discountPercent: Number(row.discount_percent) || 0,
-        rating: Number(row.rating) || 4.7,
-        reviewsCount: Number(row.reviews_count) || 25,
+        rating: Number(row.rating) || 0,
+        reviewsCount: Number(row.reviews_count) || 0,
         inStock: row.in_stock !== false,
         stockLevel: row.stock_level || 'IN_STOCK',
         imageUrl: row.image_url || '',
@@ -1146,15 +1130,15 @@ export async function fetchSupabaseTrendsAnalytics(
         sourceDomain: row.source_domain || 'ouedkniss.com',
         priceHistory: Array.isArray(row.price_history) ? row.price_history : [],
         specs,
-        aiConfidence: Number(row.ai_confidence) || 97,
+        aiConfidence: Number(row.ai_confidence) || 0,
         matrixHash: row.matrix_hash || undefined,
         scrapedAt: row.scraped_at || new Date().toISOString(),
         lastUpdated: row.last_updated || new Date().toISOString(),
         seller,
         description,
-        publishedDate: specs._publishedDate || row.published_date || "Aujourd'hui",
-        deliveryAvailable: specs._deliveryAvailable ?? row.delivery_available ?? true,
-        priceType: specs._priceType || row.price_type || (row.discount_percent > 0 ? 'Négociable' : 'Fixe'),
+        publishedDate: specs._publishedDate || row.published_date || undefined,
+        deliveryAvailable: specs._deliveryAvailable ?? row.delivery_available ?? undefined,
+        priceType: specs._priceType || row.price_type || undefined,
         syncedToSupabase: true,
         itemType,
         isOfficialStore,
@@ -1436,20 +1420,16 @@ CREATE INDEX IF NOT EXISTS idx_${tableName}_item_type ON public.${tableName}(ite
 CREATE INDEX IF NOT EXISTS idx_${tableName}_scraped_at ON public.${tableName}(scraped_at DESC);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_last_updated ON public.${tableName}(last_updated DESC);
 
--- Sécurité Row Level Security (RLS) permissive pour API Anon Key
+-- Sécurité RLS : lecture publique, ÉCRITURE RÉSERVÉE au service_role (serveur Express, /api/supabase/sync).
+-- (L'ancienne policy "FOR ALL TO anon USING (true)" permettait à n'importe qui de modifier ou vider la table.)
 ALTER TABLE public.${tableName} ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public insert and update" ON public.${tableName};
+DROP POLICY IF EXISTS "Allow public read access" ON public.${tableName};
 
 CREATE POLICY "Allow public read access"
   ON public.${tableName}
   FOR SELECT
   TO anon, authenticated
   USING (true);
-
-CREATE POLICY "Allow public insert and update"
-  ON public.${tableName}
-  FOR ALL
-  TO anon, authenticated
-  USING (true)
-  WITH CHECK (true);
 `;
 }

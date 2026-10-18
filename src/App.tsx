@@ -556,8 +556,8 @@ export default function App() {
 
   // Valeur calculée sécurisée du compteur Live : reflète STRICTEMENT le nombre réel d'articles aspirés
   const topBarLiveCount = useMemo(() => {
-    return Math.max(0, toSafeNonNegativeInt(products?.length || 0));
-  }, [products?.length]);
+    return Math.max(0, toSafeNonNegativeInt(Math.max(products?.length || 0, liveAspiratedCount)));
+  }, [products?.length, liveAspiratedCount]);
 
   const topBarLiveLabel = useMemo(() => {
     return supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
@@ -907,8 +907,8 @@ export default function App() {
       setSelectedCategorySlug(cat.slug);
       setTargetUrl(cat.url);
 
-      // Limite stricte : nombre réel de pages existantes (ex: 473 pages pour téléphones)
-      const catMaxPages = isUnlimited ? audit.totalPages : Math.min(audit.totalPages, Math.max(1, sweepPagesPerCategory));
+      // La fin réelle d'une catégorie vient de l'API (hasMore=false), pas des estimations codées en dur.
+      const catMaxPages = isUnlimited ? 100000 : Math.max(1, sweepPagesPerCategory);
 
       setCurrentCategoryTotalPages(audit.totalPages);
       setCurrentCategoryTotalArticles(audit.totalArticles);
@@ -927,6 +927,7 @@ export default function App() {
       let categoryTotalNew = 0;
       let categoryTotalUpdated = 0;
       let emptyBatchesStreak = 0;
+      let batchFailures = 0;
 
       // Pipeline haute vitesse concurrent : 4 pages en parallèle par lot
       const CONCURRENCY = 4;
@@ -971,7 +972,7 @@ export default function App() {
         }));
 
         try {
-          const reqs: Promise<{ products?: ScrapedProduct[]; isClientSideFallback?: boolean }>[] = [];
+          const reqs: Promise<{ products?: ScrapedProduct[]; isClientSideFallback?: boolean; hasMore?: boolean }>[] = [];
           for (let c = 0; c < CONCURRENCY; c++) {
             const pNum = page + c;
             if (pNum <= catMaxPages) {
@@ -996,10 +997,14 @@ export default function App() {
             }
           }
 
-          if (pageProducts.length === 0) {
+          batchFailures = 0;
+          const reachedEnd = results.some((r) => r && r.hasMore === false);
+          if (pageProducts.length === 0 && !reachedEnd) {
             emptyBatchesStreak++;
-            if (emptyBatchesStreak >= 2) {
-              addLog(`[FIN_CATÉGORIE] Fin des annonces pour "${cat.name}" à la page ${page}.`, 'info', '0xEND');
+            addLog(`[ANOMALIE] Lot vide sans fin annoncée par l'API (cat "${cat.name}", page ${page}) — ${emptyBatchesStreak}/3`, 'warn', '0xEMPTY');
+            if (emptyBatchesStreak >= 3) {
+              addLog(`[ARRÊT_INATTENDU] 3 lots vides consécutifs pour "${cat.name}" : arrêt SANS marquer la catégorie comme terminée.`, 'warn', '0xHALT');
+              abortScrapingRef.current = true;
               break;
             }
           } else {
@@ -1025,7 +1030,7 @@ export default function App() {
               accumulated = [...newUniqueBatch, ...accumulated];
               categoryTotalNew += newUniqueBatch.length;
               setSweepNewItemsCount((prev) => prev + newUniqueBatch.length);
-              setLiveAspiratedCount((prev) => Math.max(prev, accumulated.length));
+              setLiveAspiratedCount((prev) => prev + newUniqueBatch.length); // cumulatif, jamais remis à 0 par la purge mémoire
               cyberAudio.playItemAspirated();
               setProducts(accumulated);
               saveScrapedProductsBatch(newUniqueBatch);
@@ -1067,10 +1072,31 @@ export default function App() {
             saveCategoryProgress(cat.slug, page + CONCURRENCY, newUniqueBatch.length);
           }
 
+          if (reachedEnd) {
+            addLog(`[FIN_CATÉGORIE] L'API signale la dernière page pour "${cat.name}" (lot ${page}-${page + CONCURRENCY - 1}).`, 'info', '0xEND');
+            break;
+          }
+
           // Micro-yield non-bloquant pour garder l'UI ultra fluide à 60 FPS
           await new Promise((r) => setTimeout(r, 0));
         } catch (catErr) {
-          console.warn('Sweep category error:', catErr);
+          batchFailures++;
+          const msg = catErr instanceof Error ? catErr.message : String(catErr);
+          addLog(`[ERREUR_LOT] ${msg} (tentative ${batchFailures}/3 du lot ${page}-${page + CONCURRENCY - 1})`, 'warn', '0xERR');
+          if (batchFailures >= 3) {
+            const cp: ScrapeSweepCheckpoint = {
+              categoryIndex: catIdx, categorySlug: cat.slug, categoryName: cat.name, currentPage: page,
+              totalSweepItems: accumulated.length, completedCategorySlugs: Array.from(completedSet),
+              pagesPerCategory: sweepPagesPerCategory, status: 'paused', timestamp: Date.now(),
+            };
+            saveSweepCheckpoint(cp);
+            setSavedCheckpoint(cp);
+            addLog(`[PAUSE_SÉCURISÉE] Échecs répétés : checkpoint enregistré à la page ${page}, reprise possible sans perte.`, 'warn', '0xPAUSE');
+            abortScrapingRef.current = true;
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 5000));
+          page -= CONCURRENCY; // rejoue exactement le même lot (aucune page sautée)
         }
       }
 
@@ -1157,7 +1183,6 @@ export default function App() {
           clearStoredProducts();
           accumulated = [];
           setProducts([]);
-          setLiveAspiratedCount(0);
           addLog(
             `[PURGE MÉMOIRE] 🧹 Mémoire RAM & IndexedDB libérées à 100%. Prêt pour la catégorie suivante.`,
             'info'

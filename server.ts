@@ -1,28 +1,11 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import { GoogleGenAI, Type } from '@google/genai';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import {
-  generateOuedknissItems,
-  generateGenericItems,
-  extractProductsFromHtml,
-  type ScrapedRawItem,
-} from './src/server/catalogEngine.ts';
-import {
-  OUEDKNISS_CATEGORIES,
-  detectOuedknissCategory,
-} from './src/data/ouedknissCategories.ts';
-import {
-  generateSellerForProduct,
-  generateAnnouncementDescription,
-  generateGalleryImages,
-} from './src/utils/sellerGenerator.ts';
-import {
-  scrapeOuedknissLiveAnnouncements,
-  extractContactsFromText,
-} from './src/server/ouedknissLiveScraper.ts';
+import { createClient } from '@supabase/supabase-js';
+import { OUEDKNISS_CATEGORIES, detectOuedknissCategory } from './src/data/ouedknissCategories.ts';
+import { scrapeOuedknissLiveAnnouncements } from './src/server/ouedknissLiveScraper.ts';
 
 dotenv.config();
 
@@ -30,546 +13,153 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Server-side Gemini initialization
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || '',
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
-
-interface ScrapedItem {
-  id?: string;
-  title: string;
-  brand?: string;
-  category: string;
-  currentPrice: number;
-  originalPrice: number;
-  currency: string;
-  discountPercent: number;
-  rating: number;
-  reviewsCount: number;
-  inStock: boolean;
-  stockLevel: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
-  imageUrl: string;
-  images?: string[];
-  productUrl: string;
-  description?: string;
-  publishedDate?: string;
-  specs?: Record<string, string>;
-}
-
-// Domain Circuit Breaker: Tracks domains protected by WAF/Cloudflare to avoid stalling with 6s timeouts on every page
-const domainCircuitBreaker = new Map<string, number>();
-
-// Helper to fetch HTML cleanly with rapid failover
-async function fetchTargetHtml(targetUrl: string, domain: string, pageNum: number = 1): Promise<string | null> {
-  // If page > 1 or domain has already timed out/blocked requests, skip network stall
-  const blockedUntil = domainCircuitBreaker.get(domain);
-  if (blockedUntil && Date.now() < blockedUntil) {
-    return null;
-  }
-  if (pageNum > 1 && domain.includes('ouedkniss')) {
-    // Ouedkniss uses Nuxt SPA / client hydration for pagination; skip redundant blocking fetch
-    return null;
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 600);
-
-    const response = await fetch(targetUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      domainCircuitBreaker.set(domain, Date.now() + 5 * 60 * 1000);
-      return null;
-    }
-
-    const html = await response.text();
-    return html.slice(0, 120000);
-  } catch {
-    // If fetch timed out or was refused, activate circuit breaker for 5 minutes
-    domainCircuitBreaker.set(domain, Date.now() + 5 * 60 * 1000);
-    return null;
-  }
-}
-
-// Generate realistic multi-day price history
-function generatePriceHistory(currentPrice: number, discountPercent: number) {
-  const history = [];
-  const days = 14;
-  const now = new Date();
-
-  // If there's a discount, base original price was higher
-  const basePrice = discountPercent > 0 ? currentPrice / (1 - discountPercent / 100) : currentPrice;
-
-  for (let i = days; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    let p = basePrice;
-
-    if (i === 0) {
-      p = currentPrice;
-    } else if (i <= 2 && discountPercent > 0) {
-      // Recent price drop
-      p = currentPrice;
-    } else {
-      // Slight historic fluctuation +/- 3%
-      const jitter = (Math.sin(i * 1.5) * 0.04) * basePrice;
-      p = Math.round((basePrice + jitter) * 100) / 100;
-    }
-
-    history.push({
-      date: d.toISOString().split('T')[0],
-      price: Math.max(1, Math.round(p * 100) / 100),
-      note: i === 0 && discountPercent > 0 ? `Baisse de ${discountPercent}%` : undefined,
-    });
-  }
-
-  return history;
-}
-
-// Generate high-tech random matrix hash
-function generateMatrixHash() {
-  const hex = Math.floor(Math.random() * 0xffffff)
-    .toString(16)
-    .padStart(6, '0')
-    .toUpperCase();
-  return `0x${hex}`;
-}
-
-// GET /api/ouedkniss/categories: Returns all 12 official Ouedkniss categories
+// GET /api/ouedkniss/categories
 app.get('/api/ouedkniss/categories', (_req: Request, res: Response): void => {
   res.json({ categories: OUEDKNISS_CATEGORIES });
 });
 
-// POST /api/scrape: Scrapes given URL with Unthrottled Engine & Resilient 503 Failover
+/**
+ * POST /api/scrape — données RÉELLES uniquement (API GraphQL Ouedkniss).
+ * - Aucun repli généré : en cas d'échec => HTTP 502 + message d'erreur (le client réessaie puis échoue explicitement).
+ * - Page vide valide => 200, products: [], hasMore:false (vraie fin de catégorie selon l'API).
+ * - Aucune note, remise, historique de prix, confiance IA, image de remplacement ni vendeur inventés.
+ */
 app.post('/api/scrape', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { url, maxItems = 28, engineMode = 'direct', page = 1, categorySlug, targetTypeFilter = 'all' } = req.body;
-    const requestedCount = Number(maxItems) || 28;
-    const pageNum = Math.max(1, Number(page) || 1);
-    // Standard Ouedkniss volume: 28 items per page
-    const targetCount = Math.max(8, requestedCount);
-
+    const { url, maxItems = 28, page = 1, categorySlug } = req.body ?? {};
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-      res.status(400).json({ error: 'URL invalide. Fournissez une URL complète débutant par http:// ou https://' });
+      res.status(400).json({ success: false, error: 'URL invalide. Fournissez une URL complète débutant par http:// ou https://' });
+      return;
+    }
+    let domain = '';
+    try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch { /* ignore */ }
+    if (!domain.includes('ouedkniss')) {
+      res.status(400).json({ success: false, error: 'Seul ouedkniss.com est supporté (aucune donnée générique n\'est fabriquée).' });
       return;
     }
 
-    let domain = 'ecommerce.com';
-    try {
-      const parsed = new URL(url);
-      domain = parsed.hostname.replace(/^www\./, '');
-    } catch {
-      // ignore
-    }
+    const pageNum = Math.max(1, Number(page) || 1);
+    const count = Math.max(8, Number(maxItems) || 28);
+    const parsed = new URL(url);
+    const searchKeywords = parsed.searchParams.get('keywords') || parsed.searchParams.get('q') || '';
+    const activeCategorySlug: string | undefined = categorySlug || detectOuedknissCategory(url)?.slug;
 
-    const isOuedkniss = domain.includes('ouedkniss');
-
-    // Auto-detect category from URL or request body
-    let activeCategorySlug = categorySlug;
-    if (!activeCategorySlug && isOuedkniss) {
-      const detected = detectOuedknissCategory(url);
-      if (detected) {
-        activeCategorySlug = detected.slug;
-      }
-    }
-
-    // Extract search keywords from target URL if present
-    let searchKeywords = '';
-    try {
-      const parsedUrl = new URL(url);
-      searchKeywords = parsedUrl.searchParams.get('keywords') || parsedUrl.searchParams.get('q') || '';
-      if (!searchKeywords && !activeCategorySlug) {
-        const lastPart = parsedUrl.pathname.replace(/^\/+|\/+$/g, '').split('/').pop() || '';
-        if (lastPart && !['telephones', 'automobiles', 'informatique', 'electromenager', 'immobilier'].includes(lastPart)) {
-          searchKeywords = lastPart.replace(/[-_+]/g, ' ');
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    let rawItems: ScrapedItem[] = [];
-    const liveSellers = new Map<string, any>();
-    let usedModel = engineMode === 'direct' ? 'OUEDKNISS_LIVE_GRAPHQL_ENGINE_V4' : 'gemini-3.8-flash';
-    let isFallbackMode = false;
-    let fallbackNotice: string | null = null;
-
-    // Step 1: For Ouedkniss targets, query the official public GraphQL API directly for real authentic listings
-    if (isOuedkniss) {
-      console.log(`[CYBER-VACUUM] Calling Live Ouedkniss GraphQL API: category=${activeCategorySlug || 'all'}, keywords="${searchKeywords}", page=${pageNum}...`);
-      const liveResult = await scrapeOuedknissLiveAnnouncements({
-        categorySlug: activeCategorySlug,
-        keywords: searchKeywords,
-        page: pageNum,
-        count: targetCount,
-      });
-
-      if (liveResult.success && liveResult.products.length > 0) {
-        rawItems = liveResult.products;
-        liveResult.sellers.forEach((seller, key) => {
-          liveSellers.set(key, seller);
-        });
-        usedModel = 'OUEDKNISS_LIVE_GRAPHQL_STREAM (Authentique 100%)';
-        console.log(`[CYBER-VACUUM] Successfully scraped ${rawItems.length} live authentic Ouedkniss announcements!`);
-      }
-    }
-
-    // Step 2: Attempt HTML fetch for non-Ouedkniss domains or if GraphQL had 0 results
-    let rawHtml: string | null = null;
-    if (rawItems.length === 0) {
-      rawHtml = await fetchTargetHtml(url, domain, pageNum);
-      if (rawHtml) {
-        const htmlExtracted = extractProductsFromHtml(rawHtml, domain, isOuedkniss);
-        if (htmlExtracted.length > 0) {
-          rawItems = htmlExtracted;
-          console.log(`[CYBER-VACUUM] Direct DOM parser extracted ${htmlExtracted.length} products from HTML markup.`);
-        }
-      }
-    }
-
-    // Step 3: If user requested AI engine and we still need items, try Gemini with safe failover
-    if (engineMode === 'ai' && rawItems.length < targetCount) {
-      const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
-      const aiPrompt = `
-Tu es un moteur cybernétique d'extraction et de scraping e-commerce ultra-puissant (Cyber-Vacuum MK-IV).
-Ta mission est d'aspirer et extraire un CATALOGUE COMPLET ET DENSE d'annonces pour:
-URL cible: "${url}"
-Domaine: "${domain}"
-${isOuedkniss ? `CIBLE SPÉCIALE DÉTECTÉE : OUEDKNISS (Algérie Marketplace). STRICTEMENT EN DINARS ALGÉRIENS (currency: "DA"). Jamais en Euros ou Dollars. Catégorie ciblée: ${activeCategorySlug || 'Générale'}. Exemples : 45 000 DA, 85 000 DA, 145 000 DA, 215 000 DA. Wilayas : Alger, Oran, Blida, Sétif, Tizi Ouzou, Constantine.` : ''}
-
-Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
-- title: Nom précis
-- brand: Marque
-- category: Catégorie
-- currentPrice: Prix en nombre (${isOuedkniss ? 'en Dinars ex: 145000' : 'ex: 799.99'})
-- originalPrice: Prix initial avant réduction (${isOuedkniss ? 'en Dinars ex: 160000' : 'ex: 899.99'})
-- currency: ${isOuedkniss ? '"DA"' : '"€"'}
-- discountPercent: Nombre entre 0 et 30
-- rating: Note sur 5
-- reviewsCount: Nombre d'avis
-- inStock: true
-- stockLevel: 'IN_STOCK'
-- imageUrl: URL d'image valide
-- productUrl: URL de l'annonce
-- specs: { "Wilaya": "Alger", "État": "Neuf" }
-`;
-
-      const aiSchema = {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            brand: { type: Type.STRING },
-            category: { type: Type.STRING },
-            currentPrice: { type: Type.NUMBER },
-            originalPrice: { type: Type.NUMBER },
-            currency: { type: Type.STRING },
-            discountPercent: { type: Type.INTEGER },
-            rating: { type: Type.NUMBER },
-            reviewsCount: { type: Type.INTEGER },
-            inStock: { type: Type.BOOLEAN },
-            stockLevel: { type: Type.STRING },
-            imageUrl: { type: Type.STRING },
-            productUrl: { type: Type.STRING },
-          },
-          required: ['title', 'category', 'currentPrice', 'currency', 'imageUrl'],
-        },
-      };
-
-      if (!process.env.GEMINI_API_KEY) {
-        console.log('[CYBER-VACUUM] GEMINI_API_KEY is not set. Using Direct DOM engine.');
-        isFallbackMode = true;
-        fallbackNotice = "Clé GEMINI_API_KEY non configurée dans l'environnement. Bascule transparente sur le Moteur Direct DOM MK-IV.";
-        usedModel = 'DIRECT_DOM_ENGINE_MK4 (Failover auto)';
-      } else {
-        for (const model of candidateModels) {
-          try {
-            console.log(`[CYBER-VACUUM] Ingestion via model: ${model}...`);
-          const geminiResponse = await ai.models.generateContent({
-            model,
-            contents: aiPrompt,
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: aiSchema,
-            },
-          });
-
-          const text = geminiResponse.text || '[]';
-          const parsed = JSON.parse(text);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            rawItems = [...rawItems, ...parsed];
-            usedModel = model;
-            break;
-          }
-        } catch (aiErr: unknown) {
-          console.warn(`[CYBER-VACUUM] Model ${model} returned error/503. Testing next or activating failover.`);
-        }
-      }
-
-        if (rawItems.length === 0) {
-          isFallbackMode = true;
-          fallbackNotice = "IA Gemini temporairement indisponible (503). Bascule transparente sur le Moteur Direct DOM MK-IV.";
-          usedModel = 'DIRECT_DOM_ENGINE_MK4 (Failover auto)';
-        }
-      }
-    }
-
-    // Step 4: Deterministic high-speed catalog engine (ONLY for non-Ouedkniss domains if DOM had zero items)
-    if (!isOuedkniss && rawItems.length < targetCount) {
-      const needed = targetCount - rawItems.length;
-      const extraGeneric = generateGenericItems(domain, needed, pageNum);
-      rawItems = [...rawItems, ...extraGeneric];
+    const t0 = Date.now();
+    const live = await scrapeOuedknissLiveAnnouncements({ categorySlug: activeCategorySlug, keywords: searchKeywords, page: pageNum, count });
+    if (!live.success) {
+      console.error(`[SCRAPE] échec cat=${activeCategorySlug || 'all'} page=${pageNum} : ${live.error}`);
+      res.status(502).json({ success: false, error: live.error || 'Échec de l\'API Ouedkniss', page: pageNum, categorySlug: activeCategorySlug });
+      return;
     }
 
     const nowIso = new Date().toISOString();
-
-    const formattedProducts = rawItems.slice(0, targetCount).map((item, idx) => {
-      let currentPrice = Number(item.currentPrice) || (isOuedkniss ? 0 : 49.99);
-      let originalPrice = Number(item.originalPrice) || currentPrice;
-
-      // Ensure Ouedkniss prices are scaled to realistic Dinars Algériens (DA)
-      if (isOuedkniss && currentPrice > 0 && currentPrice < 1500) {
-        currentPrice = Math.round(currentPrice * 220);
-        originalPrice = Math.round(originalPrice * 220);
-      }
-
-      const discountPercent =
-        Number(item.discountPercent) ||
-        (originalPrice > currentPrice ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100) : 0);
-      if (originalPrice < currentPrice) originalPrice = currentPrice;
-
-      // Currency is strictly DA for Ouedkniss
-      const currency = isOuedkniss ? 'DA' : (item.currency === 'DA' || item.currency === '$' || item.currency === '€' ? item.currency : '€');
-
-      let prodId = '';
-      if (item.id) {
-        prodId = `prod_ouedkniss_${item.id}`;
-      } else {
-        const dMatch = item.productUrl ? item.productUrl.match(/-d(\d+)/) : null;
-        if (dMatch) {
-          prodId = `prod_ouedkniss_${dMatch[1]}`;
-        } else if (item.productUrl) {
-          try {
-            const parsedUrl = new URL(item.productUrl);
-            const cleanPath = parsedUrl.pathname.replace(/^\/+|\/+$/g, '').replace(/[^a-z0-9_-]/gi, '_');
-            if (cleanPath.length > 2) {
-              prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${idx}_${cleanPath.slice(-32)}`;
-            }
-          } catch {
-            // ignore
-          }
-        }
-      }
-      if (!prodId) {
-        const cleanTitle = item.title.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 24);
-        prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${idx}_${cleanTitle}`;
-      }
-
-      let seller = isOuedkniss
-        ? (liveSellers.get(prodId) || (item.id ? liveSellers.get(`prod_ouedkniss_${item.id}`) : undefined))
-        : undefined;
-
-      // If no seller object was attached but target is Ouedkniss, extract any real phone from title/description/specs
-      if (isOuedkniss && !seller) {
-        let allItemText = `${item.title || ''} ${item.description || ''}`;
-        if (item.specs && typeof item.specs === 'object') {
-          for (const [k, v] of Object.entries(item.specs)) {
-            allItemText += ` ${k}: ${v}`;
-          }
-        }
-        const textContacts = extractContactsFromText(allItemText);
-        if (textContacts.phone) {
-          const sellerName = item.brand ? `${item.brand} Vendeur` : 'Vendeur Ouedkniss';
-          seller = {
-            name: sellerName,
-            type: 'Particulier',
-            phone: textContacts.phone,
-            phoneClean: textContacts.phoneClean || '',
-            phone2: textContacts.phone2,
-            phone2Clean: textContacts.phone2Clean,
-            whatsappClean: textContacts.whatsappClean || '',
-            email: textContacts.email || '',
-            wilaya: item.specs?.Wilaya || 'Algérie',
-            commune: item.specs?.Wilaya || 'Algérie',
-            rating: 4.6,
-            reviewsCount: 8,
-            verified: false,
-            operator: textContacts.operator,
-            operator2: textContacts.operator2,
-          };
-        }
-      }
-
-      const productImages = (item.images && item.images.length > 0)
-        ? item.images
-        : item.imageUrl ? [item.imageUrl] : [];
-
-      const description = item.description || (seller
-        ? generateAnnouncementDescription(
-            {
-              id: prodId,
-              title: item.title,
-              currentPrice: Math.round(currentPrice),
-              originalPrice: Math.round(originalPrice),
-              currency,
-              discountPercent,
-              category: item.category || 'Général',
-              brand: item.brand,
-              specs: item.specs,
-            } as any,
-            seller
-          )
-        : undefined);
-
-      const isSponsored = targetTypeFilter === 'pub' ? true : targetTypeFilter === 'all' ? (idx % 7 === 0) : false;
-      const isOfficialStore = targetTypeFilter === 'boutique' ? true : targetTypeFilter === 'annonce' ? false : (seller ? seller.type !== 'Particulier' : (idx % 3 === 0));
-      const itemType: 'boutique' | 'annonce' | 'pub' = isSponsored ? 'pub' : (isOfficialStore ? 'boutique' : 'annonce');
-
+    const products = live.products.map((item) => {
+      const seller = live.sellers.get(`prod_ouedkniss_${item.id}`);
+      const isStore = seller?.type === 'Boutique / Store Certifié';
+      const price = Math.round(item.currentPrice);
       return {
-        id: prodId,
+        id: `prod_ouedkniss_${item.id}`,
         title: item.title,
-        brand: item.brand || (seller?.storeName || domain.split('.')[0].toUpperCase()),
-        category: item.category || (isOuedkniss ? 'Téléphones & Annonces DZ' : 'Général'),
-        currentPrice: Math.round(currentPrice),
-        originalPrice: Math.round(originalPrice),
-        currency,
-        discountPercent: Math.max(0, Math.min(90, discountPercent)),
-        rating: Math.round((Number(item.rating) || 4.5) * 10) / 10,
-        reviewsCount: Number(item.reviewsCount) || 5,
-        inStock: item.inStock !== false,
-        stockLevel: (item.stockLevel as 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK') || 'IN_STOCK',
-        imageUrl: item.imageUrl || `https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80`,
-        images: productImages,
-        productUrl: item.productUrl || (isOuedkniss ? `https://www.ouedkniss.com/annonce-d${item.id || ''}` : url),
+        brand: item.brand,
+        category: item.category,
+        currentPrice: price,
+        originalPrice: price, // pas de prix barré fourni par l'API => égal au prix courant, aucune remise inventée
+        currency: 'DA',
+        discountPercent: 0,
+        rating: 0, // inconnu (jamais affiché comme une vraie note)
+        reviewsCount: 0,
+        inStock: true,
+        stockLevel: 'IN_STOCK' as const,
+        imageUrl: item.imageUrl,
+        images: item.images || [],
+        productUrl: item.productUrl,
         sourceDomain: domain,
         scrapedAt: nowIso,
         lastUpdated: nowIso,
-        priceHistory: generatePriceHistory(currentPrice, discountPercent),
-        specs: item.specs || (isOuedkniss ? { Wilaya: seller?.wilaya || 'Algérie', Vendeur: seller?.name || 'Particulier' } : {}),
+        priceHistory: [], // aucun historique inventé
+        specs: item.specs || {},
         seller,
-        description,
-        publishedDate: item.publishedDate || `Aujourd'hui à ${10 + (idx % 12)}:${((idx * 7) % 60).toString().padStart(2, '0')}`,
-        deliveryAvailable: true,
-        priceType: (discountPercent > 0 ? 'Négociable' : 'Fixe') as 'Fixe' | 'Négociable',
-        aiConfidence: Math.round((96 + Math.random() * 3.8) * 10) / 10,
+        description: item.description,
+        publishedDate: item.publishedDate,
+        aiConfidence: 0,
         syncedToSupabase: false,
-        matrixHash: generateMatrixHash(),
-        itemType,
-        isOfficialStore,
-        isSponsored,
+        itemType: (isStore ? 'boutique' : 'annonce') as 'boutique' | 'annonce',
+        isOfficialStore: isStore,
       };
     });
-
-
-    const matchedCat = activeCategorySlug
-      ? OUEDKNISS_CATEGORIES.find((c) => c.slug === activeCategorySlug || c.id === activeCategorySlug)
-      : null;
-    const totalCatEstimated = isOuedkniss
-      ? (matchedCat ? matchedCat.countEstimate : 154784)
-      : 3200;
 
     res.json({
       success: true,
       targetUrl: url,
       domain,
-      modelUsed: usedModel,
-      isFallbackMode,
-      fallbackNotice,
+      modelUsed: 'OUEDKNISS_GRAPHQL (données réelles)',
+      isFallbackMode: false,
+      fallbackNotice: null,
       page: pageNum,
-      hasMore: matchedCat?.realPages ? pageNum < matchedCat.realPages : true,
-      totalCatalogEstimated: totalCatEstimated,
-      totalCategoryPages: matchedCat?.realPages || Math.ceil(totalCatEstimated / 28),
-      productsCount: formattedProducts.length,
-      products: formattedProducts,
-      telemetry: {
-        rawHtmlSizeKb: rawHtml ? Math.round(rawHtml.length / 1024) : 0,
-        domNodesInspected: Math.floor(Math.random() * 850 + 450) * pageNum,
-        tokensProcessed: Math.floor(Math.random() * 3200 + 1200) * pageNum,
-        executionTimeMs: Math.floor(Math.random() * 400 + 150),
-      },
+      hasMore: live.hasMore,
+      totalCatalogEstimated: live.totalEstimated,
+      totalCategoryPages: live.lastPage,
+      productsCount: products.length,
+      products,
+      telemetry: { rawHtmlSizeKb: 0, domNodesInspected: 0, tokensProcessed: 0, executionTimeMs: Date.now() - t0 },
     });
   } catch (err: unknown) {
-    console.error('Scraping error:', err);
-    // Never crash the frontend with 503: return graceful failure or direct fallback
-    const message = err instanceof Error ? err.message : 'Erreur interne lors de l aspiration';
-    res.status(500).json({ error: message });
+    const message = err instanceof Error ? err.message : 'Erreur interne lors de l\'aspiration';
+    console.error('[SCRAPE] erreur interne :', err);
+    res.status(500).json({ success: false, error: message });
   }
 });
 
-// POST /api/simulate-price-update: Simulates automated market update
-app.post('/api/simulate-price-update', (req: Request, res: Response): void => {
+/**
+ * POST /api/supabase/sync — upsert côté serveur avec la clé service_role (jamais exposée au navigateur).
+ * Variables : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, (optionnel) SYNC_TOKEN => en-tête x-sync-token.
+ */
+app.post('/api/supabase/sync', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { products } = req.body;
-    if (!Array.isArray(products)) {
-      res.status(400).json({ error: 'Array of products expected' });
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+      res.status(503).json({ success: false, error: 'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY non configurés côté serveur.' });
       return;
     }
-
-    const updated = products.map((p) => {
-      // 30% chance of small price fluctuation (-4% to +3%)
-      const willFluctuate = Math.random() > 0.6;
-      if (!willFluctuate) return p;
-
-      const deltaPercent = (Math.random() * 8 - 4) / 100; // -4% to +4%
-      const newPrice = Math.max(5, Math.round(p.currentPrice * (1 + deltaPercent) * 100) / 100);
-      const originalPrice = p.originalPrice || newPrice;
-      const discountPercent = originalPrice > newPrice ? Math.round(((originalPrice - newPrice) / originalPrice) * 100) : 0;
-
-      const history = [...(p.priceHistory || [])];
-      const today = new Date().toISOString().split('T')[0];
-      history.push({
-        date: today,
-        price: newPrice,
-        note: deltaPercent < 0 ? `Baisse de ${Math.abs(Math.round(deltaPercent * 100))}%` : 'Mise à jour cours',
-      });
-
-      return {
-        ...p,
-        currentPrice: newPrice,
-        discountPercent,
-        lastUpdated: new Date().toISOString(),
-        priceHistory: history.slice(-15),
-      };
-    });
-
-    res.json({ success: true, products: updated });
+    if (process.env.SYNC_TOKEN && req.header('x-sync-token') !== process.env.SYNC_TOKEN) {
+      res.status(401).json({ success: false, error: 'Jeton de synchronisation invalide.' });
+      return;
+    }
+    const { tableName = 'scraped_products', rows } = req.body ?? {};
+    if (typeof tableName !== 'string' || !/^[a-z_][a-z0-9_]{0,62}$/.test(tableName)) {
+      res.status(400).json({ success: false, error: 'Nom de table invalide.' });
+      return;
+    }
+    if (!Array.isArray(rows) || rows.length === 0 || rows.length > 500) {
+      res.status(400).json({ success: false, error: 'rows doit contenir entre 1 et 500 lignes.' });
+      return;
+    }
+    const supabase = createClient(url, key, { auth: { persistSession: false } });
+    const { error } = await supabase.from(tableName).upsert(rows, { onConflict: 'id' });
+    if (error) {
+      console.error('[SYNC] Supabase :', error.message);
+      res.status(500).json({ success: false, error: error.message });
+      return;
+    }
+    res.json({ success: true, count: rows.length });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    res.status(500).json({ error: message });
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : 'Erreur de synchronisation' });
   }
 });
 
-// Start server with Vite middleware in dev or static files in prod
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const fs = await import('fs');
-    const vite = await createViteServer({
-      server: { middlewareMode: true, allowedHosts: true },
-      appType: 'spa',
-    });
+    const vite = await createViteServer({ server: { middlewareMode: true, allowedHosts: true }, appType: 'spa' });
     app.use(vite.middlewares);
     app.use('*', async (req: Request, res: Response, next) => {
       const url = req.originalUrl;

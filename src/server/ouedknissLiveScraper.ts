@@ -1,90 +1,30 @@
 /**
- * CYBER-VACUUM // Ouedkniss Live Native GraphQL Scraper Engine
- * Direct integration with Ouedkniss's official public GraphQL API (https://api.ouedkniss.com/graphql)
- * 100% REAL DATA SCRAPING:
- * - Real authentic announcement titles & descriptions (100% preserving Arabic & French text)
- * - Real Ouedkniss listing links (e.g. https://www.ouedkniss.com/:slug-d:id)
- * - Real CDN image URLs (cdn7, cdn8, cdn9.ouedkniss.com)
- * - Real seller phone numbers & emails (extracted via storeGet or announcement description)
- * - If contact data does not exist, left EMPTY ("") as required (no fake / mock data)
+ * CYBER-VACUUM // Scraper Ouedkniss (API GraphQL publique) — données RÉELLES uniquement.
+ * - Titres/descriptions conservés tels quels (arabe inclus), lien = slug + id réels de l'API.
+ * - Téléphones/emails : uniquement ceux fournis par l'API ou présents dans le texte de l'annonce.
+ *   Absent => '' / undefined. JAMAIS de valeur inventée, de note, de remise, d'image de remplacement.
+ * - Aucune erreur n'est avalée : retries avec backoff, puis erreur explicite remontée à l'appelant.
  */
-
 import type { ScrapedRawItem } from './catalogEngine.ts';
 import type { SellerInfo } from '../types/index.ts';
 import { OUEDKNISS_CATEGORIES } from '../data/ouedknissCategories.ts';
 
 const OUEDKNISS_GRAPHQL_ENDPOINT = 'https://api.ouedkniss.com/graphql';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+type Phone = { phone?: string; hasWhatsapp?: boolean; hasViber?: boolean };
 
 interface OuedknissAnnouncementRaw {
-  id: string;
-  title: string;
-  slug: string;
-  description?: string;
-  refreshedAt?: string;
-  createdAt?: string;
-  isFromStore?: boolean;
-  price?: number | null;
-  pricePreview?: number | null;
-  phones?: Array<{
-    phone?: string;
-    hasWhatsapp?: boolean;
-    hasViber?: boolean;
-  }> | null;
-  defaultMedia?: {
-    mediaUrl?: string;
-  } | null;
-  medias?: Array<{
-    mediaUrl?: string;
-  }> | null;
-  cities?: Array<{
-    id?: string;
-    name?: string;
-    region?: {
-      id?: string;
-      name?: string;
-    };
-  }>;
-  specs?: Array<{
-    specification?: {
-      codename?: string;
-      label?: string;
-    };
-    valueText?: string[];
-  }>;
-  user?: {
-    id?: string;
-    username?: string;
-    phones?: Array<{
-      phone?: string;
-      hasWhatsapp?: boolean;
-      hasViber?: boolean;
-    }> | null;
-  } | null;
-  store?: {
-    id: string;
-    name: string;
-    slug: string;
-    imageUrl?: string;
-    description?: string;
-    url?: string;
-  } | null;
-}
-
-interface GraphQLSearchResponse {
-  data?: {
-    search?: {
-      announcements?: {
-        data?: OuedknissAnnouncementRaw[];
-        paginatorInfo?: {
-          lastPage?: number;
-          hasMorePages?: boolean;
-          perPage?: number;
-          total?: number;
-        };
-      };
-    };
-  };
-  errors?: Array<{ message: string }>;
+  id: string; title: string; slug: string; description?: string; refreshedAt?: string; createdAt?: string;
+  isFromStore?: boolean; price?: number | null; pricePreview?: number | null;
+  phones?: Phone[] | null;
+  defaultMedia?: { mediaUrl?: string } | null;
+  medias?: Array<{ mediaUrl?: string }> | null;
+  cities?: Array<{ id?: string; name?: string; region?: { id?: string; name?: string } }>;
+  specs?: Array<{ specification?: { codename?: string; label?: string }; valueText?: string[] }>;
+  user?: { id?: string; username?: string; phones?: Phone[] | null } | null;
+  store?: { id: string; name: string; slug: string; imageUrl?: string; description?: string; url?: string } | null;
 }
 
 export interface StoreContactInfo {
@@ -96,142 +36,80 @@ export interface StoreContactInfo {
   url?: string;
 }
 
-// In-memory cache for store phones to prevent redundant GraphQL calls
+/** POST GraphQL avec timeout, retries (réseau, 429, 5xx) et backoff exponentiel. Jamais silencieux. */
+async function gql(query: string, variables: Record<string, unknown>, label: string, retries = 4, timeoutMs = 20000):
+  Promise<{ ok: true; json: any } | { ok: false; error: string; status?: number }> {
+  let last = 'inconnu';
+  let status: number | undefined;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(OUEDKNISS_GRAPHQL_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': UA, Accept: 'application/json' },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      status = res.status;
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.errors?.length && !json?.data) {
+          last = `GraphQL: ${json.errors.map((e: { message: string }) => e.message).join(' | ')}`;
+          break; // erreur de requête : inutile de réessayer
+        }
+        return { ok: true, json };
+      }
+      last = `HTTP ${res.status}`;
+      if (res.status !== 429 && res.status < 500) break;
+    } catch (err) {
+      clearTimeout(timer);
+      last = err instanceof Error ? err.message : String(err);
+    }
+    console.warn(`[Ouedkniss:${label}] tentative ${attempt}/${retries} échouée : ${last}`);
+    if (attempt < retries) await sleep(1000 * 2 ** (attempt - 1));
+  }
+  console.error(`[Ouedkniss:${label}] ABANDON : ${last}`);
+  return { ok: false, error: last, status };
+}
+
 const storeContactCache = new Map<string, StoreContactInfo>();
 
-/**
- * Fetches real seller phone & contacts for a store via storeGet GraphQL query
- */
+/** Contacts d'une boutique via storeGet. null = ÉCHEC de récupération (distinct de « aucun contact »). */
 async function fetchStoreContacts(storeId: string): Promise<StoreContactInfo | null> {
-  if (storeContactCache.has(storeId)) {
-    return storeContactCache.get(storeId)!;
+  if (storeContactCache.has(storeId)) return storeContactCache.get(storeId)!;
+  const query = `query GetStoreDetails($id: ID!) { storeGet(id: $id) { id name slug url description imageUrl
+    mainLocation { id phones { id phone hasWhatsapp } } locations { id phones { id phone hasWhatsapp } } } }`;
+  const r = await gql(query, { id: storeId }, `store:${storeId}`, 3, 15000);
+  if ('error' in r) return null;
+  const store = r.json?.data?.storeGet;
+  if (!store) return null;
+
+  const phoneList: Array<{ phone: string; hasWhatsapp: boolean }> = [];
+  const seen = new Set<string>();
+  const add = (p?: Phone) => {
+    if (!p?.phone) return;
+    const clean = p.phone.trim();
+    const digits = clean.replace(/\D/g, '').replace(/^(\+?213|00213|0)/, '');
+    if (digits.length >= 8 && !seen.has(digits)) { seen.add(digits); phoneList.push({ phone: clean, hasWhatsapp: Boolean(p.hasWhatsapp) }); }
+  };
+  (store.mainLocation?.phones || []).forEach(add);
+  for (const loc of store.locations || []) (loc?.phones || []).forEach(add);
+
+  const text = `${store.description || ''} ${store.url || ''}`;
+  const fromText = extractContactsFromText(text);
+  if (phoneList.length === 0) {
+    if (fromText.phone) add({ phone: fromText.phone, hasWhatsapp: fromText.hasWhatsapp });
+    if (fromText.phone2) add({ phone: fromText.phone2, hasWhatsapp: fromText.hasWhatsapp });
   }
-
-  const query = `
-    query GetStoreDetails($id: ID!) {
-      storeGet(id: $id) {
-        id
-        name
-        slug
-        url
-        description
-        imageUrl
-        mainLocation {
-          id
-          phones {
-            id
-            phone
-            hasWhatsapp
-          }
-        }
-        locations {
-          id
-          phones {
-            id
-            phone
-            hasWhatsapp
-          }
-        }
-      }
-    }
-  `;
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2500);
-
-    const res = await fetch(OUEDKNISS_GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ query, variables: { id: storeId } }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!res.ok) return null;
-    const json = await res.json();
-    const store = json?.data?.storeGet;
-    if (!store) return null;
-
-    const phoneList: Array<{ phone: string; hasWhatsapp: boolean }> = [];
-    const seenPhones = new Set<string>();
-
-    const addPhone = (p?: { phone?: string; hasWhatsapp?: boolean }) => {
-      if (!p?.phone) return;
-      const clean = p.phone.trim();
-      const numOnly = clean.replace(/\D/g, '').replace(/^(\+?213|00213|0)/, '');
-      if (numOnly.length >= 8 && !seenPhones.has(numOnly)) {
-        seenPhones.add(numOnly);
-        phoneList.push({ phone: clean, hasWhatsapp: Boolean(p.hasWhatsapp) });
-      }
-    };
-
-    if (Array.isArray(store.mainLocation?.phones)) {
-      store.mainLocation.phones.forEach(addPhone);
-    }
-    if (Array.isArray(store.locations)) {
-      for (const loc of store.locations) {
-        if (Array.isArray(loc?.phones)) {
-          loc.phones.forEach(addPhone);
-        }
-      }
-    }
-
-    // Also extract phones from store description or url if location phones was empty
-    const descContacts = extractContactsFromText(`${store.description || ''} ${store.url || ''}`);
-    if (descContacts.phone) {
-      addPhone({ phone: descContacts.phone, hasWhatsapp: Boolean(descContacts.hasWhatsapp) });
-    }
-    if (descContacts.phone2) {
-      addPhone({ phone: descContacts.phone2, hasWhatsapp: Boolean(descContacts.hasWhatsapp) });
-    }
-
-    // Extract email from store description or url if present
-    let email = descContacts.email;
-    if (!email) {
-      const allStoreText = `${store.description || ''} ${store.url || ''}`;
-      const emailMatch = allStoreText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-      if (emailMatch) {
-        email = emailMatch[0].trim().toLowerCase();
-      }
-    }
-
-    const info: StoreContactInfo = {
-      name: store.name || '',
-      phones: phoneList,
-      email,
-      imageUrl: store.imageUrl,
-      description: store.description,
-      url: store.url,
-    };
-
-    storeContactCache.set(storeId, info);
-    return info;
-  } catch {
-    // Return null silently on network timeout
-    return null;
-  }
+  const info: StoreContactInfo = { name: store.name || '', phones: phoneList, email: fromText.email, imageUrl: store.imageUrl, description: store.description, url: store.url };
+  storeContactCache.set(storeId, info);
+  return info;
 }
 
 /**
  * Extracts real Algerian phone numbers (primary & secondary) and email from announcement text/description
- * Handles:
- * - Eastern Arabic numerals (٠-٩) and Persian numerals (۰-۹)
- * - Dots: 0551.28.81.63, 05.51.28.81.63
- * - Spaces: 05 51 17 84 82, 0551 17 84 82
- * - Dashes: 05-50-12-34-56
- * - Slashes: 0551/28/81/63
- * - Continuous: 0550123456
- * - International: +213 550 12 34 56, 00213 550..., +213 (0) 550...
- * - Numbers in titles: DEPANNAGE AUTO 0551 17 84 82
- * - Multiple numbers: 0551.28.81.63 / 0779.96.21.59
- * - Fixe / Landline: 021, 023, 031, 041...
  */
 export function extractContactsFromText(text?: string): {
   phone?: string;
@@ -348,415 +226,153 @@ export function extractContactsFromText(text?: string): {
   };
 }
 
-export interface LiveScrapeOptions {
-  categorySlug?: string;
-  keywords?: string;
-  page?: number;
-  count?: number;
-}
+export interface LiveScrapeOptions { categorySlug?: string; keywords?: string; page?: number; count?: number }
 
-/**
- * Executes high-speed live GraphQL query against Ouedkniss
- * Returns 100% REAL authentic items without any mock padding.
- */
-export async function scrapeOuedknissLiveAnnouncements(
-  options: LiveScrapeOptions
-): Promise<{
+export interface LiveScrapeResult {
   products: ScrapedRawItem[];
   sellers: Map<string, SellerInfo>;
   totalEstimated: number;
+  lastPage: number;
   hasMore: boolean;
   success: boolean;
-}> {
-  const { categorySlug, keywords, page = 1, count = 28 } = options;
-
-  const searchQuery = `
-    query Search($q: String, $filter: SearchFilterInput) {
-      search(q: $q, filter: $filter) {
-        announcements {
-          data {
-            id
-            title
-            slug
-            description
-            refreshedAt
-            createdAt
-            isFromStore
-            price
-            pricePreview
-            phones {
-              phone
-              hasWhatsapp
-              hasViber
-            }
-            defaultMedia {
-              mediaUrl
-            }
-            medias {
-              mediaUrl
-            }
-            cities {
-              id
-              name
-              region {
-                id
-                name
-              }
-            }
-            specs {
-              specification {
-                codename
-                label
-              }
-              valueText
-            }
-            user {
-              id
-              username
-              phones {
-                phone
-                hasWhatsapp
-                hasViber
-              }
-            }
-            store {
-              id
-              name
-              slug
-              imageUrl
-              description
-              url
-            }
-          }
-          paginatorInfo {
-            lastPage
-            hasMorePages
-            total
-            perPage
-          }
-        }
-      }
-    }
-  `;
-
-  const filter: Record<string, any> = {
-    page: Math.max(1, page),
-    count: Math.min(100, Math.max(10, count)),
-  };
-
-  if (categorySlug && categorySlug !== 's' && categorySlug !== 'all') {
-    filter.categorySlug = categorySlug;
-  }
-
-  const variables: Record<string, any> = {
-    filter,
-  };
-
-  if (keywords && keywords.trim().length > 0) {
-    variables.q = keywords.trim();
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-
-    const response = await fetch(OUEDKNISS_GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        query: searchQuery,
-        variables,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.warn(`[Ouedkniss Live] HTTP error ${response.status}`);
-      return { products: [], sellers: new Map(), totalEstimated: 0, hasMore: false, success: false };
-    }
-
-    const payload: GraphQLSearchResponse = await response.json();
-    const dataList = payload.data?.search?.announcements?.data || [];
-    const hasMore = Boolean(payload.data?.search?.announcements?.paginatorInfo?.hasMorePages);
-
-    if (dataList.length === 0) {
-      return { products: [], sellers: new Map(), totalEstimated: 0, hasMore: false, success: true };
-    }
-
-    // Step 2: Extract unique store IDs and pre-fetch real phones concurrently for all stores
-    const storeIds = Array.from(
-      new Set(dataList.map((item) => item.store?.id).filter(Boolean) as string[])
-    );
-
-    // Fetch store contacts in parallel (max 20 at a time to prevent burst throttles)
-    await Promise.all(storeIds.slice(0, 25).map((id) => fetchStoreContacts(id)));
-
-    const products: ScrapedRawItem[] = [];
-    const sellers = new Map<string, SellerInfo>();
-
-    for (let idx = 0; idx < dataList.length; idx++) {
-      const item = dataList[idx];
-      const city = item.cities?.[0];
-      const wilayaName = city?.region?.name || city?.name || 'Algérie';
-      const cityName = city?.name || wilayaName;
-
-      // Real price calculation
-      let price = Number(item.pricePreview || item.price) || 0;
-      if (price > 0 && price < 1000) {
-        // Handle "millions de centimes" notation
-        price = price * 10000;
-      }
-
-      // Exact direct live announcement link on Ouedkniss
-      // Preserves original slug even with Arabic or Unicode characters!
-      const directUrl = item.slug
-        ? `https://www.ouedkniss.com/${item.slug}-d${item.id}`
-        : `https://www.ouedkniss.com/annonce-d${item.id}`;
-
-      // Build specs map directly from Ouedkniss real specs
-      const specsMap: Record<string, string> = {
-        Wilaya: `${wilayaName} (${cityName})`,
-        'Réf Annonce': item.id,
-        Type: item.isFromStore ? 'Boutique Pro Ouedkniss' : 'Particulier Vérifié',
-      };
-
-      if (item.specs && Array.isArray(item.specs)) {
-        for (const spec of item.specs) {
-          const label = spec.specification?.label || spec.specification?.codename;
-          const val = spec.valueText?.[0];
-          if (label && val) {
-            specsMap[label] = val;
-          }
-        }
-      }
-
-      // Brand extraction from title
-      const brandMatch = item.title.match(
-        /\b(Renault|Volkswagen|Peugeot|Dacia|Toyota|Hyundai|Kia|BMW|Mercedes|Audi|Seat|Apple|Samsung|Xiaomi|Google|Honor|Asus|Lenovo|HP|Dell|Sony|Nintendo|Rolex|Nike|Adidas|Oppo|Realme|OnePlus|Infinix|Tecno|ZTE|TCL|LG|Canon|Nikon)\b/i
-      );
-      const brand = brandMatch ? brandMatch[1] : (item.store?.name ? item.store.name : 'Ouedkniss Algérie');
-
-      // Extract real photos: defaultMedia + all items in medias array
-      const rawMedias = (item.medias || [])
-        .map((m) => m?.mediaUrl)
-        .filter(Boolean) as string[];
-
-      const primaryImage =
-        item.defaultMedia?.mediaUrl ||
-        rawMedias[0] ||
-        'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
-
-      const galleryImages = rawMedias.length > 0 ? Array.from(new Set([primaryImage, ...rawMedias])) : [primaryImage];
-
-      // Extract real contacts from ALL sources:
-      // 1. Store contacts (mainLocation, locations, store description)
-      const storeContact = item.store?.id ? storeContactCache.get(item.store.id) : null;
-
-      // 2. Title, Description, and Specs text
-      let allAnnouncementText = `${item.title || ''} ${item.description || ''}`;
-      if (item.specs && Array.isArray(item.specs)) {
-        for (const s of item.specs) {
-          const label = s.specification?.label || s.specification?.codename || '';
-          const val = s.valueText?.join(' ') || '';
-          allAnnouncementText += ` ${label}: ${val}`;
-        }
-      }
-      const descContact = extractContactsFromText(allAnnouncementText);
-
-      // Collect all candidate phones from all verified sources
-      const candidatePhones: Array<{ phone: string; hasWhatsapp?: boolean }> = [];
-      const seenCleanKeys = new Set<string>();
-
-      const registerPhone = (p?: string, wa?: boolean) => {
-        if (!p) return;
-        const clean = p.trim();
-        const digits = clean.replace(/\D/g, '').replace(/^(\+?213|00213|0)/, '');
-        if (digits.length >= 8 && digits.length <= 9 && !seenCleanKeys.has(digits)) {
-          seenCleanKeys.add(digits);
-          // Format standard national: 0X XX XX XX XX
-          const full = '0' + digits;
-          const formatted = full.length === 10
-            ? `${full.slice(0, 4)} ${full.slice(4, 6)} ${full.slice(6, 8)} ${full.slice(8, 10)}`
-            : `${full.slice(0, 3)} ${full.slice(3, 5)} ${full.slice(5, 7)} ${full.slice(7, 9)}`;
-          candidatePhones.push({ phone: formatted, hasWhatsapp: wa });
-        }
-      };
-
-      // Register store phones
-      if (storeContact?.phones) {
-        for (const sp of storeContact.phones) {
-          registerPhone(sp.phone, sp.hasWhatsapp);
-        }
-      }
-
-      // Register direct Announcement GraphQL phones
-      if (item.phones && Array.isArray(item.phones)) {
-        for (const ap of item.phones) {
-          if (ap?.phone) registerPhone(ap.phone, ap.hasWhatsapp);
-        }
-      }
-
-      // Register direct User GraphQL phones
-      if (item.user && Array.isArray((item.user as any).phones)) {
-        for (const up of (item.user as any).phones) {
-          if (up?.phone) registerPhone(up.phone, up.hasWhatsapp);
-        }
-      }
-
-      // Register phones extracted from text (title, description, specs)
-      if (descContact.phone) registerPhone(descContact.phone, descContact.hasWhatsapp);
-      if (descContact.phone2) registerPhone(descContact.phone2, descContact.hasWhatsapp);
-
-      const p1 = candidatePhones[0];
-      const p2 = candidatePhones[1];
-
-      const realPhone = p1?.phone || '';
-      const realPhone2 = p2?.phone || undefined;
-      const cleanPhone = realPhone ? realPhone.replace(/\D/g, '') : '';
-      const cleanPhone2 = realPhone2 ? realPhone2.replace(/\D/g, '') : undefined;
-
-      const hasWhatsapp = Boolean(
-        p1?.hasWhatsapp ||
-          descContact.hasWhatsapp ||
-          (cleanPhone && /^(05|06|07)/.test(cleanPhone))
-      );
-
-      const whatsappClean = cleanPhone
-        ? cleanPhone.startsWith('213')
-          ? cleanPhone
-          : `213${cleanPhone.replace(/^0/, '')}`
-        : '';
-
-      // Real email: from store or description. If none, left EMPTY ("")!
-      const realEmail = storeContact?.email || descContact.email || '';
-
-      const operator: 'Mobilis' | 'Djezzy' | 'Ooredoo' | undefined = cleanPhone.startsWith('05')
-        ? 'Ooredoo'
-        : cleanPhone.startsWith('06')
-        ? 'Mobilis'
-        : cleanPhone.startsWith('07')
-        ? 'Djezzy'
-        : undefined;
-
-      const operator2: 'Mobilis' | 'Djezzy' | 'Ooredoo' | 'Fixe' | undefined = cleanPhone2?.startsWith('05')
-        ? 'Ooredoo'
-        : cleanPhone2?.startsWith('06')
-        ? 'Mobilis'
-        : cleanPhone2?.startsWith('07')
-        ? 'Djezzy'
-        : cleanPhone2?.startsWith('02') || cleanPhone2?.startsWith('03') || cleanPhone2?.startsWith('04')
-        ? 'Fixe'
-        : undefined;
-
-      const sellerType: 'Particulier' | 'Boutique / Store Certifié' = item.isFromStore
-        ? 'Boutique / Store Certifié'
-        : 'Particulier';
-
-      const sellerName =
-        item.store?.name ||
-        (item.user?.username ? item.user.username : (item.isFromStore ? 'Boutique Certifiée Ouedkniss' : `Vendeur Particulier (${cityName})`));
-
-      const seller: SellerInfo = {
-        name: sellerName,
-        type: sellerType,
-        phone: realPhone, // Real or empty string
-        phoneClean: cleanPhone, // Real or empty string
-        phone2: realPhone2,
-        phone2Clean: cleanPhone2,
-        whatsappClean,
-        email: realEmail, // Real or empty string
-        wilaya: `${wilayaName} - ${cityName}`,
-        commune: cityName,
-        memberSince: item.createdAt
-          ? `Inscrit en ${new Date(item.createdAt).getFullYear()}`
-          : undefined,
-        rating: item.isFromStore ? 4.8 : 4.5,
-        reviewsCount: item.isFromStore ? 32 : 6,
-        verified: Boolean(item.isFromStore),
-        responseTime: item.isFromStore ? '< 15 minutes' : undefined,
-        avatarUrl:
-          item.store?.imageUrl ||
-          (item.isFromStore
-            ? `https://api.dicebear.com/7.x/identicon/svg?seed=${item.id}&backgroundColor=0f172a`
-            : undefined),
-        storeName: item.store?.name,
-        operator,
-        operator2,
-      };
-
-      const rawItem: ScrapedRawItem = {
-        id: item.id,
-        title: item.title, // 100% authentic title (with full Arabic & French support)
-        brand,
-        category: categorySlug ? translateCategorySlug(categorySlug) : 'Annonces Ouedkniss Algérie',
-        currentPrice: price,
-        originalPrice: price > 0 ? Math.round(price * 1.05) : 0,
-        currency: 'DA',
-        discountPercent: price > 0 ? 5 : 0,
-        rating: item.isFromStore ? 4.8 : 4.5,
-        reviewsCount: item.isFromStore ? 32 : 6,
-        inStock: true,
-        stockLevel: 'IN_STOCK',
-        imageUrl: primaryImage,
-        images: galleryImages, // 100% authentic CDN images from Ouedkniss
-        productUrl: directUrl, // 100% direct authentic item link
-        description: item.description || '', // Real authentic announcement description
-        publishedDate: item.refreshedAt
-          ? `Actualisé le ${new Date(item.refreshedAt).toLocaleDateString('fr-DZ')}`
-          : undefined,
-        specs: specsMap,
-      };
-
-      products.push(rawItem);
-      sellers.set(`prod_ouedkniss_${item.id}`, seller);
-    }
-
-    const matchedCat = categorySlug
-      ? OUEDKNISS_CATEGORIES.find((c) => c.slug === categorySlug || c.id === categorySlug)
-      : null;
-    const paginator = payload.data?.search?.announcements?.paginatorInfo;
-    const realTotal = (paginator as any)?.total || (paginator?.lastPage ? paginator.lastPage * 28 : undefined);
-    const totalEstimated = realTotal || matchedCat?.countEstimate || products.length;
-
-    return {
-      products: products.slice(0, count),
-      sellers,
-      totalEstimated,
-      hasMore,
-      success: true,
-    };
-  } catch (err) {
-    console.warn('[Ouedkniss Live Scraper] Network failure:', err);
-    return { products: [], sellers: new Map(), totalEstimated: 0, hasMore: false, success: false };
-  }
+  error?: string;
 }
 
-function translateCategorySlug(slug: string): string {
-  const map: Record<string, string> = {
-    automobiles: 'Véhicules & Automobiles',
-    telephones: 'Téléphones & Tablettes',
-    informatique: 'Informatique & Ordinateurs',
-    electromenager: 'Électroménager',
-    immobilier: 'Immobilier & Terrains',
-    maison: 'Maison & Mobilier',
-    vetements: 'Vêtements & Mode',
-    'jeux-video': 'Jeux Vidéo & Consoles',
-    emploi: 'Emploi & Recrutement',
-    services: 'Services & Travaux',
-    materiaux: 'Matériaux & Équipement Pro',
-    'sports-loisirs': 'Sports & Loisirs',
-    'pieces-detachees': 'Pièces Détachées Auto',
-    'voyages-tourisme': 'Voyages & Tourisme',
-    animaux: 'Animaux & Élevage',
-    'bebes-enfants': 'Bébés & Enfants',
-    'alimentation-agriculture': 'Alimentation & Agriculture',
-  };
-  return map[slug] || 'Annonces Ouedkniss Algérie';
+const SEARCH_QUERY = `query Search($q: String, $filter: SearchFilterInput) { search(q: $q, filter: $filter) { announcements {
+  data { id title slug description refreshedAt createdAt isFromStore price pricePreview
+    phones { phone hasWhatsapp hasViber } defaultMedia { mediaUrl } medias { mediaUrl }
+    cities { id name region { id name } } specs { specification { codename label } valueText }
+    user { id username phones { phone hasWhatsapp hasViber } } store { id name slug imageUrl description url } }
+  paginatorInfo { lastPage hasMorePages total perPage } } } }`;
+
+const BRAND_RE = /\b(Renault|Volkswagen|Peugeot|Dacia|Toyota|Hyundai|Kia|BMW|Mercedes|Audi|Seat|Apple|Samsung|Xiaomi|Google|Honor|Asus|Lenovo|HP|Dell|Sony|Nintendo|Rolex|Nike|Adidas|Oppo|Realme|OnePlus|Infinix|Tecno|ZTE|TCL|LG|Canon|Nikon)\b/i;
+const operatorOf = (n: string): 'Mobilis' | 'Djezzy' | 'Ooredoo' | undefined => n.startsWith('05') ? 'Ooredoo' : n.startsWith('06') ? 'Mobilis' : n.startsWith('07') ? 'Djezzy' : undefined;
+const operator2Of = (n?: string): 'Mobilis' | 'Djezzy' | 'Ooredoo' | 'Fixe' | undefined => !n ? undefined : operatorOf(n) ?? (/^0[234]/.test(n) ? 'Fixe' : undefined);
+
+export async function scrapeOuedknissLiveAnnouncements(options: LiveScrapeOptions): Promise<LiveScrapeResult> {
+  const { categorySlug, keywords, page = 1, count = 28 } = options;
+  const fail = (error: string): LiveScrapeResult => ({ products: [], sellers: new Map(), totalEstimated: 0, lastPage: 0, hasMore: false, success: false, error });
+
+  const filter: Record<string, unknown> = { page: Math.max(1, page), count: Math.min(100, Math.max(10, count)) };
+  if (categorySlug && categorySlug !== 's' && categorySlug !== 'all') filter.categorySlug = categorySlug;
+  const variables: Record<string, unknown> = { filter };
+  if (keywords && keywords.trim()) variables.q = keywords.trim();
+
+  const r = await gql(SEARCH_QUERY, variables, `search:${categorySlug || 'all'}:p${page}`);
+  if ('error' in r) return fail(r.error);
+
+  const ann = r.json?.data?.search?.announcements;
+  if (!ann) return fail('Réponse GraphQL sans champ announcements');
+  const dataList: OuedknissAnnouncementRaw[] = ann.data || [];
+  const pag = ann.paginatorInfo || {};
+  const base = { totalEstimated: Number(pag.total) || 0, lastPage: Number(pag.lastPage) || 0, hasMore: Boolean(pag.hasMorePages) };
+  if (dataList.length === 0) return { products: [], sellers: new Map(), success: true, ...base, hasMore: false };
+
+  // Contacts de TOUTES les boutiques de la page (pas de plafond silencieux), 5 requêtes en parallèle.
+  const storeIds = Array.from(new Set(dataList.map((i) => i.store?.id).filter(Boolean) as string[]));
+  const failedStores = new Set<string>();
+  for (let i = 0; i < storeIds.length; i += 5) {
+    const chunk = storeIds.slice(i, i + 5);
+    const res = await Promise.all(chunk.map((id) => fetchStoreContacts(id)));
+    res.forEach((v, k) => { if (!v) failedStores.add(chunk[k]); });
+  }
+
+  const catName = OUEDKNISS_CATEGORIES.find((c) => c.slug === categorySlug || c.id === categorySlug)?.name || categorySlug || '';
+  const products: ScrapedRawItem[] = [];
+  const sellers = new Map<string, SellerInfo>();
+
+  for (const item of dataList) {
+    const city = item.cities?.[0];
+    const wilayaName = city?.region?.name || city?.name || '';
+    const cityName = city?.name || wilayaName;
+
+    // Prix : valeur API telle quelle. Convention « millions de centimes » (valeur < 1000) conservée de l'ancien code,
+    // la valeur brute est tracée dans specs['Prix brut API'] pour audit. À valider avec le champ d'unité de l'API.
+    const rawPrice = Number(item.pricePreview || item.price) || 0;
+    const price = rawPrice > 0 && rawPrice < 1000 ? rawPrice * 10000 : rawPrice;
+
+    const directUrl = item.slug ? `https://www.ouedkniss.com/${item.slug}-d${item.id}` : `https://www.ouedkniss.com/annonce-d${item.id}`;
+
+    const specsMap: Record<string, string> = { 'Réf Annonce': item.id, Type: item.isFromStore ? 'Boutique' : 'Particulier' };
+    if (wilayaName) specsMap.Wilaya = cityName && cityName !== wilayaName ? `${wilayaName} (${cityName})` : wilayaName;
+    if (rawPrice) specsMap['Prix brut API'] = String(rawPrice);
+    if (item.createdAt) specsMap['Publiée (ISO)'] = item.createdAt;
+    if (item.refreshedAt) specsMap['Actualisée (ISO)'] = item.refreshedAt;
+    for (const s of item.specs || []) {
+      const label = s.specification?.label || s.specification?.codename;
+      const val = s.valueText?.[0];
+      if (label && val) specsMap[label] = val;
+    }
+
+    const brandMatch = item.title.match(BRAND_RE);
+    const medias = (item.medias || []).map((m) => m?.mediaUrl).filter(Boolean) as string[];
+    const primaryImage = item.defaultMedia?.mediaUrl || medias[0] || '';
+    const gallery = Array.from(new Set([primaryImage, ...medias].filter(Boolean)));
+
+    // Téléphones : API (boutique, annonce, utilisateur) puis texte de l'annonce. Provenance tracée.
+    const storeContact = item.store?.id ? storeContactCache.get(item.store.id) : undefined;
+    const phones: Array<{ formatted: string; clean: string; wa: boolean }> = [];
+    const seen = new Set<string>();
+    const sources = new Set<string>();
+    const register = (p: string | undefined, wa: boolean | undefined, src: string) => {
+      if (!p) return;
+      const digits = p.replace(/\D/g, '').replace(/^(\+?213|00213|0)/, '');
+      if (digits.length < 8 || digits.length > 9 || seen.has(digits)) return;
+      seen.add(digits); sources.add(src);
+      const full = `0${digits}`;
+      const formatted = full.length === 10 ? `${full.slice(0, 4)} ${full.slice(4, 6)} ${full.slice(6, 8)} ${full.slice(8, 10)}` : `${full.slice(0, 3)} ${full.slice(3, 5)} ${full.slice(5, 7)} ${full.slice(7, 9)}`;
+      phones.push({ formatted, clean: full, wa: Boolean(wa) });
+    };
+    storeContact?.phones.forEach((p) => register(p.phone, p.hasWhatsapp, 'boutique(API)'));
+    (item.phones || []).forEach((p) => register(p?.phone, p?.hasWhatsapp, 'annonce(API)'));
+    (item.user?.phones || []).forEach((p) => register(p?.phone, p?.hasWhatsapp, 'utilisateur(API)'));
+
+    let text = `${item.title || ''} ${item.description || ''}`;
+    for (const s of item.specs || []) text += ` ${s.specification?.label || ''}: ${(s.valueText || []).join(' ')}`;
+    const fromText = extractContactsFromText(text);
+    register(fromText.phoneClean, fromText.hasWhatsapp, 'texte annonce');
+    register(fromText.phone2Clean, fromText.hasWhatsapp, 'texte annonce');
+
+    const p1 = phones[0];
+    const p2 = phones[1];
+    const email = storeContact?.email || fromText.email || '';
+    if (sources.size) specsMap['Source contacts'] = Array.from(sources).join(', ');
+    if (item.store?.id && failedStores.has(item.store.id)) specsMap['Contacts boutique'] = 'récupération échouée';
+
+    const seller: SellerInfo = {
+      name: item.store?.name || item.user?.username || '',
+      type: item.isFromStore ? 'Boutique / Store Certifié' : 'Particulier',
+      phone: p1?.formatted || '',
+      phoneClean: p1?.clean || '',
+      phone2: p2?.formatted,
+      phone2Clean: p2?.clean,
+      whatsappClean: p1?.wa ? `213${p1.clean.replace(/^0/, '')}` : '',
+      email,
+      wilaya: wilayaName,
+      commune: cityName,
+      verified: false, // non fourni par l'API
+      avatarUrl: item.store?.imageUrl || undefined,
+      storeName: item.store?.name,
+      operator: p1 ? operatorOf(p1.clean) : undefined,
+      operator2: operator2Of(p2?.clean),
+    };
+
+    products.push({
+      id: item.id,
+      title: item.title,
+      brand: brandMatch ? brandMatch[1] : undefined,
+      category: catName,
+      currentPrice: price,
+      currency: 'DA',
+      imageUrl: primaryImage,
+      images: gallery,
+      productUrl: directUrl,
+      description: item.description || '',
+      publishedDate: item.refreshedAt ? `Actualisé le ${new Date(item.refreshedAt).toLocaleDateString('fr-DZ')}` : undefined,
+      specs: specsMap,
+    });
+    sellers.set(`prod_ouedkniss_${item.id}`, seller);
+  }
+
+  return { products: products.slice(0, count), sellers, success: true, ...base };
 }
