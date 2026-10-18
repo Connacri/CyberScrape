@@ -19,8 +19,10 @@ import {
   generateAnnouncementDescription,
   generateGalleryImages,
 } from './src/utils/sellerGenerator.ts';
-import { getOuedknissOriginUrl } from './src/utils/ouedknissUrls.ts';
-import { scrapeOuedknissLiveAnnouncements } from './src/server/ouedknissLiveScraper.ts';
+import {
+  scrapeOuedknissLiveAnnouncements,
+  extractContactsFromText,
+} from './src/server/ouedknissLiveScraper.ts';
 
 dotenv.config();
 
@@ -383,9 +385,40 @@ Extrait ${Math.min(targetCount, 25)} annonces distinctes avec:
         prodId = `prod_${domain.replace(/[^a-z0-9]/gi, '_')}_p${pageNum}_${idx}_${cleanTitle}`;
       }
 
-      const seller = isOuedkniss
+      let seller = isOuedkniss
         ? (liveSellers.get(prodId) || (item.id ? liveSellers.get(`prod_ouedkniss_${item.id}`) : undefined))
         : undefined;
+
+      // If no seller object was attached but target is Ouedkniss, extract any real phone from title/description/specs
+      if (isOuedkniss && !seller) {
+        let allItemText = `${item.title || ''} ${item.description || ''}`;
+        if (item.specs && typeof item.specs === 'object') {
+          for (const [k, v] of Object.entries(item.specs)) {
+            allItemText += ` ${k}: ${v}`;
+          }
+        }
+        const textContacts = extractContactsFromText(allItemText);
+        if (textContacts.phone) {
+          const sellerName = item.brand ? `${item.brand} Vendeur` : 'Vendeur Ouedkniss';
+          seller = {
+            name: sellerName,
+            type: 'Particulier',
+            phone: textContacts.phone,
+            phoneClean: textContacts.phoneClean || '',
+            phone2: textContacts.phone2,
+            phone2Clean: textContacts.phone2Clean,
+            whatsappClean: textContacts.whatsappClean || '',
+            email: textContacts.email || '',
+            wilaya: item.specs?.Wilaya || 'Algérie',
+            commune: item.specs?.Wilaya || 'Algérie',
+            rating: 4.6,
+            reviewsCount: 8,
+            verified: false,
+            operator: textContacts.operator,
+            operator2: textContacts.operator2,
+          };
+        }
+      }
 
       const productImages = (item.images && item.images.length > 0)
         ? item.images

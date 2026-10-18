@@ -25,6 +25,11 @@ interface OuedknissAnnouncementRaw {
   isFromStore?: boolean;
   price?: number | null;
   pricePreview?: number | null;
+  phones?: Array<{
+    phone?: string;
+    hasWhatsapp?: boolean;
+    hasViber?: boolean;
+  }> | null;
   defaultMedia?: {
     mediaUrl?: string;
   } | null;
@@ -49,6 +54,11 @@ interface OuedknissAnnouncementRaw {
   user?: {
     id?: string;
     username?: string;
+    phones?: Array<{
+      phone?: string;
+      hasWhatsapp?: boolean;
+      hasViber?: boolean;
+    }> | null;
   } | null;
   store?: {
     id: string;
@@ -155,7 +165,7 @@ async function fetchStoreContacts(storeId: string): Promise<StoreContactInfo | n
     const addPhone = (p?: { phone?: string; hasWhatsapp?: boolean }) => {
       if (!p?.phone) return;
       const clean = p.phone.trim();
-      const numOnly = clean.replace(/\D/g, '');
+      const numOnly = clean.replace(/\D/g, '').replace(/^(\+?213|00213|0)/, '');
       if (numOnly.length >= 8 && !seenPhones.has(numOnly)) {
         seenPhones.add(numOnly);
         phoneList.push({ phone: clean, hasWhatsapp: Boolean(p.hasWhatsapp) });
@@ -173,12 +183,23 @@ async function fetchStoreContacts(storeId: string): Promise<StoreContactInfo | n
       }
     }
 
+    // Also extract phones from store description or url if location phones was empty
+    const descContacts = extractContactsFromText(`${store.description || ''} ${store.url || ''}`);
+    if (descContacts.phone) {
+      addPhone({ phone: descContacts.phone, hasWhatsapp: Boolean(descContacts.hasWhatsapp) });
+    }
+    if (descContacts.phone2) {
+      addPhone({ phone: descContacts.phone2, hasWhatsapp: Boolean(descContacts.hasWhatsapp) });
+    }
+
     // Extract email from store description or url if present
-    let email: string | undefined;
-    const allStoreText = `${store.description || ''} ${store.url || ''}`;
-    const emailMatch = allStoreText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (emailMatch) {
-      email = emailMatch[0].trim().toLowerCase();
+    let email = descContacts.email;
+    if (!email) {
+      const allStoreText = `${store.description || ''} ${store.url || ''}`;
+      const emailMatch = allStoreText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (emailMatch) {
+        email = emailMatch[0].trim().toLowerCase();
+      }
     }
 
     const info: StoreContactInfo = {
@@ -199,69 +220,131 @@ async function fetchStoreContacts(storeId: string): Promise<StoreContactInfo | n
 }
 
 /**
- * Extracts real Algerian phone numbers and email from announcement text/description
- * Handles Arabic digits (٠-٩) and Latin digits, all Algerian mobile prefixes (05, 06, 07, +213, 00213) and landlines
+ * Extracts real Algerian phone numbers (primary & secondary) and email from announcement text/description
+ * Handles:
+ * - Eastern Arabic numerals (٠-٩) and Persian numerals (۰-۹)
+ * - Dots: 0551.28.81.63, 05.51.28.81.63
+ * - Spaces: 05 51 17 84 82, 0551 17 84 82
+ * - Dashes: 05-50-12-34-56
+ * - Slashes: 0551/28/81/63
+ * - Continuous: 0550123456
+ * - International: +213 550 12 34 56, 00213 550..., +213 (0) 550...
+ * - Numbers in titles: DEPANNAGE AUTO 0551 17 84 82
+ * - Multiple numbers: 0551.28.81.63 / 0779.96.21.59
+ * - Fixe / Landline: 021, 023, 031, 041...
  */
 export function extractContactsFromText(text?: string): {
   phone?: string;
   phoneClean?: string;
+  phone2?: string;
+  phone2Clean?: string;
   whatsappClean?: string;
   email?: string;
   hasWhatsapp?: boolean;
+  operator?: 'Mobilis' | 'Djezzy' | 'Ooredoo';
+  operator2?: 'Mobilis' | 'Djezzy' | 'Ooredoo' | 'Fixe';
 } {
   if (!text || typeof text !== 'string') return {};
 
-  // Normalize Eastern Arabic numerals to standard Latin digits (0-9)
-  const normalized = text.replace(/[\u0660-\u0669]/g, (d) =>
-    (d.charCodeAt(0) - 0x0660).toString()
-  );
+  // 1. Convert Arabic-Indic and Persian numerals to ASCII digits
+  const clean = text
+    .replace(/[\u0660-\u0669]/g, (d) => (d.charCodeAt(0) - 0x0660).toString())
+    .replace(/[\u06F0-\u06F9]/g, (d) => (d.charCodeAt(0) - 0x06F0).toString());
 
-  let phone: string | undefined;
-  let phoneClean: string | undefined;
-  let whatsappClean: string | undefined;
-  let hasWhatsapp = false;
+  const candidates: string[] = [];
 
-  // Search for Algerian phone numbers
-  // Matches: 05xx, 06xx, 07xx with optional spaces/dots/hyphens, or +213 / 00213
-  const phoneRegex =
-    /(?:(?:\+|00)213[\s.-]?|0)[567]\d(?:[\s.-]?\d{2}){4}|0[567]\d{8}|(?:\+|00)213[567]\d{8}|0[234]\d(?:[\s.-]?\d{2}){3}/;
-  const match = normalized.match(phoneRegex);
-
-  if (match) {
-    const rawMatch = match[0].trim();
-    const digitsOnly = rawMatch.replace(/\D/g, '');
-    if (digitsOnly.length >= 9) {
-      if (digitsOnly.startsWith('213')) {
-        phoneClean = digitsOnly;
-        phone = '0' + digitsOnly.slice(3);
-        whatsappClean = digitsOnly;
-      } else if (digitsOnly.startsWith('0')) {
-        phoneClean = digitsOnly;
-        phone = digitsOnly;
-        whatsappClean = '213' + digitsOnly.slice(1);
-      }
-
-      // Check if WhatsApp or Viber mentioned in text
-      if (/(whatsapp|واتساب|واتس|viber|فايبر)/i.test(normalized)) {
-        hasWhatsapp = true;
-      }
+  // International prefix: +213, 00213, (+213), (00213), or 213 followed by 8 or 9 digits
+  const intlRegex = /(?:(?:\+|00|\(\+?|\(00)213[\s./_-]*(?:\(0\)[\s./_-]*)?|(?:\b213[\s./_-]+))([2-7](?:[\s./_()-]*\d){7,8})/gi;
+  let m: RegExpExecArray | null;
+  while ((m = intlRegex.exec(clean)) !== null) {
+    const rawDigits = m[1].replace(/\D/g, '');
+    if (rawDigits.length === 8 || rawDigits.length === 9) {
+      candidates.push('0' + rawDigits);
     }
   }
 
-  // Search for real email
+  // National mobile and landline: Starts with 0[2-7], followed by 7 or 8 digits with optional separators
+  const nationalRegex = /(?:^|[^\d+])(0[2-7](?:[\s./_()-]*\d){7,8})(?=[^\d]|$)/gi;
+  while ((m = nationalRegex.exec(clean)) !== null) {
+    const rawDigits = m[1].replace(/\D/g, '');
+    if (rawDigits.length === 9 || rawDigits.length === 10) {
+      candidates.push(rawDigits);
+    }
+  }
+
+  // 9-digit mobile numbers without leading 0 after keyword (e.g. "Tél: 550 12 34 56" or "appelez au 770...")
+  const kwRegex = /(?:tel|tél|telephone|téléphone|phone|mob|mobile|contact|whatsapp|wa|appeler|numéro|numero|num|اتصل|هاتف|رقم|واتساب)[\s.:/_-]*(?:au|a|sur|par)?[\s.:/_-]*([567](?:[\s./_()-]*\d){8})(?=[^\d]|$)/gi;
+  while ((m = kwRegex.exec(clean)) !== null) {
+    const rawDigits = m[1].replace(/\D/g, '');
+    if (rawDigits.length === 9) {
+      candidates.push('0' + rawDigits);
+    }
+  }
+
+  // Also catch contiguous 10-digit Algerian numbers embedded without spaces (e.g. .0655778710.3tn)
+  const embedRegex = /(0[567]\d{8})/g;
+  while ((m = embedRegex.exec(clean)) !== null) {
+    candidates.push(m[1]);
+  }
+
+  // Deduplicate candidates preserving order
+  const seen = new Set<string>();
+  const phoneList: Array<{ formatted: string; clean: string; whatsappClean: string }> = [];
+
+  for (const c of candidates) {
+    if (!seen.has(c) && (c.length === 9 || c.length === 10) && /^0[2-7]/.test(c)) {
+      seen.add(c);
+      const formatted = c.length === 10
+        ? `${c.slice(0, 4)} ${c.slice(4, 6)} ${c.slice(6, 8)} ${c.slice(8, 10)}`
+        : `${c.slice(0, 3)} ${c.slice(3, 5)} ${c.slice(5, 7)} ${c.slice(7, 9)}`;
+      const cleanPhone = c;
+      const whatsappClean = '213' + c.slice(1);
+      phoneList.push({ formatted, clean: cleanPhone, whatsappClean });
+    }
+  }
+
+  // Check if WhatsApp or Viber mentioned in text
+  const hasWhatsappMention = /(whatsapp|واتساب|واتس|viber|فايبر|wa\.me)/i.test(clean);
+
+  // Email extraction
   let email: string | undefined;
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-  const emailMatch = normalized.match(emailRegex);
+  const emailMatch = clean.match(emailRegex);
   if (emailMatch) {
     email = emailMatch[0].trim().toLowerCase();
   }
 
+  const p1 = phoneList[0];
+  const p2 = phoneList[1];
+
+  const operator1: 'Mobilis' | 'Djezzy' | 'Ooredoo' | undefined = p1?.clean.startsWith('05')
+    ? 'Ooredoo'
+    : p1?.clean.startsWith('06')
+    ? 'Mobilis'
+    : p1?.clean.startsWith('07')
+    ? 'Djezzy'
+    : undefined;
+
+  const operator2: 'Mobilis' | 'Djezzy' | 'Ooredoo' | 'Fixe' | undefined = p2?.clean.startsWith('05')
+    ? 'Ooredoo'
+    : p2?.clean.startsWith('06')
+    ? 'Mobilis'
+    : p2?.clean.startsWith('07')
+    ? 'Djezzy'
+    : p2?.clean.startsWith('02') || p2?.clean.startsWith('03') || p2?.clean.startsWith('04')
+    ? 'Fixe'
+    : undefined;
+
   return {
-    phone,
-    phoneClean,
-    whatsappClean,
+    phone: p1?.formatted,
+    phoneClean: p1?.clean,
+    phone2: p2?.formatted,
+    phone2Clean: p2?.clean,
+    whatsappClean: p1?.whatsappClean,
     email,
-    hasWhatsapp,
+    hasWhatsapp: hasWhatsappMention || (p1 ? /^(05|06|07)/.test(p1.clean) : false),
+    operator: operator1,
+    operator2,
   };
 }
 
@@ -301,6 +384,11 @@ export async function scrapeOuedknissLiveAnnouncements(
             isFromStore
             price
             pricePreview
+            phones {
+              phone
+              hasWhatsapp
+              hasViber
+            }
             defaultMedia {
               mediaUrl
             }
@@ -325,6 +413,11 @@ export async function scrapeOuedknissLiveAnnouncements(
             user {
               id
               username
+              phones {
+                phone
+                hasWhatsapp
+                hasViber
+              }
             }
             store {
               id
@@ -462,21 +555,75 @@ export async function scrapeOuedknissLiveAnnouncements(
 
       const galleryImages = rawMedias.length > 0 ? Array.from(new Set([primaryImage, ...rawMedias])) : [primaryImage];
 
-      // Extract real contacts from store query and announcement text
+      // Extract real contacts from ALL sources:
+      // 1. Store contacts (mainLocation, locations, store description)
       const storeContact = item.store?.id ? storeContactCache.get(item.store.id) : null;
-      const descContact = extractContactsFromText(
-        `${item.description || ''} ${item.title || ''}`
-      );
 
-      // Real primary phone: first from store, or from description
-      // If neither exists, left EMPTY ("") as strictly requested!
-      const realPhone = storeContact?.phones?.[0]?.phone || descContact.phone || '';
-      const realPhone2 = storeContact?.phones?.[1]?.phone || undefined;
+      // 2. Title, Description, and Specs text
+      let allAnnouncementText = `${item.title || ''} ${item.description || ''}`;
+      if (item.specs && Array.isArray(item.specs)) {
+        for (const s of item.specs) {
+          const label = s.specification?.label || s.specification?.codename || '';
+          const val = s.valueText?.join(' ') || '';
+          allAnnouncementText += ` ${label}: ${val}`;
+        }
+      }
+      const descContact = extractContactsFromText(allAnnouncementText);
+
+      // Collect all candidate phones from all verified sources
+      const candidatePhones: Array<{ phone: string; hasWhatsapp?: boolean }> = [];
+      const seenCleanKeys = new Set<string>();
+
+      const registerPhone = (p?: string, wa?: boolean) => {
+        if (!p) return;
+        const clean = p.trim();
+        const digits = clean.replace(/\D/g, '').replace(/^(\+?213|00213|0)/, '');
+        if (digits.length >= 8 && digits.length <= 9 && !seenCleanKeys.has(digits)) {
+          seenCleanKeys.add(digits);
+          // Format standard national: 0X XX XX XX XX
+          const full = '0' + digits;
+          const formatted = full.length === 10
+            ? `${full.slice(0, 4)} ${full.slice(4, 6)} ${full.slice(6, 8)} ${full.slice(8, 10)}`
+            : `${full.slice(0, 3)} ${full.slice(3, 5)} ${full.slice(5, 7)} ${full.slice(7, 9)}`;
+          candidatePhones.push({ phone: formatted, hasWhatsapp: wa });
+        }
+      };
+
+      // Register store phones
+      if (storeContact?.phones) {
+        for (const sp of storeContact.phones) {
+          registerPhone(sp.phone, sp.hasWhatsapp);
+        }
+      }
+
+      // Register direct Announcement GraphQL phones
+      if (item.phones && Array.isArray(item.phones)) {
+        for (const ap of item.phones) {
+          if (ap?.phone) registerPhone(ap.phone, ap.hasWhatsapp);
+        }
+      }
+
+      // Register direct User GraphQL phones
+      if (item.user && Array.isArray((item.user as any).phones)) {
+        for (const up of (item.user as any).phones) {
+          if (up?.phone) registerPhone(up.phone, up.hasWhatsapp);
+        }
+      }
+
+      // Register phones extracted from text (title, description, specs)
+      if (descContact.phone) registerPhone(descContact.phone, descContact.hasWhatsapp);
+      if (descContact.phone2) registerPhone(descContact.phone2, descContact.hasWhatsapp);
+
+      const p1 = candidatePhones[0];
+      const p2 = candidatePhones[1];
+
+      const realPhone = p1?.phone || '';
+      const realPhone2 = p2?.phone || undefined;
       const cleanPhone = realPhone ? realPhone.replace(/\D/g, '') : '';
       const cleanPhone2 = realPhone2 ? realPhone2.replace(/\D/g, '') : undefined;
 
       const hasWhatsapp = Boolean(
-        storeContact?.phones?.[0]?.hasWhatsapp ||
+        p1?.hasWhatsapp ||
           descContact.hasWhatsapp ||
           (cleanPhone && /^(05|06|07)/.test(cleanPhone))
       );

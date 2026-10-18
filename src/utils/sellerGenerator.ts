@@ -153,7 +153,6 @@ export function generateSellerForProduct(
   wilayaHint?: string
 ): SellerInfo {
   const seed = hashString(productId);
-  const phoneData = generateAlgerianPhone(seed);
 
   // Determine category-coherent seller type and name pool
   const catLower = category.toLowerCase();
@@ -203,15 +202,18 @@ export function generateSellerForProduct(
   }
 
   const name = namePool[seed % namePool.length];
-  const avatarUrl = AVATAR_POOL[seed % AVATAR_POOL.length];
-  const responseTime = RESPONSE_TIMES[seed % RESPONSE_TIMES.length];
-  const memberSince = MEMBER_SINCE[seed % MEMBER_SINCE.length];
+  // Deterministic seed derived directly from seller identity to prevent duplicate contacts
+  const sellerSeed = hashString(name);
+  const phoneData = generateAlgerianPhone(sellerSeed);
+  const avatarUrl = AVATAR_POOL[sellerSeed % AVATAR_POOL.length];
+  const responseTime = RESPONSE_TIMES[sellerSeed % RESPONSE_TIMES.length];
+  const memberSince = MEMBER_SINCE[sellerSeed % MEMBER_SINCE.length];
 
-  const wilaya = wilayaHint || getRandom69Wilaya(seed);
+  const wilaya = wilayaHint || getRandom69Wilaya(sellerSeed);
   const commune = wilaya.includes('-') ? wilaya.split('-')[1]?.trim() : wilaya;
 
   // Generate 2nd Algerian phone number (different operator for maximum reach)
-  const seed2 = seed * 13 + 37;
+  const seed2 = sellerSeed * 13 + 37;
   const phoneData2 = generateAlgerianPhone(seed2);
   const finalOperator2 = phoneData2.operator === phoneData.operator
     ? (phoneData.operator === 'Mobilis' ? 'Djezzy' : phoneData.operator === 'Djezzy' ? 'Ooredoo' : 'Mobilis')
@@ -225,12 +227,12 @@ export function generateSellerForProduct(
     phone2: phoneData2.formatted,
     phone2Clean: phoneData2.clean,
     whatsappClean: phoneData.whatsapp,
-    email: generateSellerEmail(name, type, seed),
+    email: generateSellerEmail(name, type, sellerSeed),
     wilaya,
     commune,
     memberSince,
-    rating: Math.round((4.6 + (seed % 4) * 0.1) * 10) / 10,
-    reviewsCount: 15 + (seed % 230),
+    rating: Math.round((4.6 + (sellerSeed % 4) * 0.1) * 10) / 10,
+    reviewsCount: 15 + (sellerSeed % 230),
     responseTime,
     verified: true,
     avatarUrl,

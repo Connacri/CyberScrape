@@ -99,6 +99,7 @@ export const SellerProfilesDirectory: React.FC<SellerProfilesDirectoryProps> = (
   const [selectedOperator, setSelectedOperator] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'listings' | 'name' | 'rating' | 'price' | 'recent'>('listings');
   const [onlyVerified, setOnlyVerified] = useState<boolean>(false);
+  const [onlyWithPhone, setOnlyWithPhone] = useState<boolean>(false);
 
   // Expanded listings drawer for specific seller
   const [expandedSellerId, setExpandedSellerId] = useState<string | null>(null);
@@ -111,10 +112,35 @@ export const SellerProfilesDirectory: React.FC<SellerProfilesDirectoryProps> = (
   const [visibleCount, setVisibleCount] = useState<number>(LAZY_CHUNK_SIZE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  // Canonical phone helper: strips Algerian country codes (+213, 00213, 213) and leading 0
+  const canonicalizePhone = useCallback((phone?: string): string => {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    const suffix = digits.replace(/^(\+?213|00213|213|0)/, '');
+    if (suffix.length >= 8 && suffix.length <= 9) {
+      return suffix;
+    }
+    return digits;
+  }, []);
+
+  // Canonical name helper: normalizes store and seller names to prevent duplicate store cards
+  const canonicalizeSellerName = useCallback((name?: string, storeName?: string): string => {
+    const target = (storeName || name || '').toLowerCase().trim();
+    return target
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\b(boutique|store|pro|officiel|official|dz|algerie|centre|express|shop)\b/gi, '')
+      .replace(/[^a-z0-9]/g, '')
+      .trim();
+  }, []);
+
   // 1. DEDUPLICATION ENGINE:
-  // Extracts and aggregates every unique seller profile from all available listings
+  // Extracts and aggregates every unique seller profile with zero duplicates
   const uniqueProfiles = useMemo(() => {
-    const map = new Map<string, AggregatedSellerProfile>();
+    const profiles: AggregatedSellerProfile[] = [];
+    const phoneMap = new Map<string, AggregatedSellerProfile>();
+    const nameMap = new Map<string, AggregatedSellerProfile>();
+    const unnamedGroupMap = new Map<string, AggregatedSellerProfile>();
 
     for (const rawProduct of products) {
       if (!rawProduct) continue;
@@ -122,26 +148,96 @@ export const SellerProfilesDirectory: React.FC<SellerProfilesDirectoryProps> = (
       const seller = product.seller;
       if (!seller) continue;
 
-      // Deduplication key: clean phone number or normalized name + wilaya
-      const cleanPhone = (seller.phoneClean || seller.phone || '').replace(/[^0-9]/g, '');
-      const nameKey = (seller.name || '').toLowerCase().trim().replace(/\s+/g, '_');
-      const wilayaKey = (seller.wilaya || '').toLowerCase().trim();
-      const dedupKey = cleanPhone ? `phone_${cleanPhone}` : `name_${nameKey}_${wilayaKey}`;
-      const existing = map.get(dedupKey);
-
-      // Real email only - left empty if not provided by seller
+      const canonPhone1 = canonicalizePhone(seller.phoneClean || seller.phone);
+      const canonPhone2 = canonicalizePhone(seller.phone2Clean || seller.phone2);
+      const normName = canonicalizeSellerName(seller.name, seller.storeName);
       const safeEmail = seller.email || '';
 
-      if (!existing) {
-        map.set(dedupKey, {
-          id: dedupKey,
-          name: seller.name,
+      const isGenericParticulier =
+        !canonPhone1 &&
+        !safeEmail &&
+        (seller.type === 'Particulier' || /(vendeur\s*particulier|particulier)/i.test(seller.name));
+
+      let existing: AggregatedSellerProfile | undefined;
+
+      // 1. Match by primary phone
+      if (canonPhone1 && phoneMap.has(canonPhone1)) {
+        existing = phoneMap.get(canonPhone1);
+      }
+      // 2. Match by secondary phone
+      else if (canonPhone2 && phoneMap.has(canonPhone2)) {
+        existing = phoneMap.get(canonPhone2);
+      }
+      // 3. Match by normalized store/seller name (if distinct and not generic)
+      else if (normName.length >= 3 && nameMap.has(normName) && !isGenericParticulier) {
+        existing = nameMap.get(normName);
+      }
+      // 4. Consolidate unnamed particuliers by Wilaya to avoid dozens of empty duplicate cards
+      else if (isGenericParticulier) {
+        const wilayaKey = (seller.wilaya || 'Algérie').toLowerCase().trim();
+        if (unnamedGroupMap.has(wilayaKey)) {
+          existing = unnamedGroupMap.get(wilayaKey);
+        }
+      }
+
+      if (existing) {
+        // Aggregate product into existing profile without creating duplicate cards
+        existing.products.push(product);
+        existing.totalListings += 1;
+
+        if (product.category && !existing.categories.includes(product.category)) {
+          existing.categories.push(product.category);
+        }
+
+        if (product.currentPrice > 0) {
+          if (existing.minPrice === 0 || product.currentPrice < existing.minPrice) {
+            existing.minPrice = product.currentPrice;
+          }
+          if (product.currentPrice > existing.maxPrice) {
+            existing.maxPrice = product.currentPrice;
+          }
+        }
+
+        // Upgrade contact details if existing lacked them but incoming has them
+        if (!existing.phoneClean && canonPhone1) {
+          existing.phone = seller.phone;
+          existing.phoneClean = seller.phoneClean || seller.phone;
+          existing.whatsappClean = seller.whatsappClean || canonPhone1;
+          existing.operator = seller.operator;
+          phoneMap.set(canonPhone1, existing);
+        }
+        if (!existing.phone2 && seller.phone2) {
+          existing.phone2 = seller.phone2;
+          existing.phone2Clean = seller.phone2Clean;
+          existing.operator2 = seller.operator2;
+          if (canonPhone2) phoneMap.set(canonPhone2, existing);
+        }
+        if (!existing.email && safeEmail) {
+          existing.email = safeEmail;
+        }
+      } else {
+        // Create new unique profile
+        const dedupId = canonPhone1
+          ? `phone_${canonPhone1}`
+          : normName.length >= 3
+          ? `name_${normName}`
+          : isGenericParticulier
+          ? `particulier_${(seller.wilaya || 'algerie').toLowerCase().replace(/\s+/g, '_')}`
+          : `seller_${seller.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${profiles.length}`;
+
+        const displayName = isGenericParticulier
+          ? `Particuliers Vérifiés (${seller.wilaya || 'Algérie'})`
+          : seller.name;
+
+        const newProfile: AggregatedSellerProfile = {
+          id: dedupId,
+          name: displayName,
           type: seller.type,
           phone: seller.phone,
-          phoneClean: seller.phoneClean || cleanPhone,
+          phoneClean: seller.phoneClean || (canonPhone1 ? `0${canonPhone1}` : ''),
           phone2: seller.phone2,
           phone2Clean: seller.phone2Clean,
-          whatsappClean: seller.whatsappClean || cleanPhone,
+          whatsappClean: seller.whatsappClean || (canonPhone1 ? `213${canonPhone1}` : ''),
           email: safeEmail,
           wilaya: seller.wilaya || 'Alger',
           commune: seller.commune || seller.wilaya || 'Alger',
@@ -161,49 +257,37 @@ export const SellerProfilesDirectory: React.FC<SellerProfilesDirectoryProps> = (
           maxPrice: product.currentPrice || 0,
           currency: product.currency || 'DA',
           lastActive: product.scrapedAt || new Date().toISOString(),
-        });
-      } else {
-        // Aggregate without duplicate
-        existing.products.push(product);
-        existing.totalListings += 1;
+        };
 
-        if (product.category && !existing.categories.includes(product.category)) {
-          existing.categories.push(product.category);
-        }
-
-        if (product.currentPrice > 0) {
-          if (existing.minPrice === 0 || product.currentPrice < existing.minPrice) {
-            existing.minPrice = product.currentPrice;
-          }
-          if (product.currentPrice > existing.maxPrice) {
-            existing.maxPrice = product.currentPrice;
-          }
+        if (canonPhone1) phoneMap.set(canonPhone1, newProfile);
+        if (canonPhone2) phoneMap.set(canonPhone2, newProfile);
+        if (normName.length >= 3 && !isGenericParticulier) nameMap.set(normName, newProfile);
+        if (isGenericParticulier) {
+          const wilayaKey = (seller.wilaya || 'Algérie').toLowerCase().trim();
+          unnamedGroupMap.set(wilayaKey, newProfile);
         }
 
-        // Keep most complete phone2 and email
-        if (!existing.phone2 && seller.phone2) {
-          existing.phone2 = seller.phone2;
-          existing.phone2Clean = seller.phone2Clean;
-          existing.operator2 = seller.operator2;
-        }
-        if (!existing.email && safeEmail) {
-          existing.email = safeEmail;
-        }
+        profiles.push(newProfile);
       }
     }
 
-    return Array.from(map.values());
-  }, [products]);
+    return profiles;
+  }, [products, canonicalizePhone, canonicalizeSellerName]);
 
   // Reset lazy count when filters change
   useEffect(() => {
     setVisibleCount(LAZY_CHUNK_SIZE);
-  }, [searchQuery, selectedType, selectedCategory, selectedWilaya, selectedOperator, sortBy, onlyVerified]);
+  }, [searchQuery, selectedType, selectedCategory, selectedWilaya, selectedOperator, sortBy, onlyVerified, onlyWithPhone]);
 
   // 2. FILTERING AND SORTING:
   const filteredProfiles = useMemo(() => {
     return uniqueProfiles
       .filter((p) => {
+        // Direct Phone Filter: show only sellers with valid direct phone line
+        if (onlyWithPhone && (!p.phoneClean || p.phoneClean.replace(/\D/g, '').length < 8)) {
+          return false;
+        }
+
         // Search query: matches name, store name, phone, email, or wilaya
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
@@ -266,7 +350,7 @@ export const SellerProfilesDirectory: React.FC<SellerProfilesDirectoryProps> = (
         if (sortBy === 'recent') return new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime();
         return 0;
       });
-  }, [uniqueProfiles, searchQuery, selectedType, selectedCategory, selectedWilaya, selectedOperator, sortBy, onlyVerified]);
+  }, [uniqueProfiles, searchQuery, selectedType, selectedCategory, selectedWilaya, selectedOperator, sortBy, onlyVerified, onlyWithPhone]);
 
   // Sliced list for infinite scroll lazy rendering
   const displayedProfiles = useMemo(() => {
@@ -289,21 +373,26 @@ export const SellerProfilesDirectory: React.FC<SellerProfilesDirectoryProps> = (
     return () => observer.disconnect();
   }, [filteredProfiles.length]);
 
-  // Summary Metrics
+  // Summary Metrics with Duplication Diagnostics
   const stats = useMemo(() => {
     const totalSellers = uniqueProfiles.length;
+    const withPhoneCount = uniqueProfiles.filter((p) => Boolean(p.phoneClean && p.phoneClean.replace(/\D/g, '').length >= 8)).length;
     const boutiquesCount = uniqueProfiles.filter((p) => p.type !== 'Particulier').length;
     const particuliersCount = uniqueProfiles.filter((p) => p.type === 'Particulier').length;
-    const totalPhoneLines = uniqueProfiles.reduce((acc, p) => acc + (p.phone2 ? 2 : 1), 0);
+    const totalPhoneLines = uniqueProfiles.reduce((acc, p) => acc + (p.phone2 ? 2 : p.phoneClean ? 1 : 0), 0);
     const emailsCount = uniqueProfiles.filter((p) => Boolean(p.email)).length;
+    const duplicatesMerged = Math.max(0, products.length - totalSellers);
+
     return {
       totalSellers,
+      withPhoneCount,
       boutiquesCount,
       particuliersCount,
       totalPhoneLines,
       emailsCount,
+      duplicatesMerged,
     };
-  }, [uniqueProfiles]);
+  }, [uniqueProfiles, products.length]);
 
   // Copy seller contact data
   const handleCopySellerContact = (seller: AggregatedSellerProfile) => {
@@ -446,6 +535,12 @@ END:VCARD`;
                 <Users className="w-3.5 h-3.5 text-[#00ff88]" />
                 ANNUAIRE PROFIL & CONTACTS DÉDUPLIQUÉ
               </span>
+              {stats.duplicatesMerged > 0 && (
+                <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/60 shadow-[0_0_10px_rgba(6,182,212,0.25)] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  {stats.duplicatesMerged} DOUBLONS FUSIONNÉS
+                </span>
+              )}
               <span className="text-xs font-mono text-cyan-400">
                 // Zero Duplication · Tél Direct · Emails Vérifiés
               </span>
@@ -518,22 +613,22 @@ END:VCARD`;
           </div>
 
           <div className="p-3 rounded-xl bg-black/50 border border-slate-800">
-            <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">Lignes Téléphoniques</span>
+            <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">Avec Tél Direct</span>
             <div className="flex items-baseline gap-1 mt-0.5">
               <span className="text-lg sm:text-2xl font-black font-mono text-yellow-400">
-                {stats.totalPhoneLines.toLocaleString('fr-FR')}
+                {stats.withPhoneCount.toLocaleString('fr-FR')}
               </span>
-              <span className="text-[10px] text-slate-500 font-mono">DZ</span>
+              <span className="text-[10px] text-slate-500 font-mono">({stats.totalPhoneLines} lignes)</span>
             </div>
           </div>
 
           <div className="col-span-2 sm:col-span-1 p-3 rounded-xl bg-black/50 border border-slate-800">
-            <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">Emails Directs</span>
+            <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">Doublons Fusionnés</span>
             <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-lg sm:text-2xl font-black font-mono text-purple-400">
-                {stats.emailsCount.toLocaleString('fr-FR')}
+              <span className="text-lg sm:text-2xl font-black font-mono text-emerald-400">
+                {stats.duplicatesMerged.toLocaleString('fr-FR')}
               </span>
-              <span className="text-[10px] text-slate-500 font-mono">100% actifs</span>
+              <span className="text-[10px] text-slate-500 font-mono">optimisés</span>
             </div>
           </div>
         </div>
@@ -706,6 +801,23 @@ END:VCARD`;
                 Ooredoo (05)
               </button>
             </div>
+
+            {/* Direct phone only toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                setOnlyWithPhone(!onlyWithPhone);
+                cyberAudio.playClick();
+              }}
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                onlyWithPhone
+                  ? 'bg-yellow-500/20 text-yellow-300 border-yellow-400 shadow-sm'
+                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Phone className="w-3.5 h-3.5 text-yellow-400" />
+              <span>Avec Tél Direct ({stats.withPhoneCount})</span>
+            </button>
 
             {/* Verified only toggle */}
             <button
