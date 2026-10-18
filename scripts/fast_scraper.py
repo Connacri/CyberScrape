@@ -115,6 +115,9 @@ def extract_algerian_contacts(text: str) -> dict:
 def fetch_page(category_slug: str, page: int, count: int = 60, keywords: str = None, retries: int = 3) -> dict:
     """Exécute une requête GraphQL pour une page avec retry et backoff."""
     variables = {
+        # FIX: envoyer TOUJOURS "q" (chaîne vide au lieu de l'omettre) — l'API peut
+        # renvoyer une réponse vide sans erreur quand la variable est absente.
+        "q": keywords or "",
         "filter": {
             "page": page,
             "count": count,
@@ -122,8 +125,6 @@ def fetch_page(category_slug: str, page: int, count: int = 60, keywords: str = N
     }
     if category_slug and category_slug not in ("all", "s"):
         variables["filter"]["categorySlug"] = category_slug
-    if keywords:
-        variables["q"] = keywords
 
     payload = json.dumps({"query": SEARCH_QUERY, "variables": variables}).encode("utf-8")
 
@@ -132,6 +133,12 @@ def fetch_page(category_slug: str, page: int, count: int = 60, keywords: str = N
             req = Request(GRAPHQL_ENDPOINT, data=payload, headers=BROWSER_HEADERS, method="POST")
             with urlopen(req, timeout=15) as res:
                 data = json.loads(res.read().decode("utf-8"))
+                # FIX: ne pas avaler les erreurs GraphQL — une réponse 200 avec "errors"
+                # était silencieusement interprétée comme « aucun résultat ».
+                gql_errors = data.get("errors")
+                if gql_errors and not data.get("data", {}).get("search"):
+                    msgs = "; ".join(str(e.get("message", "")) for e in gql_errors)
+                    return {"page": page, "items": [], "error": f"GraphQL: {msgs}", "success": False}
                 ann = data.get("data", {}).get("search", {}).get("announcements", {})
                 return {
                     "page": page,
@@ -212,8 +219,19 @@ def run_fast_crawl(category: str = "automobiles", max_pages: int = 10, concurren
     # Première page pour obtenir les totaux
     p1 = fetch_page(category, 1, count=60)
     if not p1["success"] or not p1["items"]:
-        print(f"❌ Échec de la page initiale : {p1.get('error')}")
-        return
+        # FIX: l'API peut ignorer silencieusement un categorySlug inconnu et renvoyer
+        # une réponse vide SANS erreur. Retry sans filtre de catégorie pour distinguer
+        # « catégorie réellement vide » d'un blocage silencieux.
+        if category not in ("all", "s"):
+            print(f"⚠️  Aucun résultat avec la catégorie « {category} » — nouvel essai sans filtre de catégorie…")
+            p1 = fetch_page("all", 1, count=60)
+            if p1["success"] and p1["items"]:
+                print(f"✅ Résultats obtenus sans catégorie : le slug « {category} » est probablement invalide/ignoré.")
+                category = "all"
+        if not p1["success"] or not p1["items"]:
+            reason = p1.get("error") or "réponse vide sans erreur (filtre ignoré par l'API ?)"
+            print(f"❌ Échec de la page initiale : {reason}")
+            return
 
     total_in_cat = p1["paginator"].get("total", 0)
     last_page = p1["paginator"].get("lastPage", max_pages)
