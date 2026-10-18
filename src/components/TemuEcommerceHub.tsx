@@ -54,7 +54,6 @@ import {
   TEMU_OFFICIAL_DEPARTMENTS,
   TEMU_HOT_TRENDING_SEARCHES,
 } from '../utils/categoryMatcher';
-import { INITIAL_DEMO_PRODUCTS } from '../data/initialDemoProducts';
 
 interface TemuEcommerceHubProps {
   products?: ScrapedProduct[];
@@ -222,10 +221,6 @@ export const TemuEcommerceHub: React.FC<TemuEcommerceHubProps> = ({
       list.push(p);
     }
 
-    // If still empty (e.g. fresh install with no scraped data yet), fallback to INITIAL_DEMO_PRODUCTS
-    if (list.length === 0) {
-      return INITIAL_DEMO_PRODUCTS;
-    }
     return list;
   }, [cloudProducts, products]);
 

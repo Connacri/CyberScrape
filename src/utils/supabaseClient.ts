@@ -597,9 +597,22 @@ export async function syncProductsToSupabase(
           in_stock: p.inStock,
           stock_level: p.stockLevel,
           image_url: p.imageUrl,
+          images: p.images && p.images.length > 0 ? p.images : [p.imageUrl],
           product_url: p.productUrl,
           source_domain: p.sourceDomain,
-          price_history: p.priceHistory,
+          description: p.description || null,
+          seller: p.seller || null,
+          seller_name: p.seller?.name || null,
+          seller_phone: p.seller?.phone || null,
+          seller_email: p.seller?.email || null,
+          seller_wilaya: p.seller?.wilaya || null,
+          item_type: p.itemType || (p.isOfficialStore ? 'boutique' : 'annonce'),
+          is_official_store: Boolean(p.isOfficialStore),
+          is_sponsored: Boolean(p.isSponsored),
+          published_date: p.publishedDate || null,
+          price_type: p.priceType || 'Fixe',
+          delivery_available: p.deliveryAvailable !== false,
+          price_history: p.priceHistory || [],
           specs: enrichedSpecs,
           ai_confidence: p.aiConfidence,
           matrix_hash: p.matrixHash || null,
@@ -608,12 +621,41 @@ export async function syncProductsToSupabase(
         };
       });
 
-      const { error } = await client
-        .from(config.tableName || 'scraped_products')
+      const tableName = config.tableName || 'scraped_products';
+      let upsertRes = await client
+        .from(tableName)
         .upsert(rows, { onConflict: 'id' });
 
-      if (error) {
-        return { success: false, count: totalSynced, error: error.message };
+      // If Postgres returns missing column error on older schemas, fallback to core columns
+      if (upsertRes.error && /column.*does not exist/i.test(upsertRes.error.message)) {
+        const coreRows = rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          brand: r.brand,
+          category: r.category,
+          current_price: r.current_price,
+          original_price: r.original_price,
+          currency: r.currency,
+          discount_percent: r.discount_percent,
+          rating: r.rating,
+          reviews_count: r.reviews_count,
+          in_stock: r.in_stock,
+          stock_level: r.stock_level,
+          image_url: r.image_url,
+          product_url: r.product_url,
+          source_domain: r.source_domain,
+          price_history: r.price_history,
+          specs: r.specs,
+          ai_confidence: r.ai_confidence,
+          matrix_hash: r.matrix_hash,
+          scraped_at: r.scraped_at,
+          last_updated: r.last_updated,
+        }));
+        upsertRes = await client.from(tableName).upsert(coreRows, { onConflict: 'id' });
+      }
+
+      if (upsertRes.error) {
+        return { success: false, count: totalSynced, error: upsertRes.error.message };
       }
       totalSynced += rows.length;
       if (onProgress) {
@@ -1326,7 +1368,8 @@ export async function fetchSupabaseTrendsAnalytics(
 export function generateSupabaseSqlSchema(tableName = 'scraped_products'): string {
   return `-- -------------------------------------------------------------
 -- CYBER-VACUUM // SUPABASE SQL SCHEMA GENERATOR
--- Exécutez ce script dans votre éditeur Supabase SQL
+-- Schéma 100% aligné sur les annonces réelles Ouedkniss.com
+-- Exécutez ce script dans votre éditeur Supabase SQL Editor
 -- -------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.${tableName} (
@@ -1334,8 +1377,8 @@ CREATE TABLE IF NOT EXISTS public.${tableName} (
   title TEXT NOT NULL,
   brand TEXT,
   category TEXT NOT NULL,
-  current_price NUMERIC(10, 2) NOT NULL,
-  original_price NUMERIC(10, 2),
+  current_price NUMERIC(12, 2) NOT NULL,
+  original_price NUMERIC(12, 2),
   currency VARCHAR(10) DEFAULT 'DA',
   discount_percent INT DEFAULT 0,
   rating NUMERIC(3, 2) DEFAULT 0,
@@ -1343,15 +1386,43 @@ CREATE TABLE IF NOT EXISTS public.${tableName} (
   in_stock BOOLEAN DEFAULT true,
   stock_level VARCHAR(30) DEFAULT 'IN_STOCK',
   image_url TEXT,
+  images JSONB DEFAULT '[]'::jsonb,
   product_url TEXT,
   source_domain TEXT NOT NULL,
+  description TEXT,
+  seller JSONB DEFAULT '{}'::jsonb,
+  seller_name TEXT,
+  seller_phone TEXT,
+  seller_email TEXT,
+  seller_wilaya TEXT,
+  item_type VARCHAR(30) DEFAULT 'annonce',
+  is_official_store BOOLEAN DEFAULT false,
+  is_sponsored BOOLEAN DEFAULT false,
+  published_date TEXT,
+  price_type VARCHAR(20) DEFAULT 'Fixe',
+  delivery_available BOOLEAN DEFAULT true,
   price_history JSONB DEFAULT '[]'::jsonb,
   specs JSONB DEFAULT '{}'::jsonb,
-  ai_confidence NUMERIC(5, 2) DEFAULT 95.0,
+  ai_confidence NUMERIC(5, 2) DEFAULT 98.0,
   matrix_hash TEXT,
   scraped_at TIMESTAMPTZ DEFAULT NOW(),
   last_updated TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Mise à niveau automatique non-destructive pour tables déjà créées
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS seller JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS seller_name TEXT;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS seller_phone TEXT;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS seller_email TEXT;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS seller_wilaya TEXT;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS item_type VARCHAR(30) DEFAULT 'annonce';
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS is_official_store BOOLEAN DEFAULT false;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS is_sponsored BOOLEAN DEFAULT false;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS published_date TEXT;
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS price_type VARCHAR(20) DEFAULT 'Fixe';
+ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS delivery_available BOOLEAN DEFAULT true;
 
 -- Index pour recherche instantanée, tris sans timeout et analytics de prix
 CREATE INDEX IF NOT EXISTS idx_${tableName}_id ON public.${tableName}(id);
@@ -1359,6 +1430,9 @@ CREATE INDEX IF NOT EXISTS idx_${tableName}_category ON public.${tableName}(cate
 CREATE INDEX IF NOT EXISTS idx_${tableName}_source ON public.${tableName}(source_domain);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_price ON public.${tableName}(current_price);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_discount ON public.${tableName}(discount_percent DESC);
+CREATE INDEX IF NOT EXISTS idx_${tableName}_seller_phone ON public.${tableName}(seller_phone);
+CREATE INDEX IF NOT EXISTS idx_${tableName}_seller_name ON public.${tableName}(seller_name);
+CREATE INDEX IF NOT EXISTS idx_${tableName}_item_type ON public.${tableName}(item_type);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_scraped_at ON public.${tableName}(scraped_at DESC);
 CREATE INDEX IF NOT EXISTS idx_${tableName}_last_updated ON public.${tableName}(last_updated DESC);
 

@@ -5,6 +5,7 @@
  */
 
 export interface ScrapedRawItem {
+  id?: string;
   title: string;
   brand?: string;
   category: string;
@@ -17,7 +18,10 @@ export interface ScrapedRawItem {
   inStock: boolean;
   stockLevel: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
   imageUrl: string;
+  images?: string[];
   productUrl: string;
+  description?: string;
+  publishedDate?: string;
   specs?: Record<string, string>;
 }
 

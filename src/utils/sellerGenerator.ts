@@ -300,19 +300,6 @@ export function generateGalleryImages(primaryImage: string, seed: number): strin
  */
 export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
   if (product.seller) {
-    const seed = hashString(product.id || product.title);
-    if (!product.seller.phone2) {
-      const seed2 = seed * 13 + 37;
-      const phoneData2 = generateAlgerianPhone(seed2);
-      product.seller.phone2 = phoneData2.formatted;
-      product.seller.phone2Clean = phoneData2.clean;
-      product.seller.operator2 = phoneData2.operator === product.seller.operator
-        ? (product.seller.operator === 'Mobilis' ? 'Djezzy' : product.seller.operator === 'Djezzy' ? 'Ooredoo' : 'Mobilis')
-        : phoneData2.operator;
-    }
-    if (!product.seller.email) {
-      product.seller.email = generateSellerEmail(product.seller.name, product.seller.type, seed);
-    }
     if (!product.productUrl || (product.sourceDomain.includes('ouedkniss') && !product.productUrl.includes('keywords='))) {
       product.productUrl = getOuedknissOriginUrl(product);
     }

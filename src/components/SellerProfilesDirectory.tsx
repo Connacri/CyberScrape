@@ -42,7 +42,6 @@ import {
   buildTelLink2,
   buildWhatsAppLink,
   buildMailtoLink,
-  generateSellerEmail,
 } from '../utils/sellerGenerator';
 import { matchCategory } from '../utils/categoryMatcher';
 import { cyberAudio } from '../utils/cyberAudio';
@@ -128,13 +127,10 @@ export const SellerProfilesDirectory: React.FC<SellerProfilesDirectoryProps> = (
       const nameKey = (seller.name || '').toLowerCase().trim().replace(/\s+/g, '_');
       const wilayaKey = (seller.wilaya || '').toLowerCase().trim();
       const dedupKey = cleanPhone ? `phone_${cleanPhone}` : `name_${nameKey}_${wilayaKey}`;
-
       const existing = map.get(dedupKey);
 
-      // Ensure valid email
-      const safeEmail =
-        seller.email ||
-        generateSellerEmail(seller.name, seller.type, cleanPhone.length || seller.name.length);
+      // Real email only - left empty if not provided by seller
+      const safeEmail = seller.email || '';
 
       if (!existing) {
         map.set(dedupKey, {
@@ -899,38 +895,45 @@ END:VCARD`;
                 {/* Contact Coordinates Box: Primary Phone, Secondary Phone, and Email */}
                 <div className="p-3 rounded-xl bg-black/60 border border-slate-800/80 space-y-2 text-xs font-mono min-w-0 overflow-hidden">
                   {/* Primary Phone */}
-                  <div className="flex items-center justify-between gap-2 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0 truncate">
-                      <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="text-slate-400 text-[11px] shrink-0">Tél 1 :</span>
-                      <strong className="text-white font-mono tracking-wide truncate">{seller.phone}</strong>
-                      {seller.operator && (
-                        <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
-                            seller.operator === 'Mobilis'
-                              ? 'bg-[#00a651]/20 text-[#00ff88] border border-[#00a651]/50'
-                              : seller.operator === 'Djezzy'
-                              ? 'bg-[#e20613]/20 text-rose-300 border border-[#e20613]/50'
-                              : 'bg-[#ed1c24]/20 text-red-300 border border-[#ed1c24]/50'
-                          }`}
-                        >
-                          {seller.operator}
-                        </span>
-                      )}
+                  {seller.phone ? (
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 truncate">
+                        <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="text-slate-400 text-[11px] shrink-0">Tél 1 :</span>
+                        <strong className="text-white font-mono tracking-wide truncate">{seller.phone}</strong>
+                        {seller.operator && (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded font-bold shrink-0 ${
+                              seller.operator === 'Mobilis'
+                                ? 'bg-[#00a651]/20 text-[#00ff88] border border-[#00a651]/50'
+                                : seller.operator === 'Djezzy'
+                                ? 'bg-[#e20613]/20 text-rose-300 border border-[#e20613]/50'
+                                : 'bg-[#ed1c24]/20 text-red-300 border border-[#ed1c24]/50'
+                            }`}
+                          >
+                            {seller.operator}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyItem(seller.phoneClean, `phone_${seller.id}`)}
+                        className="text-slate-400 hover:text-emerald-400 p-1 shrink-0 cursor-pointer"
+                        title="Copier le numéro"
+                      >
+                        {copiedId === `phone_${seller.id}` ? (
+                          <Check className="w-3 h-3 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyItem(seller.phoneClean, `phone_${seller.id}`)}
-                      className="text-slate-400 hover:text-emerald-400 p-1 shrink-0 cursor-pointer"
-                      title="Copier le numéro"
-                    >
-                      {copiedId === `phone_${seller.id}` ? (
-                        <Check className="w-3 h-3 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-slate-500 text-[11px] italic">
+                      <Phone className="w-3.5 h-3.5 opacity-50 shrink-0" />
+                      <span>Tél non communiqué sur Ouedkniss</span>
+                    </div>
+                  )}
 
                   {/* Secondary Phone if available */}
                   {seller.phone2 && (
@@ -961,25 +964,32 @@ END:VCARD`;
                   )}
 
                   {/* Direct Email Address */}
-                  <div className="flex items-center justify-between gap-2 min-w-0 pt-1.5 border-t border-slate-900">
-                    <div className="flex items-center gap-2 min-w-0 truncate">
-                      <Mail className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                      <span className="text-slate-400 text-[11px] shrink-0">Email :</span>
-                      <span className="text-purple-300 font-mono truncate text-[11px]">{seller.email}</span>
+                  {seller.email ? (
+                    <div className="flex items-center justify-between gap-2 min-w-0 pt-1.5 border-t border-slate-900">
+                      <div className="flex items-center gap-2 min-w-0 truncate">
+                        <Mail className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                        <span className="text-slate-400 text-[11px] shrink-0">Email :</span>
+                        <span className="text-purple-300 font-mono truncate text-[11px]">{seller.email}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyItem(seller.email, `mail_${seller.id}`)}
+                        className="text-slate-400 hover:text-purple-400 p-1 shrink-0 cursor-pointer"
+                        title="Copier l'adresse email"
+                      >
+                        {copiedId === `mail_${seller.id}` ? (
+                          <Check className="w-3 h-3 text-purple-400" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyItem(seller.email, `mail_${seller.id}`)}
-                      className="text-slate-400 hover:text-purple-400 p-1 shrink-0 cursor-pointer"
-                      title="Copier l'adresse email"
-                    >
-                      {copiedId === `mail_${seller.id}` ? (
-                        <Check className="w-3 h-3 text-purple-400" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-slate-500 text-[11px] italic pt-1.5 border-t border-slate-900">
+                      <Mail className="w-3.5 h-3.5 opacity-40 shrink-0" />
+                      <span>Email non renseigné</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Categories tags for this seller */}
@@ -1003,37 +1013,64 @@ END:VCARD`;
                 <div className="space-y-1.5 pt-2 border-t border-slate-900">
                   {/* Primary 1-Click Dial Button */}
                   <div className="grid grid-cols-2 gap-1.5">
-                    <a
-                      href={telUri}
-                      className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00ff66] text-slate-950 font-mono font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(0,255,102,0.25)] hover:brightness-110 active:scale-95 transition-all cursor-pointer min-h-[40px] truncate"
-                      title={`Appeler directement ${seller.name} : ${seller.phone}`}
-                    >
-                      <PhoneCall className="w-3.5 h-3.5 text-slate-950 shrink-0" />
-                      <span className="truncate">Appel Tél 1</span>
-                    </a>
+                    {seller.phoneClean ? (
+                      <a
+                        href={telUri}
+                        className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00ff88] text-slate-950 font-mono font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(0,255,102,0.25)] hover:brightness-110 active:scale-95 transition-all cursor-pointer min-h-[40px] truncate"
+                        title={`Appeler directement ${seller.name} : ${seller.phone}`}
+                      >
+                        <PhoneCall className="w-3.5 h-3.5 text-slate-950 shrink-0" />
+                        <span className="truncate">Appel Direct</span>
+                      </a>
+                    ) : (
+                      <div className="py-2 px-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 font-mono text-[11px] flex items-center justify-center gap-1.5 min-h-[40px] opacity-70">
+                        <Phone className="w-3.5 h-3.5 shrink-0" />
+                        <span>Sans N° Tél</span>
+                      </div>
+                    )}
 
-                    <a
-                      href={waUri}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2 px-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-mono font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[40px] truncate"
-                      title="Contacter sur WhatsApp"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">WhatsApp</span>
-                    </a>
+                    {seller.whatsappClean ? (
+                      <a
+                        href={waUri}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2 px-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-mono font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[40px] truncate"
+                        title="Contacter sur WhatsApp"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">WhatsApp</span>
+                      </a>
+                    ) : (
+                      <a
+                        href={seller.products[0]?.productUrl || 'https://www.ouedkniss.com'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[40px] truncate"
+                        title="Ouvrir l'annonce sur Ouedkniss"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="truncate">Voir Annonce</span>
+                      </a>
+                    )}
                   </div>
 
                   {/* Secondary Actions: Email Direct, Secondary Phone & Full vCard */}
                   <div className="grid grid-cols-3 gap-1.5">
-                    <a
-                      href={mailtoUri}
-                      className="py-1.5 px-2 rounded-lg bg-purple-950/50 hover:bg-purple-900/60 border border-purple-500/40 text-purple-300 font-mono text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer truncate min-h-[36px]"
-                      title={`Envoyer un email à ${seller.email}`}
-                    >
-                      <Mail className="w-3 h-3 text-purple-400 shrink-0" />
-                      <span className="truncate">Email</span>
-                    </a>
+                    {seller.email ? (
+                      <a
+                        href={mailtoUri}
+                        className="py-1.5 px-2 rounded-lg bg-purple-950/50 hover:bg-purple-900/60 border border-purple-500/40 text-purple-300 font-mono text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer truncate min-h-[36px]"
+                        title={`Envoyer un email à ${seller.email}`}
+                      >
+                        <Mail className="w-3 h-3 text-purple-400 shrink-0" />
+                        <span className="truncate">Email</span>
+                      </a>
+                    ) : (
+                      <div className="py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-600 font-mono text-[11px] flex items-center justify-center gap-1 min-h-[36px]">
+                        <Mail className="w-3 h-3 opacity-40 shrink-0" />
+                        <span className="truncate">Pas d'email</span>
+                      </div>
+                    )}
 
                     {tel2Uri ? (
                       <a

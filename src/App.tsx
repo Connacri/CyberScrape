@@ -71,7 +71,6 @@ import { CategoryDistributionPieChart } from './components/CategoryDistributionP
 import { AnimatedAspirationCounter, toSafeNonNegativeInt } from './components/AnimatedAspirationCounter';
 import { MasterQuantumScraperDeck } from './components/MasterQuantumScraperDeck';
 import { isOfficialStoreProduct } from './utils/sellerGenerator';
-import { INITIAL_DEMO_PRODUCTS } from './data/initialDemoProducts';
 import { matchCategory, matchSearchQuery } from './utils/categoryMatcher';
 import {
   executeScrapeRequest,
@@ -486,6 +485,7 @@ export default function App() {
   }, [supabaseConfig.url, supabaseConfig.anonKey, supabaseConfig.tableName, temuRefreshTrigger]);
 
   // Products State with full persistence strategy from IndexedDB & LocalStorage
+  // Démarrage avec les bases de données strictement vides (zéro produit factice, zéro contact factice)
   const [products, setProducts] = useState<ScrapedProduct[]>(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -496,41 +496,31 @@ export default function App() {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            const realOnly = parsed.filter(
+              (p) => !p.id.startsWith('prod_ouedkniss_clio4gt') && !p.id.startsWith('prod_ouedkniss_golf8rline') && !p.matrixHash?.startsWith('0x0UED_')
+            );
+            return realOnly;
           }
         }
       }
     } catch (err) {
       console.warn('Failed to parse products from localStorage on initial load:', err);
     }
-    const cached = getStoredProducts();
-    if (cached && cached.length > 0) {
-      return cached;
-    }
-    const hasCustomData =
-      typeof localStorage !== 'undefined' &&
-      localStorage.getItem('cyber_vacuum_has_custom_data') === 'true';
-    if (hasCustomData) {
-      return []; // Patiently await IndexedDB hydration rather than overwriting with seed
-    }
-    // Si premier lancement après installation APK sans données préalables, charger le seed officiel Ouedkniss
-    return INITIAL_DEMO_PRODUCTS;
+    return [];
   });
 
-  // Hydrate full real dataset from IndexedDB on startup
+  // Hydrate full real dataset from IndexedDB on startup (uniquement de réelles annonces aspirées, zéro seed factice)
   useEffect(() => {
     loadStoredProductsFromIndexedDB().then((stored) => {
-      const hasCustomData =
-        typeof localStorage !== 'undefined' &&
-        localStorage.getItem('cyber_vacuum_has_custom_data') === 'true';
-
       if (stored && stored.length > 0) {
-        setProducts(stored);
-        setLiveAspiratedCount(stored.length);
-      } else if (!hasCustomData) {
-        // Premier lancement absolu : persister le catalogue initial dans IndexedDB locale
-        saveStoredProducts(INITIAL_DEMO_PRODUCTS, true);
-        setLiveAspiratedCount(INITIAL_DEMO_PRODUCTS.length);
+        const cleanRealOnly = stored.filter(
+          (p) => !p.id.startsWith('prod_ouedkniss_clio4gt') && !p.id.startsWith('prod_ouedkniss_golf8rline') && !p.matrixHash?.startsWith('0x0UED_')
+        );
+        setProducts(cleanRealOnly);
+        setLiveAspiratedCount(cleanRealOnly.length);
+      } else {
+        setProducts([]);
+        setLiveAspiratedCount(0);
       }
       isDbHydrated.current = true;
     });
@@ -564,19 +554,10 @@ export default function App() {
     return products.filter((p) => isOfficialStoreProduct(p)).length;
   }, [products]);
 
-  // Valeurs calculées sécurisées du compteur Live de la Topbar
+  // Valeur calculée sécurisée du compteur Live : reflète STRICTEMENT le nombre réel d'articles aspirés
   const topBarLiveCount = useMemo(() => {
-    return supabaseConfig.url && supabaseConfig.anonKey
-      ? Math.max(
-          toSafeNonNegativeInt(supabaseTotalCount) + (products?.length || 0),
-          toSafeNonNegativeInt(liveAspiratedCount),
-          products?.length || 0
-        )
-      : Math.max(
-          toSafeNonNegativeInt(liveAspiratedCount),
-          products?.length || 0
-        );
-  }, [supabaseConfig.url, supabaseConfig.anonKey, supabaseTotalCount, liveAspiratedCount, products?.length]);
+    return Math.max(0, toSafeNonNegativeInt(products?.length || 0));
+  }, [products?.length]);
 
   const topBarLiveLabel = useMemo(() => {
     return supabaseConfig.url && supabaseConfig.anonKey && products.length === 0 && supabaseTotalCount > 0
@@ -2058,20 +2039,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* ZONE 2: ANIMATED ASPIRATION COUNTER IN TOPBAR (Grand écran: visible en ligne avec la nav) */}
-          <div className="hidden md:flex items-center shrink-0">
-            <AnimatedAspirationCounter
-              count={topBarLiveCount}
-              label={topBarLiveLabel}
-              unit={topBarLiveUnit}
-              isLiveScraping={isContinuousScraping || job.status === 'aspirating' || job.status === 'scanning'}
-              onClick={() => {
-                handleSelectTab('catalog');
-                cyberAudio.playTabSwitch();
-              }}
-            />
-          </div>
-
           {/* Zone 3: Navigation Switcher Tabs (Visible from md: upwards for responsive tablet/desktop access) */}
           <nav className="hidden md:flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs">
             <button
@@ -2222,11 +2189,11 @@ export default function App() {
           </div>
         </div>
 
-        {/* Row 1.5: DEDICATED MOBILE COUNTER LINE (Compteur seul dans une ligne dédiée dans la topbar - ergonomie mobile maximale) */}
-        <div className="md:hidden w-full border-t border-emerald-500/20 bg-slate-950/98 px-2.5 py-1.5 flex items-center justify-center shadow-inner">
-          <div className="w-full flex items-center justify-center">
+        {/* ROW 2: DEDICATED COUNTER LINE UNDER MENUS (LIGNE SEULE SOUS LES MENUS - 100% RESPONSIVE) */}
+        <div className="w-full border-t border-emerald-500/25 bg-slate-950/98 px-3 sm:px-6 py-2 flex items-center justify-between gap-3 shadow-inner">
+          <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
             <AnimatedAspirationCounter
-              count={topBarLiveCount}
+              count={products.length}
               label={topBarLiveLabel}
               unit={topBarLiveUnit}
               isLiveScraping={isContinuousScraping || job.status === 'aspirating' || job.status === 'scanning'}
@@ -2234,9 +2201,39 @@ export default function App() {
                 handleSelectTab('catalog');
                 cyberAudio.playTabSwitch();
               }}
-              className="w-full max-w-sm justify-between shadow-[0_0_15px_rgba(0,255,102,0.18)] cursor-pointer"
+              size="md"
               showCatalogBadge={true}
+              className="cursor-pointer shadow-[0_0_15px_rgba(0,255,102,0.18)]"
             />
+
+            {/* Ouedkniss Live Data Status Badges */}
+            <div className="hidden sm:flex items-center gap-2 font-mono text-xs text-slate-400">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[#00ff88] font-bold">
+                <span className="w-2 h-2 rounded-full bg-[#00ff66] animate-pulse" />
+                Données Réelles Ouedkniss.com
+              </span>
+              <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+                • <span className="text-emerald-400 font-bold">{products.filter((p) => isOfficialStoreProduct(p)).length}</span> Boutiques
+                • <span className="text-orange-400 font-bold">{products.filter((p) => p.discountPercent > 0).length}</span> Promos
+                • <span className="text-purple-400 font-bold">{products.filter((p) => p.seller?.phone).length}</span> Tél Directs
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 font-mono text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                handleSelectTab('catalog');
+                cyberAudio.playClick();
+              }}
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-emerald-500/30 hover:border-emerald-400 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 font-bold cursor-pointer"
+              title="Ouvrir le Catalogue complet"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden xs:inline">Catalogue</span>
+              <span className="text-[10px] text-emerald-400 font-mono">({products.length})</span>
+            </button>
           </div>
         </div>
 
