@@ -122,37 +122,37 @@ import {
   Users,
 } from 'lucide-react';
 
-// Preset E-Commerce Target URLs
+// Preset E-Commerce Target URLs (Ouedkniss Algérie Marketplace)
 const PRESET_URLS = [
   {
-    name: '🇩🇿 Ouedkniss Téléphones',
+    name: '🇩🇿 Téléphones & Smartphones',
     url: 'https://www.ouedkniss.com/telephones',
-    badge: 'Algérie Marketplace',
+    badge: 'Mobile & Tech DZ',
   },
   {
-    name: '🇩🇿 Ouedkniss Informatique',
+    name: '🇩🇿 Informatique & Laptops',
     url: 'https://www.ouedkniss.com/informatique',
-    badge: 'Laptops & Gaming',
+    badge: 'PC & Gaming DZ',
   },
   {
-    name: 'Apple Store',
-    url: 'https://www.apple.com/fr/shop/buy-iphone',
-    badge: 'Flagship Tech',
+    name: '🇩🇿 Véhicules & Automobiles',
+    url: 'https://www.ouedkniss.com/automobiles',
+    badge: 'Voitures DZ',
   },
   {
-    name: 'Amazon High-Tech',
-    url: 'https://www.amazon.fr/s?k=ordinateur+portable+gaming',
-    badge: 'Marketplace',
+    name: '🇩🇿 Électroménager',
+    url: 'https://www.ouedkniss.com/electromenager',
+    badge: 'Maison & Équipement',
   },
   {
-    name: 'Nike Boutique',
-    url: 'https://www.nike.com/fr/w/hommes-chaussures-nik1',
-    badge: 'Sneakers & Sport',
+    name: '🇩🇿 Immobilier',
+    url: 'https://www.ouedkniss.com/immobilier',
+    badge: 'Vente & Location',
   },
   {
-    name: 'Fnac Informatique',
-    url: 'https://www.fnac.com/SearchResult/ResultList.aspx?Search=ps5+pro',
-    badge: 'Gaming & Multimédia',
+    name: '🇩🇿 Vêtements & Mode',
+    url: 'https://www.ouedkniss.com/vetements-mode',
+    badge: 'Mode & Sneakers DZ',
   },
 ];
 

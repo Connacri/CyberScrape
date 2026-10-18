@@ -1907,23 +1907,31 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                               )}
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <a
-                                href={tel}
-                                className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                                title={`Appeler directement : ${seller.phone}`}
-                              >
-                                <PhoneCall className="w-2.5 h-2.5 text-emerald-400" />
-                                <span>{seller.phone}</span>
-                              </a>
-                              <a
-                                href={wa}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1 rounded bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 text-[10px] cursor-pointer transition-colors"
-                                title="Contacter sur WhatsApp"
-                              >
-                                <MessageCircle className="w-3 h-3" />
-                              </a>
+                              {seller.phone ? (
+                                <a
+                                  href={tel}
+                                  className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                  title={`Appeler directement : ${seller.phone}`}
+                                >
+                                  <PhoneCall className="w-2.5 h-2.5 text-emerald-400" />
+                                  <span>{seller.phone}</span>
+                                </a>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 font-mono italic">
+                                  Pas de tél
+                                </span>
+                              )}
+                              {(seller.whatsappClean || seller.phone) && wa !== '#' ? (
+                                <a
+                                  href={wa}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1 rounded bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 text-[10px] cursor-pointer transition-colors"
+                                  title="Contacter sur WhatsApp"
+                                >
+                                  <MessageCircle className="w-3 h-3" />
+                                </a>
+                              ) : null}
                             </div>
                           </div>
                         </td>
@@ -2305,27 +2313,53 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
         {/* Card Action Buttons with 1-Click Call, 1-Click WhatsApp, Direct Details on dedicated lines */}
         <div className="space-y-2 pt-2.5 border-t border-slate-900 font-mono text-xs" onClick={(e) => e.stopPropagation()}>
           {/* Ligne 1: 1-CLICK CALL BUTTON - DÉDIÉ SEUL SUR SA LIGNE */}
-          <a
-            href={tel}
-            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,255,102,0.25)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer min-h-[42px] min-w-0 overflow-hidden"
-            title={`Appeler directement le vendeur : ${seller.phone}`}
-          >
-            <PhoneCall className="w-4 h-4 text-slate-950 animate-pulse shrink-0" />
-            <span className="truncate">Appel Direct : {seller.phone}</span>
-          </a>
+          {seller.phone ? (
+            <a
+              href={tel}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00ff66] to-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,255,102,0.25)] hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer min-h-[42px] min-w-0 overflow-hidden"
+              title={`Appeler directement le vendeur : ${seller.phone}`}
+            >
+              <PhoneCall className="w-4 h-4 text-slate-950 animate-pulse shrink-0" />
+              <span className="truncate">Appel Direct : {seller.phone}</span>
+            </a>
+          ) : (
+            <a
+              href={originUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2.5 px-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-emerald-500/50 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer min-h-[42px] min-w-0 overflow-hidden"
+              title="Consulter l'annonce originale sur Ouedkniss"
+            >
+              <ExternalLink className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="truncate">Voir l'annonce Ouedkniss</span>
+            </a>
+          )}
 
           {/* Ligne 2: Messaging Bar (WhatsApp + Email ou Lien Direct) - 2 Colonnes Parfaitement Équilibrées */}
           <div className="grid grid-cols-2 gap-1.5 min-w-0">
-            <a
-              href={wa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-2 px-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer min-w-0 min-h-[38px] shadow-sm hover:brightness-105"
-              title="Contacter sur WhatsApp en 1 clic"
-            >
-              <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">WhatsApp</span>
-            </a>
+            {(seller.whatsappClean || seller.phone) && wa !== '#' ? (
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2 px-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer min-w-0 min-h-[38px] shadow-sm hover:brightness-105"
+                title="Contacter sur WhatsApp en 1 clic"
+              >
+                <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">WhatsApp</span>
+              </a>
+            ) : (
+              <a
+                href={originUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2 px-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer min-w-0 min-h-[38px]"
+                title="Ouvrir sur Ouedkniss"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">Ouedkniss</span>
+              </a>
+            )}
 
             {seller.email ? (
               <a
@@ -2337,16 +2371,15 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
                 <span className="truncate">Email Direct</span>
               </a>
             ) : (
-              <a
-                href={originUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => setSelectedDetailProduct(det)}
                 className="py-2 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/50 text-slate-200 hover:text-white flex items-center justify-center gap-1.5 text-xs font-bold transition-colors cursor-pointer min-w-0 min-h-[38px]"
-                title="Ouvrir directement sur Ouedkniss.com sans 404"
+                title="Consulter la fiche détaillée"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="truncate">Ouedkniss</span>
-              </a>
+                <Eye className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">Fiche</span>
+              </button>
             )}
           </div>
 
@@ -2549,24 +2582,28 @@ export const ProductCatalogGrid: React.FC<ProductCatalogGridProps> = ({
 
           {/* Action buttons */}
           <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs w-full sm:w-auto">
-            <a
-              href={tel}
-              className="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
-              title={`Appeler directement : ${seller.phone}`}
-            >
-              <PhoneCall className="w-3 h-3 text-slate-950 animate-pulse" />
-              <span>{seller.phone}</span>
-            </a>
+            {seller.phone ? (
+              <a
+                href={tel}
+                className="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                title={`Appeler directement : ${seller.phone}`}
+              >
+                <PhoneCall className="w-3 h-3 text-slate-950 animate-pulse" />
+                <span>{seller.phone}</span>
+              </a>
+            ) : null}
 
-            <a
-              href={wa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2.5 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
-              title="Contacter sur WhatsApp"
-            >
-              <MessageCircle className="w-3 h-3" /> WhatsApp
-            </a>
+            {(seller.whatsappClean || seller.phone) && wa !== '#' ? (
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2.5 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+                title="Contacter sur WhatsApp"
+              >
+                <MessageCircle className="w-3 h-3" /> WhatsApp
+              </a>
+            ) : null}
 
             <a
               href={originUrl}

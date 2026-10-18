@@ -7,10 +7,28 @@ import { getOuedknissOriginUrl } from './ouedknissUrls.ts';
  * generateGalleryImages) ont été SUPPRIMÉS : ils fabriquaient des coordonnées. Plus aucune donnée factice.
  */
 
-/** Ne fabrique plus rien : normalise uniquement le lien d'origine si une URL complète manque. */
+/**
+ * Normalise l'annonce sans fabriquer de fausses coordonnées :
+ * - Garantit un objet seller minimal si absent pour éviter les exceptions de rendu UI
+ * - Normalise l'URL Ouedkniss
+ */
 export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
   if (!product.productUrl && product.sourceDomain?.includes('ouedkniss')) {
     product.productUrl = getOuedknissOriginUrl(product);
+  }
+  if (!product.seller) {
+    const wilaya = product.specs?.Wilaya || 'Algérie';
+    const name = product.specs?.Vendeur || product.brand || 'Particulier Ouedkniss';
+    product.seller = {
+      name,
+      type: 'Particulier',
+      phone: '',
+      phoneClean: '',
+      whatsappClean: '',
+      email: '',
+      wilaya,
+      verified: false,
+    };
   }
   return product;
 }
@@ -18,18 +36,24 @@ export function ensureProductDetails(product: ScrapedProduct): ScrapedProduct {
 /**
  * Builds direct WhatsApp URL with pre-filled message
  */
-export function buildWhatsAppLink(seller: SellerInfo, product: ScrapedProduct): string {
+export function buildWhatsAppLink(seller?: SellerInfo, product?: ScrapedProduct): string {
+  if (!seller) return '#';
   const cleanNumber = (seller.whatsappClean || seller.phoneClean || '').replace(/[^0-9]/g, '');
-  const priceFormatted = new Intl.NumberFormat('fr-DZ').format(product.currentPrice);
-  const message = `Salem Alikoum, je vous contacte depuis Ouedkniss concernant votre annonce : "${product.title}" affichée à ${priceFormatted} ${product.currency}. Est-elle toujours disponible ?`;
+  if (!cleanNumber) return '#';
+  const priceFormatted = product ? new Intl.NumberFormat('fr-DZ').format(product.currentPrice) : '';
+  const message = product
+    ? `Salem Alikoum, je vous contacte depuis Ouedkniss concernant votre annonce : "${product.title}" affichée à ${priceFormatted} ${product.currency}. Est-elle toujours disponible ?`
+    : `Salem Alikoum, je vous contacte depuis Ouedkniss concernant votre annonce. Est-elle toujours disponible ?`;
   return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
 }
 
 /**
  * Builds direct Tel URI for 1-click calling
  */
-export function buildTelLink(seller: SellerInfo): string {
-  const clean = seller.phoneClean.replace(/[^0-9]/g, '');
+export function buildTelLink(seller?: SellerInfo): string {
+  if (!seller?.phoneClean && !seller?.phone) return '#';
+  const clean = (seller.phoneClean || seller.phone).replace(/[^0-9]/g, '');
+  if (!clean) return '#';
   if (clean.startsWith('0')) {
     return `tel:+213${clean.substring(1)}`;
   }
@@ -42,7 +66,8 @@ export function buildTelLink(seller: SellerInfo): string {
 /**
  * Builds direct Tel URI for 2nd phone number (2ème numéro de téléphone)
  */
-export function buildTelLink2(seller: SellerInfo): string {
+export function buildTelLink2(seller?: SellerInfo): string {
+  if (!seller?.phone2Clean && !seller?.phone2) return buildTelLink(seller);
   const clean = (seller.phone2Clean || seller.phone2 || '').replace(/[^0-9]/g, '');
   if (!clean) return buildTelLink(seller);
   if (clean.startsWith('0')) {
@@ -57,23 +82,28 @@ export function buildTelLink2(seller: SellerInfo): string {
 /**
  * Builds direct SMS URI
  */
-export function buildSmsLink(seller: SellerInfo, product: ScrapedProduct): string {
-  const message = `Bonjour, je suis intéressé par votre annonce Ouedkniss : ${product.title}`;
-  return `sms:${seller.phoneClean}?body=${encodeURIComponent(message)}`;
+export function buildSmsLink(seller?: SellerInfo, product?: ScrapedProduct): string {
+  if (!seller?.phoneClean && !seller?.phone) return '#';
+  const clean = (seller.phoneClean || seller.phone).replace(/[^0-9]/g, '');
+  if (!clean) return '#';
+  const message = product ? `Bonjour, je suis intéressé par votre annonce Ouedkniss : ${product.title}` : `Bonjour, je suis intéressé par votre annonce Ouedkniss.`;
+  return `sms:${clean}?body=${encodeURIComponent(message)}`;
 }
 
 /**
  * Builds direct Mailto URI with pre-filled subject and message
  */
-export function buildMailtoLink(seller: SellerInfo, product?: ScrapedProduct): string {
-  const email = seller.email || '';
+export function buildMailtoLink(seller?: SellerInfo, product?: ScrapedProduct): string {
+  const email = seller?.email || '';
+  if (!email) return '#';
+  const sellerName = seller?.name || 'Vendeur';
   const subject = product
     ? `Demande d'information - Annonce Ouedkniss : ${product.title}`
-    : `Contact vendeur Ouedkniss : ${seller.name}`;
+    : `Contact vendeur Ouedkniss : ${sellerName}`;
   const priceText = product ? `${new Intl.NumberFormat('fr-DZ').format(product.currentPrice)} ${product.currency}` : '';
   const body = product
-    ? `Salem Alikoum / Bonjour ${seller.name},\n\nJe vous contacte concernant votre annonce Ouedkniss :\n"${product.title}" (${priceText}).\n\nL'article est-il toujours disponible ?\n\nMerci d'avance pour votre réponse.\nCordialement,`
-    : `Salem Alikoum / Bonjour ${seller.name},\n\nJe vous contacte depuis la plateforme Ouedkniss concernant vos annonces en ligne.\n\nCordialement,`;
+    ? `Salem Alikoum / Bonjour ${sellerName},\n\nJe vous contacte concernant votre annonce Ouedkniss :\n"${product.title}" (${priceText}).\n\nL'article est-il toujours disponible ?\n\nMerci d'avance pour votre réponse.\nCordialement,`
+    : `Salem Alikoum / Bonjour ${sellerName},\n\nJe vous contacte depuis la plateforme Ouedkniss concernant vos annonces en ligne.\n\nCordialement,`;
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
