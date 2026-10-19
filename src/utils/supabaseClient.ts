@@ -448,29 +448,34 @@ export async function saveScrapedProductsBatch(newBatch: ScrapedProduct[]): Prom
   });
 }
 
-export function clearStoredProducts() {
+export async function clearStoredProducts(): Promise<void> {
   latestProductsRef = [];
   try {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY_PRODUCTS);
       localStorage.removeItem('products');
+      localStorage.removeItem('cyber_vacuum_products_cache');
+      localStorage.removeItem('cyber_vacuum_products_store');
+      localStorage.removeItem('cyber_vacuum_contacts');
       localStorage.setItem('cyber_vacuum_total_count', '0');
     }
   } catch {
     // ignore
   }
 
-  openIndexedDb().then((db) => {
-    if (!db) return;
+  const db = await openIndexedDb();
+  if (!db) return;
+  return new Promise<void>((resolve) => {
     try {
       const tx = db.transaction(IDB_STORE, 'readwrite');
       const store = tx.objectStore(IDB_STORE);
-      store.clear();
+      const req = store.clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
     } catch {
-      // ignore
+      resolve();
     }
-
-  }).catch(() => {});
+  });
 }
 
 /**
@@ -692,12 +697,47 @@ export async function syncProductsToSupabase(
  * Supprime tous les articles de la table Supabase Cloud
  */
 export async function clearSupabaseTable(
-  _config: SupabaseConfig
+  config: SupabaseConfig,
+  tableName?: string
 ): Promise<{ success: boolean; count?: number; error?: string }> {
-  return {
-    success: false,
-    error: 'Purge cloud désactivée côté navigateur (RLS : écriture réservée au serveur). Utilisez le SQL Editor Supabase (TRUNCATE) si nécessaire.',
-  };
+  const targetTable = tableName || config.tableName || 'scraped_products';
+  try {
+    // 1. Tenter l'appel via l'endpoint serveur /api/supabase/clear (service_role)
+    const base = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string; BASE_URL?: string } }).env;
+    const root = (base?.VITE_API_BASE_URL || base?.BASE_URL || '/').replace(/\/?$/, '/');
+    const res = await fetch(`${root}api/supabase/clear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tableName: targetTable,
+        tableNames: [targetTable, 'seller_contacts'],
+        url: config.url,
+        key: config.anonKey,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        return { success: true };
+      }
+    }
+
+    // 2. Repli direct côté client Supabase (au cas où les policies autorisent le delete)
+    const client = getSupabaseClient(config);
+    if (client) {
+      const { error } = await client
+        .from(targetTable)
+        .delete()
+        .neq('id', '___purged_system_entry___');
+      if (!error) return { success: true };
+      return { success: false, error: error.message };
+    }
+
+    return { success: false, error: 'Impossible de vider Supabase : vérifiez votre configuration.' };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Erreur de purge Supabase' };
+  }
 }
 
 

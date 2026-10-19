@@ -70,6 +70,7 @@ import { CyberNativeSplashScreen } from './components/CyberNativeSplashScreen';
 import { CyberVacuumLogo, CyberVacuumAppIcon } from './components/CyberVacuumLogo';
 import { CategoryDistributionPieChart } from './components/CategoryDistributionPieChart';
 import { AnimatedAspirationCounter, toSafeNonNegativeInt } from './components/AnimatedAspirationCounter';
+import { ClearDatabaseModal } from './components/ClearDatabaseModal';
 import { MasterQuantumScraperDeck } from './components/MasterQuantumScraperDeck';
 import { isOfficialStoreProduct } from './utils/sellerGenerator';
 import { matchCategory, matchSearchQuery } from './utils/categoryMatcher';
@@ -457,6 +458,7 @@ export default function App() {
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(getStoredSupabaseConfig);
   const [supabaseTotalCount, setSupabaseTotalCount] = useState<number>(0);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [isClearDbModalOpen, setIsClearDbModalOpen] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
   const [isSyncingAndClearing, setIsSyncingAndClearing] = useState<boolean>(false);
   const [temuRefreshTrigger, setTemuRefreshTrigger] = useState<number>(0);
@@ -706,26 +708,31 @@ export default function App() {
     addLog(`[PURGE] Suppression de tous les articles en ${currency}. Catalogue 100% purifié.`, 'info');
   };
 
-  // Vider complètement le catalogue (réinitialisation à zéro)
+  // Vider complètement le catalogue et les tables Supabase (réinitialisation à zéro)
   const handleClearAllProducts = () => {
-    if (window.confirm('Voulez-vous vider tous les produits déjà aspirés ?')) {
-      setProducts([]);
-      setLiveAspiratedCount(0);
-      try {
-        localStorage.removeItem('products');
-        localStorage.removeItem('cyber_vacuum_products_cache');
-        localStorage.removeItem('cyber_vacuum_total_count');
-      } catch {}
-      clearStoredProducts();
-      clearSweepCheckpoint();
-      resetCategoryProgress();
-      setSavedCheckpoint(null);
-      lotPageRef.current = {};
-      activeProductIdsRef.current.clear();
-      activeProductUrlsRef.current.clear();
-      cyberAudio.playChirp(450, 0.08);
-      addLog('[PURGE] Catalogue, session et mémoire cache entièrement vidés (0 article).', 'warn', '0xCLEAR');
-    }
+    setIsClearDbModalOpen(true);
+    cyberAudio.playClick();
+  };
+
+  const handleCompleteDbPurge = async () => {
+    setProducts([]);
+    setLiveAspiratedCount(0);
+    try {
+      localStorage.removeItem('products');
+      localStorage.removeItem('cyber_vacuum_products_cache');
+      localStorage.removeItem('cyber_vacuum_products_store');
+      localStorage.removeItem('cyber_vacuum_contacts');
+      localStorage.removeItem('cyber_vacuum_total_count');
+    } catch {}
+    await clearStoredProducts();
+    clearSweepCheckpoint();
+    resetCategoryProgress();
+    setSavedCheckpoint(null);
+    lotPageRef.current = {};
+    activeProductIdsRef.current.clear();
+    activeProductUrlsRef.current.clear();
+    cyberAudio.playComplete();
+    addLog('[PURGE_CONFIRMÉE] Catalogue local et tables Supabase entièrement vidés. Base réinitialisée à 0 article.', 'warn', '0xCLEAR');
   };
 
   // Arrêter manuellement l'aspiration continue (sauvegarde l'avancement pour reprise immédiate)
@@ -2338,6 +2345,19 @@ export default function App() {
               <span className="hidden xs:inline">Catalogue</span>
               <span className="text-[10px] text-emerald-400 font-mono">({products.length})</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsClearDbModalOpen(true);
+                cyberAudio.playClick();
+              }}
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-950/40 border border-rose-500/30 hover:border-rose-400 text-rose-300 hover:text-white transition-all flex items-center gap-1.5 font-bold cursor-pointer"
+              title="Vider la base de données locale & tables Supabase"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden sm:inline">Vider la base</span>
+            </button>
           </div>
         </div>
 
@@ -3694,6 +3714,15 @@ export default function App() {
         isOpen={isTurboModalOpen}
         onClose={() => setIsTurboModalOpen(false)}
         onLogAdd={(msg, type) => addLog(msg, type, '0xTURBO')}
+      />
+
+      {/* Clear Database & Supabase Modal */}
+      <ClearDatabaseModal
+        isOpen={isClearDbModalOpen}
+        onClose={() => setIsClearDbModalOpen(false)}
+        onCleared={handleCompleteDbPurge}
+        supabaseConfig={supabaseConfig}
+        productsCount={products.length}
       />
     </div>
   );

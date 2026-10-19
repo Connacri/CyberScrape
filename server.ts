@@ -165,6 +165,41 @@ app.post('/api/supabase/sync', async (req: Request, res: Response): Promise<void
   }
 });
 
+/**
+ * POST /api/supabase/clear — supprime toutes les données des tables Supabase
+ */
+app.post('/api/supabase/clear', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || (req.body?.url as string);
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || (req.body?.key as string);
+    if (!url || !key) {
+      res.status(400).json({ success: false, error: 'Identifiants Supabase non configurés côté serveur ni fournis.' });
+      return;
+    }
+    const { tableName = 'scraped_products', tableNames } = req.body ?? {};
+    const targets: string[] = Array.isArray(tableNames) && tableNames.length > 0 ? tableNames : [tableName];
+
+    const supabase = createClient(url, key, { auth: { persistSession: false } });
+    const results: Record<string, { success: boolean; error?: string }> = {};
+
+    for (const t of targets) {
+      if (typeof t === 'string' && /^[a-z_][a-z0-9_]{0,62}$/.test(t)) {
+        const { error } = await supabase.from(t).delete().neq('id', '___purged_system_entry___');
+        if (error) {
+          console.warn(`[CLEAR] Erreur suppression sur table ${t}:`, error.message);
+          results[t] = { success: false, error: error.message };
+        } else {
+          results[t] = { success: true };
+        }
+      }
+    }
+
+    res.json({ success: true, results });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : 'Erreur de purge Supabase' });
+  }
+});
+
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
